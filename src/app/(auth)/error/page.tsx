@@ -20,7 +20,7 @@ export default async function AuthError({
         <h1 className="text-xl font-bold text-red-600 mb-2">Akses Ditolak</h1>
         <p className="text-sm text-gray-600">{message}</p>
         <a
-          href="/auth/login"
+          href="/login"
           className="mt-6 inline-block text-sm text-primary hover:underline"
         >
           Kembali ke halaman login

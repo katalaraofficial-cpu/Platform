@@ -21,7 +21,12 @@ export async function getUserContext(): Promise<UserContext> {
 
   const {
     data: { user },
+    error: authError,
   } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("[getUserContext] auth.getUser error:", authError.message);
+  }
 
   if (!user) {
     redirect("/login");
@@ -37,7 +42,7 @@ export async function getUserContext(): Promise<UserContext> {
   };
 
   // Fetch profile with tenant info in a single join
-  const { data: rawProfile } = await supabase
+  const { data: rawProfile, error: profileError } = await supabase
     .from("profiles")
     .select(`
       id,
@@ -51,6 +56,10 @@ export async function getUserContext(): Promise<UserContext> {
     `)
     .eq("id", user.id)
     .single();
+
+  if (profileError) {
+    console.error("[getUserContext] profile query error:", profileError.message, profileError.code);
+  }
 
   const profile = rawProfile as unknown as ProfileWithTenant | null;
 

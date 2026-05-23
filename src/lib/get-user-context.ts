@@ -13,7 +13,7 @@ export interface UserContext {
 
 /**
  * Server-side helper — fetches the authenticated user's profile and tenant.
- * Redirects to /auth/login if not authenticated.
+ * Redirects to /login if not authenticated.
  * Call this at the top of each role-specific layout.
  */
 export async function getUserContext(): Promise<UserContext> {
@@ -24,7 +24,7 @@ export async function getUserContext(): Promise<UserContext> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect("/auth/login");
+    redirect("/login");
   }
 
   // Explicit shape for the join query result
@@ -55,7 +55,7 @@ export async function getUserContext(): Promise<UserContext> {
   const profile = rawProfile as unknown as ProfileWithTenant | null;
 
   if (!profile) {
-    redirect("/auth/error?reason=no_profile");
+    redirect("/error?reason=no_profile");
   }
 
   return {

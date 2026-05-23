@@ -31,7 +31,7 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 // Public routes that do NOT require authentication
-const PUBLIC_PATHS = ["/auth/login", "/auth/error"];
+const PUBLIC_PATHS = ["/", "/login", "/error"];
 
 // ============================================================
 // MIDDLEWARE
@@ -47,9 +47,11 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // ── 2. Allow public paths unconditionally ──────────────────
-  const isPublicPath = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  const isPublicPath = PUBLIC_PATHS.some((p) =>
+    p === "/" ? pathname === "/" : pathname.startsWith(p)
+  );
   if (isPublicPath) {
-    // If already authenticated, redirect to role home instead of showing login
+    // If already authenticated, redirect to role home instead of showing login/landing
     if (user) {
       const profile = await getProfile(supabase, user.id);
       if (profile?.role) {
@@ -63,7 +65,7 @@ export async function middleware(request: NextRequest) {
 
   // ── 3. Unauthenticated user → login ───────────────────────
   if (!user) {
-    const loginUrl = new URL("/auth/login", request.url);
+    const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("redirectTo", pathname);
     return NextResponse.redirect(loginUrl);
   }
@@ -73,7 +75,7 @@ export async function middleware(request: NextRequest) {
 
   // Profile missing (edge case: auth user exists but no profile row)
   if (!profile) {
-    return NextResponse.redirect(new URL("/auth/error?reason=no_profile", request.url));
+    return NextResponse.redirect(new URL("/error?reason=no_profile", request.url));
   }
 
   const userRole = profile.role as UserRole;
@@ -97,7 +99,7 @@ export async function middleware(request: NextRequest) {
   // ── 7. Active tenant check (non-super_admin users) ────────
   if (userRole !== "super_admin" && !profile.tenant_id) {
     return NextResponse.redirect(
-      new URL("/auth/error?reason=no_tenant", request.url)
+      new URL("/error?reason=no_tenant", request.url)
     );
   }
 

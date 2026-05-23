@@ -23,31 +23,31 @@ export default async function OwnerLayout({
   // Some items are always visible; others depend on toggles set by Super Admin.
   const navItems: NavItem[] = [
     // Always visible
-    { label: "Dashboard", href: "/owner/dashboard", icon: LayoutDashboard },
-    { label: "Running Invoice", href: "/owner/invoices", icon: FileText },
+    { label: "Dashboard", href: "/owner/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: "Running Invoice", href: "/owner/invoices", icon: <FileText className="h-4 w-4" /> },
 
     // Toggle: module_ledger — main cash management
     ...(toggles?.module_ledger !== false
-      ? [{ label: "Kas & Keuangan", href: "/owner/kas", icon: Wallet }]
+      ? [{ label: "Kas & Keuangan", href: "/owner/kas", icon: <Wallet className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_customer_history
     ...(toggles?.module_customer_history !== false
-      ? [{ label: "Pelanggan", href: "/owner/customers", icon: Users }]
+      ? [{ label: "Pelanggan", href: "/owner/customers", icon: <Users className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_mechanic_portal — mechanic & debt management
     ...(toggles?.module_mechanic_portal !== false
-      ? [{ label: "Mekanik & Hutang", href: "/owner/mechanics", icon: Wrench }]
+      ? [{ label: "Mekanik & Hutang", href: "/owner/mechanics", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_petty_cash — owner can monitor petty cash
     ...(toggles?.module_petty_cash !== false
-      ? [{ label: "Kas Kecil", href: "/owner/petty-cash", icon: PiggyBank }]
+      ? [{ label: "Kas Kecil", href: "/owner/petty-cash", icon: <PiggyBank className="h-4 w-4" /> }]
       : []),
 
     // Always visible
-    { label: "Pengaturan", href: "/owner/settings", icon: Settings },
+    { label: "Pengaturan", href: "/owner/settings", icon: <Settings className="h-4 w-4" /> },
   ];
 
   return (

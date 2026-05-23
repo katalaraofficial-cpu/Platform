@@ -5,9 +5,9 @@ import { ClipboardList, UploadCloud, BookOpen, LogOut } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Work Order", href: "/mechanic/dashboard", icon: ClipboardList },
-  { label: "Upload Struk", href: "/mechanic/receipts", icon: UploadCloud },
-  { label: "Piutang Saya", href: "/mechanic/debts", icon: BookOpen },
+  { label: "Work Order", href: "/mechanic/dashboard", icon: <ClipboardList className="h-5 w-5" /> },
+  { label: "Upload Struk", href: "/mechanic/receipts", icon: <UploadCloud className="h-5 w-5" /> },
+  { label: "Piutang Saya", href: "/mechanic/debts", icon: <BookOpen className="h-5 w-5" /> },
 ];
 
 export default async function MechanicLayout({

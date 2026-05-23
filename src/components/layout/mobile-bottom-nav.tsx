@@ -16,7 +16,6 @@ export function MobileBottomNav({ navItems }: MobileBottomNavProps) {
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white">
       <ul className="flex h-16 items-center justify-around">
         {navItems.map((item) => {
-          const Icon = item.icon;
           const isActive =
             pathname === item.href || pathname.startsWith(item.href + "/");
 
@@ -29,12 +28,9 @@ export function MobileBottomNav({ navItems }: MobileBottomNavProps) {
                   isActive ? "text-primary" : "text-gray-400 hover:text-gray-600"
                 )}
               >
-                <Icon
-                  className={cn(
-                    "h-5 w-5",
-                    isActive ? "text-primary" : "text-gray-400"
-                  )}
-                />
+                <span className={cn(isActive ? "text-primary" : "text-gray-400")}>
+                  {item.icon}
+                </span>
                 <span>{item.label}</span>
               </Link>
             </li>

@@ -51,7 +51,6 @@ export function Sidebar({
       <nav className="flex-1 overflow-y-auto px-3 py-4">
         <ul className="space-y-1">
           {navItems.map((item) => {
-            const Icon = item.icon;
             // Active if exact match, or current path starts with item href
             const isActive =
               pathname === item.href || pathname.startsWith(item.href + "/");
@@ -67,12 +66,14 @@ export function Sidebar({
                       : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   )}
                 >
-                  <Icon
+                  <span
                     className={cn(
-                      "h-4 w-4 flex-shrink-0",
+                      "flex-shrink-0",
                       isActive ? "" : "text-gray-400 group-hover:text-gray-600"
                     )}
-                  />
+                  >
+                    {item.icon}
+                  </span>
                   <span className="flex-1 truncate">{item.label}</span>
                   {isActive && (
                     <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 opacity-60" />

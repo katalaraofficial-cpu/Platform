@@ -9,9 +9,9 @@ import {
 import type { NavItem } from "@/components/layout/types";
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", href: "/super-admin/dashboard", icon: LayoutDashboard },
-  { label: "Kelola Tenant", href: "/super-admin/tenants", icon: Building2 },
-  { label: "Pengaturan Platform", href: "/super-admin/settings", icon: Settings },
+  { label: "Dashboard", href: "/super-admin/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+  { label: "Kelola Tenant", href: "/super-admin/tenants", icon: <Building2 className="h-4 w-4" /> },
+  { label: "Pengaturan Platform", href: "/super-admin/settings", icon: <Settings className="h-4 w-4" /> },
 ];
 
 export default async function SuperAdminLayout({
@@ -19,29 +19,7 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  let ctx;
-  try {
-    ctx = await getUserContext();
-  } catch (e: unknown) {
-    // Re-throw redirect signals so Next.js handles them
-    if (
-      e instanceof Error &&
-      ((e as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT") ||
-        (e as Error).message === "NEXT_REDIRECT")
-    ) {
-      throw e;
-    }
-    // Show actual error for debugging
-    const msg = e instanceof Error ? e.stack ?? e.message : String(e);
-    return (
-      <div style={{ padding: "32px", fontFamily: "monospace" }}>
-        <h1 style={{ color: "red" }}>SuperAdminLayout Error</h1>
-        <pre style={{ background: "#f3f4f6", padding: "16px", borderRadius: "8px", whiteSpace: "pre-wrap", fontSize: "13px" }}>
-          {msg}
-        </pre>
-      </div>
-    );
-  }
+  const ctx = await getUserContext();
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

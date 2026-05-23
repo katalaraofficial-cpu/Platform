@@ -19,17 +19,17 @@ export default async function AdminLayout({
   // ── Admin nav: NO access to Kas Utama or Mekanik Hutang ─────
   const navItems: NavItem[] = [
     // Always visible
-    { label: "Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-    { label: "Running Invoice", href: "/admin/invoices", icon: FileText },
+    { label: "Dashboard", href: "/admin/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
+    { label: "Running Invoice", href: "/admin/invoices", icon: <FileText className="h-4 w-4" /> },
 
     // Toggle: module_petty_cash
     ...(toggles?.module_petty_cash !== false
-      ? [{ label: "Kas Kecil", href: "/admin/petty-cash", icon: PiggyBank }]
+      ? [{ label: "Kas Kecil", href: "/admin/petty-cash", icon: <PiggyBank className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_customer_history
     ...(toggles?.module_customer_history !== false
-      ? [{ label: "Pelanggan", href: "/admin/customers", icon: Users }]
+      ? [{ label: "Pelanggan", href: "/admin/customers", icon: <Users className="h-4 w-4" /> }]
       : []),
   ];
 

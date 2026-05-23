@@ -19,7 +19,29 @@ export default async function SuperAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ctx = await getUserContext();
+  let ctx;
+  try {
+    ctx = await getUserContext();
+  } catch (e: unknown) {
+    // Re-throw redirect signals so Next.js handles them
+    if (
+      e instanceof Error &&
+      ((e as Error & { digest?: string }).digest?.startsWith("NEXT_REDIRECT") ||
+        (e as Error).message === "NEXT_REDIRECT")
+    ) {
+      throw e;
+    }
+    // Show actual error for debugging
+    const msg = e instanceof Error ? e.stack ?? e.message : String(e);
+    return (
+      <div style={{ padding: "32px", fontFamily: "monospace" }}>
+        <h1 style={{ color: "red" }}>SuperAdminLayout Error</h1>
+        <pre style={{ background: "#f3f4f6", padding: "16px", borderRadius: "8px", whiteSpace: "pre-wrap", fontSize: "13px" }}>
+          {msg}
+        </pre>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">

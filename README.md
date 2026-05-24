@@ -4,7 +4,132 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 
 **Live URL:** https://katalara-pos.vercel.app  
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
-**Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co
+**Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
+**Branch aktif:** `main`
+
+> Untuk konteks lengkap (AI agent briefing, keputusan teknis, status modul, known issues): lihat [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)
+
+---
+
+## Tech Stack
+
+| Layer | Teknologi |
+|-------|-----------|
+| Framework | Next.js 15.5+ (App Router, TypeScript, `src/`) |
+| Auth & DB | Supabase (PostgreSQL + Auth) |
+| SSR Auth | @supabase/ssr ^0.6.1 |
+| Styling | Tailwind CSS v3.4 |
+| Icons | lucide-react |
+| Email | Resend (REST API, domain: `katalara.com`) |
+| Deploy | Vercel (branch: `main`) |
+
+---
+
+## Arsitektur Multi-Tenant & RBAC
+
+```
+super_admin  → /super-admin/*  — Platform owner, kelola semua tenant
+owner        → /owner/*        — Pemilik bengkel, akses penuh ke tenant sendiri
+admin        → /admin/*        — Kasir, operasional harian
+mechanic     → /mechanic/*     — Mekanik, work order & struk
+```
+
+---
+
+## Environment Variables
+
+```env
+# Supabase (wajib)
+NEXT_PUBLIC_SUPABASE_URL=https://nmggvtewovganrwcbpzk.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+
+# App URL (wajib untuk invite link)
+NEXT_PUBLIC_SITE_URL=https://katalara-pos.vercel.app
+
+# Email via Resend (wajib untuk invite flow)
+RESEND_API_KEY=<resend-api-key>
+```
+
+---
+
+## Progress Pengembangan
+
+### ✅ Selesai
+
+**Infrastruktur & Auth**
+- [x] Database schema lengkap + RLS policies (`001_schema.sql`, `002_rls_policies.sql`)
+- [x] Supabase clients (browser, server, middleware, admin/service-role)
+- [x] TypeScript types semua tabel (`src/types/database.ts`)
+- [x] Middleware RBAC — route protection + role-based redirect
+- [x] Login page + Error page
+- [x] Auth callback route (PKCE code, token_hash, hash fragment fallback)
+- [x] Auth exchange page — manual `setSession()` dari hash fragment invite link
+- [x] Set-password page — invited user buat password pertama
+- [x] Deploy ke Vercel
+
+**Super Admin**
+- [x] Super Admin dashboard
+- [x] Daftar semua tenant
+- [x] Detail tenant (info + daftar user)
+- [x] Buat tenant baru
+- [x] Edit tenant (nama, status aktif, feature toggles)
+- [x] Registrasi bengkel baru (form publik `/register`)
+- [x] Approval/reject pendaftaran tenant
+- [x] Invite user ke tenant via email (Resend API, `katalara.com`)
+- [x] Copy-link fallback jika email gagal
+- [x] User table dengan checkbox, bulk delete, pagination
+
+**Owner**
+- [x] Owner dashboard (placeholder)
+- [x] Running Invoice — list halaman dengan filter tab status
+- [x] Buat invoice baru (draft)
+- [x] Invoice detail view
+- [x] Tambah item invoice (service, part_internal, part_external)
+- [x] Kas & Keuangan (placeholder)
+
+**UI/UX**
+- [x] Sidebar collapsible (desktop)
+- [x] Mobile bottom nav (mekanik)
+- [x] Shared layout per role (sidebar + konten)
+
+### 🔄 Diketahui Belum Berfungsi / Halaman Kosong
+- [ ] Owner: Pelanggan, Mekanik & Hutang, Kas Kecil, Pengaturan — halaman ada tapi konten placeholder
+- [ ] Admin: semua halaman — layout ada, konten belum
+- [ ] Mechanic: semua halaman — layout ada, konten belum
+- [ ] Migration `003_tenant_requests.sql` — **belum dijalankan manual** di Supabase SQL Editor
+
+### ⬜ Belum Dimulai
+- [ ] Owner: Assign mekanik ke invoice, transisi status invoice, cetak/export invoice
+- [ ] Admin: Dashboard kas kecil, invoice operasional
+- [ ] Mechanic: Work order detail, upload struk (Supabase Storage)
+- [ ] Supabase Storage bucket `receipts`
+- [ ] Notifikasi / realtime updates
+
+---
+
+## Cara Invite User (Alur Terkini)
+
+1. Super Admin → Tenant Detail → **Tambah Pengguna**
+2. Isi nama, email, role → **Buat Link Undangan**
+3. Email dikirim via Resend (`noreply@katalara.com`)
+4. User klik link → `/auth/exchange` (proses hash token) → `/auth/set-password`
+5. User buat password → redirect ke dashboard sesuai role
+
+**Jika email gagal:** link muncul di UI untuk disalin manual (WhatsApp/chat).
+
+---
+
+## Migrasi Database
+
+Jalankan secara berurutan di Supabase SQL Editor:
+
+```
+supabase/migrations/001_schema.sql       ← Sudah dijalankan
+supabase/migrations/002_rls_policies.sql ← Sudah dijalankan
+supabase/migrations/003_tenant_requests.sql ← BELUM dijalankan
+```
+
 
 ---
 

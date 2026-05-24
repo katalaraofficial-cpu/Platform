@@ -1,6 +1,8 @@
 # Katalara POS — Project Context untuk AI Agent
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
+>
+> **Last updated:** 24 Mei 2026 — commit `17b1303`
 
 ---
 
@@ -96,12 +98,15 @@ src/
 │   │       └── invoices/
 │   │           ├── page.tsx       List invoice
 │   │           ├── new/page.tsx   Buat invoice baru
-│   │           └── [id]/page.tsx  Detail invoice
+│   │           └── [id]/page.tsx  Detail/edit invoice
 │   ├── (admin)/
 │   │   ├── layout.tsx
 │   │   └── admin/
 │   │       ├── dashboard/page.tsx
-│   │       └── invoices/...
+│   │       └── invoices/
+│   │           ├── page.tsx       List invoice
+│   │           ├── new/page.tsx   Buat invoice baru
+│   │           └── [id]/page.tsx  Detail/edit invoice
 │   ├── (mechanic)/
 │   │   ├── layout.tsx
 │   │   └── mechanic/...
@@ -118,7 +123,7 @@ src/
 │   │   ├── mobile-bottom-nav.tsx  Bottom nav mekanik
 │   │   └── types.ts               NavItem type
 │   ├── invoices/
-│   │   ├── add-item-form.tsx
+│   │   ├── invoice-editor.tsx     ★ Unified create+edit editor (Client Component, owner+admin)
 │   │   ├── invoice-filters.tsx
 │   │   ├── print-button.tsx
 │   │   └── status-badge.tsx
@@ -135,7 +140,7 @@ src/
 │   │   └── admin.ts               createAdminClient (service_role) — HANYA untuk Server Actions
 │   ├── actions/
 │   │   ├── auth.ts                signOut action
-│   │   ├── invoice.ts             CRUD invoice actions
+│   │   ├── invoice.ts             CRUD invoice actions (addItemToInvoice, updateInvoiceItem, dll)
 │   │   ├── register.ts            Pendaftaran tenant baru
 │   │   └── tenant.ts              Super admin: CRUD tenant, invite user
 │   ├── get-user-context.ts        Server helper: ambil user + profile + tenant sekaligus
@@ -144,9 +149,12 @@ src/
 └── types/
     └── database.ts                TypeScript types semua tabel + Database interface
 supabase/migrations/
-├── 001_schema.sql                 ✅ Sudah dijalankan
-├── 002_rls_policies.sql           ✅ Sudah dijalankan
-└── 003_tenant_requests.sql        ❌ BELUM dijalankan — jalankan manual di Supabase SQL Editor
+├── 001_schema.sql                 ✅ Sudah dijalankan — Schema utama
+├── 002_rls_policies.sql           ✅ Sudah dijalankan — RLS semua tabel
+├── 003_tenant_requests.sql        ❓ Cek — Tabel pendaftaran bengkel baru
+├── 004_invoice_tax.sql            ❓ Cek — Kolom PPN/PPh di invoices
+├── 005_invoice_discount.sql       ❓ Cek — Kolom discount_amount di invoices
+└── 006_invoice_payment.sql        ❓ Cek — Kolom payment_method di invoices
 ```
 
 ---
@@ -227,21 +235,26 @@ supabase/migrations/
 | Invite User | ✅ Jalan | Email + copy link fallback |
 | Pengaturan | ⚠️ Placeholder | Belum ada konten |
 
-### Owner ⚠️ Sebagian Jalan
+### Owner ✅ Invoice Fungsional
 | Halaman | Status | Catatan |
 |---------|--------|---------|
 | Dashboard | ⚠️ Placeholder | Belum ada summary data nyata |
-| Running Invoice — List | ✅ Jalan | Filter tab status, tampil invoice |
-| Running Invoice — Buat Baru | ✅ Jalan | Form draft invoice + data customer |
-| Running Invoice — Detail | ✅ Jalan | Items, assign mekanik, transisi status |
+| Invoice — List | ✅ Jalan | Filter tab status |
+| Invoice — Buat Baru | ✅ Jalan | Pilih/buat customer, tanggal editable, simpan tanpa item |
+| Invoice — Detail/Edit | ✅ Jalan | Items (Part Ext/Int dengan H.Jual opsional), mekanik, status transitions |
 | Kas & Keuangan | ⚠️ Placeholder | Halaman ada, konten belum |
 | Pelanggan | ⚠️ Placeholder | |
 | Mekanik & Hutang | ⚠️ Placeholder | |
 | Kas Kecil | ⚠️ Placeholder | |
 | Pengaturan | ⚠️ Placeholder | |
 
-### Admin ❌ Belum Ada Konten
-Layout ada, semua halaman placeholder.
+### Admin ✅ Invoice Fungsional
+| Halaman | Status | Catatan |
+|---------|--------|---------|
+| Dashboard | ⚠️ Placeholder | |
+| Invoice — List | ✅ Jalan | Sama dengan Owner |
+| Invoice — Buat Baru | ✅ Jalan | Shared via `InvoiceEditor` component |
+| Invoice — Detail/Edit | ✅ Jalan | Shared via `InvoiceEditor` component |
 
 ### Mechanic ❌ Belum Ada Konten
 Layout ada, semua halaman placeholder.
@@ -317,31 +330,40 @@ Folder `(auth)`, `(owner)`, dll **tidak menambah prefix ke URL**.
 | Modal tambah user langsung tampil sukses | `useActionState` di parent component, state persist saat modal dibuka ulang | Pindah `useActionState` ke `ModalContent` sub-component |
 | Build error: useSearchParams Suspense | Next.js 15 wajib Suspense untuk `useSearchParams` | Wrap `AuthExchangeInner` dalam `<Suspense>` |
 | TypeScript error: Supabase join `profiles` di `invoice_mechanics` | Generated types tidak mengenali relasi via `mechanic_id` | Fetch profiles terpisah, build lookup map secara manual |
+| "Simpan Invoice" tetap disabled setelah pilih customer | `disabled` prop masih cek `items.length === 0` | Hapus kondisi `items.length === 0` dari disabled |
+| Part Ext tidak bisa ditambah tanpa H.Jual | Validasi `itemSellPrice <= 0` berlaku untuk semua tipe | Validasi H.Jual hanya untuk `itemType === "service"` |
+| Inline edit part tidak simpan H.Jual ke DB | `saveEditRow` kirim `unitPrice` (buy), bukan sell price | Tambah parameter `sellPrice` opsional ke `updateInvoiceItem` |
 
 ---
 
 ## 11. Hal yang Masih Perlu Dilakukan
 
-### Segera (Blocker)
-1. **Jalankan migration 003** di Supabase SQL Editor:
+### Segera (Perlu Dicek)
+1. **Jalankan migration 003–006** di Supabase SQL Editor jika belum — semua pakai `IF NOT EXISTS`, aman:
    ```
    supabase/migrations/003_tenant_requests.sql
+   supabase/migrations/004_invoice_tax.sql
+   supabase/migrations/005_invoice_discount.sql
+   supabase/migrations/006_invoice_payment.sql
    ```
 
-### Prioritas Tinggi (Evaluasi & Pembenahan)
-2. **Owner Dashboard** — summary data nyata: total invoice, pendapatan bulan ini, invoice aktif
-3. **Pelanggan** — CRUD data pelanggan per tenant
-4. **Kas & Keuangan** — ledger view untuk owner
-5. **Mekanik & Hutang** — daftar mekanik + hutang
-6. **Pengaturan tenant** — nama bengkel, markup default
+### Sprint 1 (Backlog Berikutnya)
+2. **Invoice list: search + pagination** — saat ini belum ada filter teks atau paging
+3. **Partial payment (migration 007)** — kolom `amount_paid NUMERIC DEFAULT 0` + tabel `invoice_payments`
+4. **Modul Kas (`/owner/kas`)** — ledger KPI + tabel transaksi kas utama
+
+### Prioritas Tinggi
+5. **Owner Dashboard** — summary data nyata: total invoice, pendapatan bulan ini, invoice aktif
+6. **Pelanggan** — CRUD data pelanggan per tenant
+7. **Kas & Keuangan** — ledger view untuk owner
 
 ### Prioritas Sedang
-7. **Admin module** — dashboard kas kecil, invoice operasional
-8. **Mechanic module** — work order detail, upload struk
-9. **Cetak / export invoice PDF**
+8. **Admin module** — dashboard kas kecil
+9. **Mechanic module** — work order detail, upload struk (Supabase Storage)
+10. **Cetak / export invoice PDF**
 
 ### Infrastruktur
-10. **Supabase Storage bucket `receipts`** — setup manual di Supabase dashboard, untuk upload struk mekanik
+11. **Supabase Storage bucket `receipts`** — setup manual di Supabase dashboard, untuk upload struk mekanik
 
 ---
 

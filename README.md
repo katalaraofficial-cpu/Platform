@@ -5,7 +5,8 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 **Live URL:** https://katalara-pos.vercel.app  
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
-**Branch aktif:** `main`
+**Branch aktif:** `main`  
+**Last updated:** 24 Mei 2026 — commit `17b1303`
 
 > Untuk konteks lengkap (AI agent briefing, keputusan teknis, status modul, known issues): lihat [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)
 
@@ -80,35 +81,63 @@ RESEND_API_KEY=<resend-api-key>
 - [x] Copy-link fallback jika email gagal
 - [x] User table dengan checkbox, bulk delete, pagination
 
-**Owner**
-- [x] Owner dashboard (placeholder)
+**Owner — Modul Invoice**
 - [x] Running Invoice — list halaman dengan filter tab status
-- [x] Buat invoice baru (draft)
-- [x] Invoice detail view
-- [x] Tambah item invoice (service, part_internal, part_external)
+- [x] Buat invoice baru (draft) + pilih/buat customer baru langsung dari form
+- [x] Invoice detail / edit (unified InvoiceEditor component)
+- [x] Tambah item: service, part_internal, part_external
+- [x] Part Ext/Int dengan H.Jual = 0 (harga belum diketahui saat entry)
+- [x] Toggle margin profit % → auto-hitung H.Jual dari H.Beli
+- [x] Badge "Set Harga" di item tabel jika H.Jual belum diisi (klik untuk edit)
 - [x] Assign mekanik ke invoice (lead / helper, hapus assignment)
 - [x] Transisi status invoice (draft → in_progress → completed → paid / cancelled)
-- [x] Kas & Keuangan (placeholder)
+- [x] Quick add customer dengan field nama, telepon, alamat
+- [x] Tanggal invoice editable saat buat baru
+- [x] Simpan draft invoice tanpa perlu ada item dulu
+
+**Admin — Modul Invoice**
+- [x] Semua fitur invoice Owner (shared via `InvoiceEditor` component)
+- [x] Buat invoice baru
+- [x] Invoice detail / edit termasuk assign mekanik
 
 **UI/UX**
 - [x] Sidebar collapsible (desktop)
 - [x] Mobile bottom nav (mekanik)
 - [x] Shared layout per role (sidebar + konten)
 
+---
+
+### ⚠️ Perlu Tindakan Manual — Migrasi Database
+
+Jalankan secara berurutan di **Supabase SQL Editor** (semua pakai `IF NOT EXISTS`, aman dijalankan ulang):
+
+| File | Status | Isi |
+|------|--------|-----|
+| `001_schema.sql` | ✅ Sudah | Schema utama |
+| `002_rls_policies.sql` | ✅ Sudah | RLS semua tabel |
+| `003_tenant_requests.sql` | ❓ Cek | Tabel pendaftaran bengkel baru |
+| `004_invoice_tax.sql` | ❓ Cek | Kolom PPN/PPh di `invoices` |
+| `005_invoice_discount.sql` | ❓ Cek | Kolom `discount_amount` di `invoices` |
+| `006_invoice_payment.sql` | ❓ Cek | Kolom `payment_method` di `invoices` |
+
+---
+
 ### 🔄 Diketahui Belum Berfungsi / Halaman Kosong
 - [ ] Owner: Pelanggan, Mekanik & Hutang, Kas Kecil, Pengaturan — halaman ada tapi konten placeholder
-- [ ] Admin: semua halaman — layout ada, konten belum
+- [ ] Owner: Dashboard — belum ada data summary nyata
+- [ ] Owner: Kas & Keuangan — halaman ada, konten belum
+- [ ] Admin: Dashboard — placeholder
 - [ ] Mechanic: semua halaman — layout ada, konten belum
-- [ ] Migration `003_tenant_requests.sql` — **belum dijalankan manual** di Supabase SQL Editor
 
-### ⬜ Belum Dimulai
-- [ ] Owner: Cetak / export invoice PDF
-- [ ] Owner Dashboard — data summary nyata (total invoice, pendapatan, dll)
-- [ ] Owner: Pelanggan (CRUD), Mekanik & Hutang, Kas & Keuangan, Kas Kecil, Pengaturan
-- [ ] Admin: Dashboard kas kecil, invoice operasional
+### ⬜ Sprint Berikutnya
+- [ ] Invoice list: text search + pagination
+- [ ] Partial payment: migration 007 (`amount_paid`, tabel `invoice_payments`)
+- [ ] Modul Kas (`/owner/kas`): ledger KPI + tabel transaksi
+- [ ] Owner Dashboard: data summary nyata (pendapatan, invoice aktif, dll)
+- [ ] Pelanggan: CRUD data pelanggan
+- [ ] Cetak / export invoice PDF
+- [ ] Admin: Dashboard kas kecil
 - [ ] Mechanic: Work order detail, upload struk (Supabase Storage)
-- [ ] Supabase Storage bucket `receipts`
-- [ ] Notifikasi / realtime updates
 
 ---
 
@@ -129,10 +158,15 @@ RESEND_API_KEY=<resend-api-key>
 Jalankan secara berurutan di Supabase SQL Editor:
 
 ```
-supabase/migrations/001_schema.sql       ← Sudah dijalankan
-supabase/migrations/002_rls_policies.sql ← Sudah dijalankan
-supabase/migrations/003_tenant_requests.sql ← BELUM dijalankan
+supabase/migrations/001_schema.sql          ← Sudah dijalankan
+supabase/migrations/002_rls_policies.sql    ← Sudah dijalankan
+supabase/migrations/003_tenant_requests.sql ← Jalankan jika belum
+supabase/migrations/004_invoice_tax.sql     ← Jalankan jika belum
+supabase/migrations/005_invoice_discount.sql← Jalankan jika belum
+supabase/migrations/006_invoice_payment.sql ← Jalankan jika belum
 ```
+
+Semua migrasi menggunakan `IF NOT EXISTS` — aman dijalankan ulang tanpa efek samping.
 
 
 ---

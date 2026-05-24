@@ -1432,7 +1432,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 <button
                   type="button"
                   onClick={handleSave}
-                  disabled={isPending || !customer || items.length === 0}
+                  disabled={isPending || !customer}
                   className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
                 >
                   {isPending ? "Menyimpan…" : "Simpan Invoice"}

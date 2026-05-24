@@ -762,3 +762,76 @@ export async function updateInvoiceMechanicStatus(
   revalidatePath("/mechanic/dashboard");
   return {};
 }
+
+// ── Mechanic: submit receipt (upload struk) ──────────────────
+// Creates an invoice_item (part_external, payment_source=mechanic)
+// and a mechanic_debt_ledger entry (advance).
+export async function submitMechanicReceipt(payload: {
+  invoiceId: string;
+  description: string;
+  amount: number;
+  receiptImageUrl: string;
+}): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+
+  // Verify mechanic is assigned to this invoice
+  const { data: assignment } = await supabase
+    .from("invoice_mechanics")
+    .select("id")
+    .eq("invoice_id", payload.invoiceId)
+    .eq("mechanic_id", ctx.id)
+    .single();
+
+  if (!assignment) return { error: "Anda tidak ditugaskan pada invoice ini" };
+
+  // Fetch tenant_id from the invoice
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("tenant_id")
+    .eq("id", payload.invoiceId)
+    .single();
+
+  if (!inv) return { error: "Invoice tidak ditemukan" };
+
+  // Insert invoice_item as part_external bought by mechanic
+  const { data: item, error: itemError } = await supabase
+    .from("invoice_items")
+    .insert({
+      invoice_id: payload.invoiceId,
+      tenant_id: inv.tenant_id,
+      item_type: "part_external",
+      description: payload.description,
+      quantity: 1,
+      unit_price: payload.amount,
+      markup_pct: 0,
+      final_price: payload.amount,
+      payment_source: "mechanic",
+      receipt_image_url: payload.receiptImageUrl,
+      submitted_by: ctx.id,
+    })
+    .select("id")
+    .single();
+
+  if (itemError) return { error: itemError.message };
+
+  // Insert mechanic_debt_ledger entry
+  const { error: ledgerError } = await supabase
+    .from("mechanic_debt_ledger")
+    .insert({
+      tenant_id: inv.tenant_id,
+      mechanic_id: ctx.id,
+      invoice_item_id: item.id,
+      transaction_type: "advance",
+      amount: payload.amount,
+      notes: payload.description,
+      created_by: ctx.id,
+    });
+
+  if (ledgerError) return { error: ledgerError.message };
+
+  revalidatePath("/mechanic/receipts");
+  revalidatePath("/mechanic/debts");
+  revalidatePath(`/mechanic/dashboard/${payload.invoiceId}`);
+  return {};
+}

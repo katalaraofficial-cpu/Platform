@@ -128,6 +128,7 @@ export interface MechanicDebtLedger {
   transaction_type: DebtTransactionType;
   amount: number;
   notes: string | null;
+  is_paid: boolean;
   created_by: string;
   created_at: string;
 }

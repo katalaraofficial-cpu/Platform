@@ -719,3 +719,46 @@ export async function searchItemDescriptions(
     return true;
   });
 }
+
+// ── Mechanic: update work order status ───────────────────────
+// Valid transitions: draft → in_progress → completed only.
+// RLS in migration 007 enforces mechanic must be assigned.
+export async function updateInvoiceMechanicStatus(
+  invoiceId: string,
+  newStatus: "in_progress" | "completed"
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", invoiceId)
+    .single();
+
+  if (!inv) return { error: "Invoice tidak ditemukan" };
+
+  const transitions: Record<string, string> = {
+    draft: "in_progress",
+    in_progress: "completed",
+  };
+
+  if (transitions[inv.status] !== newStatus) {
+    return { error: "Transisi status tidak diizinkan dari kondisi saat ini" };
+  }
+
+  const updateData: Record<string, unknown> = { status: newStatus };
+  if (newStatus === "completed") {
+    updateData.completed_at = new Date().toISOString();
+  }
+
+  const { error } = await supabase
+    .from("invoices")
+    .update(updateData)
+    .eq("id", invoiceId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath(`/mechanic/dashboard/${invoiceId}`);
+  revalidatePath("/mechanic/dashboard");
+  return {};
+}

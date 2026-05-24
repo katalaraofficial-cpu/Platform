@@ -15,47 +15,51 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 /** Kirim email undangan via Resend REST API. Tidak gagalkan action jika error. */
+/** Kirim email undangan via Resend REST API. Returns true jika berhasil. */
 async function sendInviteEmail(
   email: string,
   fullName: string,
   role: string,
   inviteLink: string
-) {
+): Promise<boolean> {
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return;
+  if (!apiKey) return false;
 
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: "Katalara POS <onboarding@resend.dev>",
-      to: [email],
-      subject: "Undangan Bergabung - Katalara POS",
-      html: `
-        <div style="font-family:sans-serif;max-width:480px;margin:auto">
-          <h2 style="color:#1e3a5f">Anda Diundang ke Katalara POS</h2>
-          <p>Halo <strong>${fullName}</strong>,</p>
-          <p>Anda telah diundang untuk bergabung sebagai <strong>${ROLE_LABELS[role] ?? role}</strong>
-             di platform manajemen bengkel <strong>Katalara POS</strong>.</p>
-          <p>Klik tombol di bawah untuk membuat password dan mulai menggunakan platform:</p>
-          <p style="text-align:center;margin:28px 0">
-            <a href="${inviteLink}"
-               style="background:#2563eb;color:#fff;padding:13px 32px;border-radius:8px;
-                      text-decoration:none;font-weight:600;display:inline-block;font-size:15px">
-              Terima Undangan
-            </a>
-          </p>
-          <p style="color:#6b7280;font-size:13px">Link ini berlaku selama 24 jam. Jika Anda tidak merasa diundang, abaikan email ini.</p>
-          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
-          <p style="color:#9ca3af;font-size:12px">Katalara POS — Platform Manajemen Bengkel</p>
-        </div>`,
-    }),
-  }).catch(() => {
-    /* jangan gagalkan action jika email error */
-  });
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "Katalara POS <onboarding@resend.dev>",
+        to: [email],
+        subject: "Undangan Bergabung - Katalara POS",
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto">
+            <h2 style="color:#1e3a5f">Anda Diundang ke Katalara POS</h2>
+            <p>Halo <strong>${fullName}</strong>,</p>
+            <p>Anda telah diundang untuk bergabung sebagai <strong>${ROLE_LABELS[role] ?? role}</strong>
+               di platform manajemen bengkel <strong>Katalara POS</strong>.</p>
+            <p>Klik tombol di bawah untuk membuat password dan mulai menggunakan platform:</p>
+            <p style="text-align:center;margin:28px 0">
+              <a href="${inviteLink}"
+                 style="background:#2563eb;color:#fff;padding:13px 32px;border-radius:8px;
+                        text-decoration:none;font-weight:600;display:inline-block;font-size:15px">
+                Terima Undangan
+              </a>
+            </p>
+            <p style="color:#6b7280;font-size:13px">Link berlaku 24 jam. Jika tidak merasa diundang, abaikan email ini.</p>
+            <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+            <p style="color:#9ca3af;font-size:12px">Katalara POS — Platform Manajemen Bengkel</p>
+          </div>`,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 async function assertSuperAdmin() {
@@ -216,12 +220,13 @@ export async function addUserToTenant(
 
   const inviteLink = linkData.properties.action_link;
 
-  // Kirim email undangan via Resend (fire-and-forget, tidak gagalkan action)
-  await sendInviteEmail(email, fullName, role, inviteLink);
+  const emailSent = await sendInviteEmail(email, fullName, role, inviteLink);
 
   revalidatePath(`/super-admin/tenants/${tenantId}`);
   return {
-    success: `Undangan berhasil dikirim ke ${email}`,
+    success: emailSent
+      ? `Email undangan terkirim ke ${email}`
+      : `Link undangan siap. Email gagal — salin link di bawah dan kirim manual.`,
     invite_link: inviteLink,
   };
 }

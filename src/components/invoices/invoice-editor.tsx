@@ -1437,8 +1437,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </div>
           )}
 
-          {/* Payment form (owner + completed) */}
-          {isEdit && props.isOwner && displayStatus === "completed" && (
+          {/* Payment form (owner + admin, when completed) */}
+          {isEdit && displayStatus === "completed" && (
             <div className="border-b border-gray-100 p-4">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-green-600">
                 Konfirmasi Pembayaran
@@ -1534,13 +1534,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   Reset
                 </button>
               </>
-            ) : (
-              <Link
-                href={`${props.basePath}/invoices`}
-                className="block w-full rounded-lg border border-gray-200 py-2.5 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50"
-              >
-                ← Kembali ke Daftar Invoice
-              </Link>
             )}
           </div>
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { addInvoiceItem, type ActionState } from "@/lib/actions/invoice";
 import { cn } from "@/lib/utils";
 
@@ -38,14 +38,17 @@ export function AddItemForm({
     {}
   );
   const formRef = useRef<HTMLFormElement>(null);
-  const typeRef = useRef<HTMLSelectElement>(null);
+  const [itemType, setItemType] = useState("service");
 
   // Reset form on success
   useEffect(() => {
     if (!state.error && !isPending && formRef.current) {
       formRef.current.reset();
+      setItemType("service");
     }
   }, [state, isPending]);
+
+  const isExternal = itemType === "part_external";
 
   const paymentSources =
     role === "owner"
@@ -71,9 +74,9 @@ export function AddItemForm({
             Tipe
           </label>
           <select
-            ref={typeRef}
             name="item_type"
-            defaultValue="service"
+            value={itemType}
+            onChange={(e) => setItemType(e.target.value)}
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
             {ITEM_TYPES.map((t) => (
@@ -130,41 +133,45 @@ export function AddItemForm({
           />
         </div>
 
-        {/* Markup % — only for part_external (shown conditionally via CSS) */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            Markup (%)
-          </label>
-          <input
-            type="number"
-            name="markup_pct"
-            defaultValue={defaultMarkupPct}
-            min="0"
-            max="1000"
-            step="0.5"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          />
-        </div>
+        {/* Markup % — only for part_external */}
+        {isExternal && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-700">
+              Markup (%)
+            </label>
+            <input
+              type="number"
+              name="markup_pct"
+              defaultValue={defaultMarkupPct}
+              min="0"
+              max="1000"
+              step="0.5"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
+        )}
 
-        {/* Payment source — only relevant for part_external */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-700">
-            Sumber Dana
-          </label>
-          <select
-            name="payment_source"
-            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-          >
-            {paymentSources.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Payment source — only for part_external */}
+        {isExternal && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-700">
+              Sumber Dana
+            </label>
+            <select
+              name="payment_source"
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            >
+              {paymentSources.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Submit */}
-        <div className="flex items-end">
+        <div className={cn("flex items-end", !isExternal && "lg:col-span-3")}>
           <button
             type="submit"
             disabled={isPending}

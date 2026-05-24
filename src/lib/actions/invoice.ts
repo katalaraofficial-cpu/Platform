@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ItemType, InvoiceStatus } from "@/types/database";
+import type { ItemType, InvoiceStatus, Invoice, PaymentSource } from "@/types/database";
 
 export type ActionState = { error?: string };
 
@@ -76,9 +76,9 @@ export async function createInvoice(
       name,
       phone: (formData.get("customer_phone") as string) || null,
       vehicle_info: {
-        plate: formData.get("vehicle_plate") ?? "",
-        brand: formData.get("vehicle_brand") ?? "",
-        model: formData.get("vehicle_model") ?? "",
+        plate: (formData.get("vehicle_plate") as string) || "",
+        brand: (formData.get("vehicle_brand") as string) || "",
+        model: (formData.get("vehicle_model") as string) || "",
         year: formData.get("vehicle_year")
           ? Number(formData.get("vehicle_year"))
           : undefined,
@@ -133,9 +133,9 @@ export async function addInvoiceItem(
       ? Math.max(0, Number(formData.get("markup_pct")) || 0)
       : 0;
   const finalPrice = unitPrice * quantity * (1 + markupPct / 100);
-  const paymentSource =
+  const paymentSource: PaymentSource | null =
     itemType === "part_external"
-      ? ((formData.get("payment_source") as string) || "owner")
+      ? (((formData.get("payment_source") as string) || "owner") as PaymentSource)
       : null;
 
   const { error } = await supabase.from("invoice_items").insert({
@@ -177,7 +177,7 @@ export async function updateInvoiceStatus(
 ) {
   const supabase = await createClient();
   const now = new Date().toISOString();
-  const update: Record<string, unknown> = { status: newStatus };
+  const update: Partial<Omit<Invoice, "id" | "created_at">> = { status: newStatus };
   if (newStatus === "completed") update.completed_at = now;
   if (newStatus === "paid") update.paid_at = now;
 

@@ -69,14 +69,15 @@ export default async function OwnerInvoiceDetailPage({
   if (!user.tenantId) notFound();
 
   // Fetch invoice
-  const { data: invoice } = await supabase
+  const { data: invoiceData } = await supabase
     .from("invoices")
     .select("*")
     .eq("id", id)
-    .eq("tenant_id", user.tenantId)
+    .eq("tenant_id", user.tenantId ?? "")
     .single();
 
-  if (!invoice) notFound();
+  if (!invoiceData) notFound();
+  const invoice = invoiceData!;
 
   // Fetch customer and items in parallel
   const [{ data: customer }, { data: items }] = await Promise.all([

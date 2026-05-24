@@ -68,14 +68,15 @@ export default async function AdminInvoiceDetailPage({
 
   if (!user.tenantId) notFound();
 
-  const { data: invoice } = await supabase
+  const { data: invoiceData } = await supabase
     .from("invoices")
     .select("*")
     .eq("id", id)
-    .eq("tenant_id", user.tenantId)
+    .eq("tenant_id", user.tenantId ?? "")
     .single();
 
-  if (!invoice) notFound();
+  if (!invoiceData) notFound();
+  const invoice = invoiceData!;
 
   const [{ data: customer }, { data: items }] = await Promise.all([
     invoice.customer_id

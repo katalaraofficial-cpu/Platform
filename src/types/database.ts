@@ -157,54 +157,64 @@ export interface Database {
   public: {
     Tables: {
       tenants: {
-        Row: Tenant;
-        Insert: Omit<Tenant, "id" | "created_at" | "updated_at">;
+        Row: Tenant & Record<string, unknown>;
+        Insert: Omit<Tenant, "id" | "created_at" | "updated_at" | "feature_toggles"> & Partial<Pick<Tenant, "feature_toggles">>;
         Update: Partial<Omit<Tenant, "id" | "created_at">>;
+        Relationships: never[];
       };
       profiles: {
-        Row: Profile;
+        Row: Profile & Record<string, unknown>;
         Insert: Omit<Profile, "created_at" | "updated_at">;
         Update: Partial<Omit<Profile, "id" | "created_at">>;
+        Relationships: never[];
       };
       settings: {
-        Row: Settings;
+        Row: Settings & Record<string, unknown>;
         Insert: Omit<Settings, "id" | "created_at" | "updated_at">;
         Update: Partial<Omit<Settings, "id" | "created_at">>;
+        Relationships: never[];
       };
       customers: {
-        Row: Customer;
-        Insert: Omit<Customer, "id" | "created_at" | "updated_at">;
+        Row: Customer & Record<string, unknown>;
+        Insert: Omit<Customer, "id" | "created_at" | "updated_at" | "notes"> & Partial<Pick<Customer, "notes">>;
         Update: Partial<Omit<Customer, "id" | "created_at">>;
+        Relationships: never[];
       };
       invoices: {
-        Row: Invoice;
-        Insert: Omit<Invoice, "id" | "created_at" | "updated_at">;
+        Row: Invoice & Record<string, unknown>;
+        Insert: Omit<Invoice, "id" | "created_at" | "updated_at" | "subtotal" | "total_markup" | "grand_total" | "completed_at" | "paid_at"> & Partial<Pick<Invoice, "subtotal" | "total_markup" | "grand_total" | "completed_at" | "paid_at">>;
         Update: Partial<Omit<Invoice, "id" | "created_at">>;
+        Relationships: never[];
       };
       invoice_items: {
-        Row: InvoiceItem;
-        Insert: Omit<InvoiceItem, "id" | "created_at">;
+        Row: InvoiceItem & Record<string, unknown>;
+        Insert: Omit<InvoiceItem, "id" | "created_at" | "receipt_image_url" | "submitted_by"> & Partial<Pick<InvoiceItem, "receipt_image_url" | "submitted_by">>;
         Update: Partial<Omit<InvoiceItem, "id" | "created_at">>;
+        Relationships: never[];
       };
       invoice_mechanics: {
-        Row: InvoiceMechanic;
+        Row: InvoiceMechanic & Record<string, unknown>;
         Insert: Omit<InvoiceMechanic, "id" | "assigned_at">;
         Update: Partial<Omit<InvoiceMechanic, "id">>;
+        Relationships: never[];
       };
       mechanic_debt_ledger: {
-        Row: MechanicDebtLedger;
+        Row: MechanicDebtLedger & Record<string, unknown>;
         Insert: Omit<MechanicDebtLedger, "id" | "created_at">;
         Update: never;
+        Relationships: never[];
       };
       ledger: {
-        Row: Ledger;
+        Row: Ledger & Record<string, unknown>;
         Insert: Omit<Ledger, "id" | "created_at">;
         Update: never;
+        Relationships: never[];
       };
       petty_cash_transactions: {
-        Row: PettyCashTransaction;
+        Row: PettyCashTransaction & Record<string, unknown>;
         Insert: Omit<PettyCashTransaction, "id" | "created_at">;
         Update: never;
+        Relationships: never[];
       };
     };
     Views: {
@@ -215,7 +225,8 @@ export interface Database {
           total_advanced: number;
           total_reimbursed: number;
           outstanding_balance: number;
-        };
+        } & Record<string, unknown>;
+        Relationships: never[];
       };
       v_petty_cash_balance: {
         Row: {
@@ -223,7 +234,8 @@ export interface Database {
           total_top_up: number;
           total_expense: number;
           current_balance: number;
-        };
+        } & Record<string, unknown>;
+        Relationships: never[];
       };
       v_ledger_balance: {
         Row: {
@@ -231,13 +243,14 @@ export interface Database {
           total_masuk: number;
           total_keluar: number;
           saldo: number;
-        };
+        } & Record<string, unknown>;
+        Relationships: never[];
       };
     };
     Functions: {
-      get_my_tenant_id: { Returns: string | null };
-      get_my_role: { Returns: UserRole | null };
-      is_super_admin: { Returns: boolean };
+      get_my_tenant_id: { Args: Record<string, never>; Returns: string | null };
+      get_my_role: { Args: Record<string, never>; Returns: UserRole | null };
+      is_super_admin: { Args: Record<string, never>; Returns: boolean };
     };
     Enums: {
       user_role: UserRole;

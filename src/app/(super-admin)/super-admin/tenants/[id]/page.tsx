@@ -26,7 +26,7 @@ export default async function TenantDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: tenant }, { data: settings }, { data: users }] =
+  const [{ data: tenantData }, { data: settings }, { data: users }] =
     await Promise.all([
       supabase
         .from("tenants")
@@ -45,7 +45,8 @@ export default async function TenantDetailPage({
         .order("role"),
     ]);
 
-  if (!tenant) notFound();
+  if (!tenantData) notFound();
+  const tenant = tenantData!;
 
   return (
     <div className="space-y-6">

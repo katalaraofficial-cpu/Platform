@@ -11,6 +11,7 @@ import {
   removeMechanic,
 } from "@/lib/actions/invoice";
 import { PrintButton } from "@/components/invoices/print-button";
+import { TaxSettings } from "@/components/invoices/tax-settings";
 import type { InvoiceStatus, ItemType } from "@/types/database";
 
 const BASE_PATH = "/owner";
@@ -126,13 +127,16 @@ export default async function OwnerInvoiceDetailPage({
 
   return (
     <div className="space-y-6">
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-gray-500">
-        <Link href={`${BASE_PATH}/invoices`} className="hover:text-gray-700">
-          Invoice
+      {/* Breadcrumb + back */}
+      <div className="flex items-center gap-3">
+        <Link
+          href={`${BASE_PATH}/invoices`}
+          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-800 transition-colors"
+        >
+          &#8592; Kembali ke Invoice
         </Link>
-        <span>/</span>
-        <span className="font-mono text-gray-900">{invoice.invoice_number}</span>
+        <span className="text-gray-300">/</span>
+        <span className="font-mono text-sm text-gray-900">{invoice.invoice_number}</span>
       </div>
 
       {/* Header card */}
@@ -154,40 +158,29 @@ export default async function OwnerInvoiceDetailPage({
           <PrintButton />
         </div>
 
-        {/* Customer & Vehicle info */}
-        <div className="mt-4 grid grid-cols-1 gap-4 border-t border-gray-100 pt-4 sm:grid-cols-2">
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-              Pelanggan
-            </p>
-            <p className="mt-1 font-medium text-gray-900">
-              {customer?.name ?? "-"}
-            </p>
-            {customer?.phone && (
-              <p className="text-sm text-gray-500">{customer.phone}</p>
+        {/* Customer info only (no Kendaraan) */}
+        <div className="mt-4 border-t border-gray-100 pt-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                Pelanggan
+              </p>
+              <p className="mt-1 font-medium text-gray-900">
+                {customer?.name ?? "-"}
+              </p>
+              {customer?.phone && (
+                <p className="text-sm text-gray-500">{customer.phone}</p>
+              )}
+            </div>
+            {invoice.notes && (
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
+                  Catatan
+                </p>
+                <p className="mt-1 text-sm text-gray-700">{invoice.notes}</p>
+              </div>
             )}
           </div>
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-              Kendaraan
-            </p>
-            <p className="mt-1 font-medium text-gray-900">
-              {vehicleInfo?.plate ?? "-"}
-            </p>
-            <p className="text-sm text-gray-500">
-              {[vehicleInfo?.year, vehicleInfo?.brand, vehicleInfo?.model]
-                .filter(Boolean)
-                .join(" ")}
-            </p>
-          </div>
-          {invoice.notes && (
-            <div className="sm:col-span-2">
-              <p className="text-xs font-medium uppercase tracking-wider text-gray-400">
-                Catatan
-              </p>
-              <p className="mt-1 text-sm text-gray-700">{invoice.notes}</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -293,6 +286,14 @@ export default async function OwnerInvoiceDetailPage({
               <span>Markup</span>
               <span>{formatRupiah(Number(invoice.total_markup))}</span>
             </div>
+            <TaxSettings
+              invoiceId={invoice.id}
+              basePath={BASE_PATH}
+              preTax={Number(invoice.subtotal) + Number(invoice.total_markup)}
+              ppnPct={Number(invoice.ppn_pct ?? 0)}
+              pphPct={Number(invoice.pph_pct ?? 0)}
+              canEdit={canEdit}
+            />
             <div className="flex justify-between border-t border-gray-200 pt-2 text-base font-bold text-gray-900">
               <span>Grand Total</span>
               <span>{formatRupiah(Number(invoice.grand_total))}</span>

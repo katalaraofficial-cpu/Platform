@@ -1,5 +1,6 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import { useRef, useEffect, useState } from "react";
 import Link from "next/link";
 import { MoreHorizontal, Eye, Trash2, Printer } from "lucide-react";
@@ -19,31 +20,48 @@ export function InvoiceRowActions({
   basePath,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
 
-  // Close on outside click
+  useEffect(() => setMounted(true), []);
+
+  // Close on outside click or scroll
   useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
+    function close() { setOpen(false); }
+    if (open) {
+      document.addEventListener("mousedown", close);
+      window.addEventListener("scroll", close, true);
     }
-    if (open) document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
+    return () => {
+      document.removeEventListener("mousedown", close);
+      window.removeEventListener("scroll", close, true);
+    };
   }, [open]);
+
+  function handleOpen(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (btnRef.current) {
+      const rect = btnRef.current.getBoundingClientRect();
+      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+    }
+    setOpen((o) => !o);
+  }
 
   const canDelete = status === "draft" || status === "cancelled";
 
   async function handleDelete() {
     if (!confirm(`Hapus invoice ${invoiceNumber}? Tindakan ini tidak dapat dibatalkan.`))
       return;
+    setOpen(false);
     await deleteInvoice(invoiceId, basePath);
   }
 
   return (
-    <div ref={ref} className="relative">
+    <>
       <button
-        onClick={() => setOpen((o) => !o)}
+        ref={btnRef}
+        onClick={handleOpen}
         className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400
                    hover:bg-gray-100 hover:text-gray-600 transition-colors"
         title="Aksi"
@@ -51,48 +69,53 @@ export function InvoiceRowActions({
         <MoreHorizontal className="h-4 w-4" />
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-8 z-20 w-44 rounded-lg border border-gray-200
-                     bg-white py-1 shadow-lg"
-        >
-          {/* Detail / Edit */}
-          <Link
-            href={`${basePath}/invoices/${invoiceId}`}
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700
-                       hover:bg-gray-50"
+      {open && mounted && menuPos &&
+        createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: menuPos.top,
+              right: menuPos.right,
+              zIndex: 9999,
+            }}
+            className="w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <Eye className="h-3.5 w-3.5 text-gray-400" />
-            Detail / Edit
-          </Link>
+            <Link
+              href={`${basePath}/invoices/${invoiceId}`}
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3 py-2 text-sm text-gray-700
+                         hover:bg-gray-50"
+            >
+              <Eye className="h-3.5 w-3.5 text-gray-400" />
+              Detail / Edit
+            </Link>
 
-          {/* Print — placeholder */}
-          <button
-            onClick={() => { setOpen(false); window.print(); }}
-            className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-gray-700
-                       hover:bg-gray-50"
-          >
-            <Printer className="h-3.5 w-3.5 text-gray-400" />
-            Cetak Invoice
-          </button>
+            <button
+              onClick={() => { setOpen(false); window.print(); }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-gray-700
+                         hover:bg-gray-50"
+            >
+              <Printer className="h-3.5 w-3.5 text-gray-400" />
+              Cetak Invoice
+            </button>
 
-          {/* Delete — only for draft/cancelled */}
-          {canDelete && (
-            <>
-              <div className="my-1 border-t border-gray-100" />
-              <button
-                onClick={() => { setOpen(false); handleDelete(); }}
-                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm
-                           text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-                Hapus Invoice
-              </button>
-            </>
-          )}
-        </div>
-      )}
-    </div>
+            {canDelete && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={handleDelete}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm
+                             text-red-600 hover:bg-red-50"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Hapus Invoice
+                </button>
+              </>
+            )}
+          </div>,
+          document.body
+        )}
+    </>
   );
 }

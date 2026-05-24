@@ -33,6 +33,9 @@ const ROLE_HOME: Record<UserRole, string> = {
 // Public routes that do NOT require authentication
 const PUBLIC_PATHS = ["/", "/login", "/error", "/register", "/auth/callback", "/auth/set-password"];
 
+// Auth-flow paths: accessible even when authenticated (invite/reset flows)
+const AUTH_FLOW_PATHS = ["/auth/callback", "/auth/set-password"];
+
 // ============================================================
 // MIDDLEWARE
 // ============================================================
@@ -51,8 +54,11 @@ export async function middleware(request: NextRequest) {
     p === "/" ? pathname === "/" : pathname.startsWith(p)
   );
   if (isPublicPath) {
-    // If already authenticated, redirect to role home instead of showing login/landing
-    if (user) {
+    // Auth-flow paths (callback, set-password) must always be reachable even when
+    // authenticated — the invite/password-reset flow depends on them.
+    const isAuthFlow = AUTH_FLOW_PATHS.some((p) => pathname.startsWith(p));
+    if (!isAuthFlow && user) {
+      // Already logged in on a login/register page → send to role home
       const profile = await getProfile(supabase, user.id);
       if (profile?.role) {
         return NextResponse.redirect(

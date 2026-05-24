@@ -214,6 +214,7 @@ function QuickAddCustomerModal({
 }) {
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
   const [err, setErr] = useState("");
   const [isPending, startT] = useTransition();
 
@@ -221,7 +222,7 @@ function QuickAddCustomerModal({
     if (!name.trim()) { setErr("Nama wajib diisi"); return; }
     setErr("");
     startT(async () => {
-      const res = await quickCreateCustomer(name, phone, "");
+      const res = await quickCreateCustomer(name, phone, address);
       if ("error" in res) { setErr(res.error); return; }
       onCreated({ id: res.id, name: res.name, phone: phone || null });
     });
@@ -244,6 +245,12 @@ function QuickAddCustomerModal({
             placeholder="Telepon (opsional)"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
+          />
+          <input
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+            placeholder="Alamat (opsional)"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
           />
         </div>
         <div className="mt-4 flex justify-end gap-2">
@@ -361,6 +368,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [customerSearch, setCustomerSearch] = useState(editCustomer?.name ?? "");
   const [customerResults, setCustomerResults] = useState<CustomerResult[]>([]);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+
+  // ── Date state (create mode) ──────────────────────────────────────────
+  const [invoiceDate, setInvoiceDate] = useState(todayStr());
 
   // ── Notes state ───────────────────────────────────────────────────────
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
@@ -673,7 +683,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // ── Save invoice (create mode) ────────────────────────────────────────
   function handleSave() {
     if (!customer) { setSaveError("Pelanggan wajib dipilih"); return; }
-    if (items.length === 0) { setSaveError("Minimal satu item diperlukan"); return; }
     setSaveError("");
 
     startTransition(async () => {
@@ -778,8 +787,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             ) : (
               <input
                 type="date"
-                defaultValue={todayStr()}
-                readOnly
+                value={invoiceDate}
+                onChange={(e) => setInvoiceDate(e.target.value)}
                 className="rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
               />
             )}
@@ -798,14 +807,25 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </span>
             ) : (
-              <div className="relative">
+              <div className="relative flex items-center gap-1">
                 <input
-                  className="w-44 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                  className="w-40 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
                   placeholder="Cari pelanggan…"
                   value={customerSearch}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                 />
-                {customer && <span className="ml-1 text-xs text-green-400">✓</span>}
+                {customer ? (
+                  <span className="text-xs text-green-400">✓</span>
+                ) : (
+                  <button
+                    type="button"
+                    title="Tambah pelanggan baru"
+                    onClick={() => setShowAddCustomer(true)}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400"
+                  >
+                    <Plus size={11} />
+                  </button>
+                )}
                 {customerResults.length > 0 && !customer && (
                   <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-gray-200 bg-white shadow-lg">
                     {customerResults.map((c) => (
@@ -832,15 +852,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                       + Tambah &ldquo;{customerSearch}&rdquo; sebagai baru
                     </button>
                   </div>
-                )}
-                {customerSearch.length > 1 && customerResults.length === 0 && !customer && (
-                  <button
-                    type="button"
-                    className="ml-1 whitespace-nowrap text-xs text-blue-400 hover:text-blue-300"
-                    onClick={() => setShowAddCustomer(true)}
-                  >
-                    + Baru
-                  </button>
                 )}
               </div>
             )}

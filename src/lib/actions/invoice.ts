@@ -825,6 +825,7 @@ export async function submitMechanicReceipt(payload: {
       transaction_type: "advance",
       amount: payload.amount,
       notes: payload.description,
+      is_paid: false,
       created_by: ctx.id,
     });
 

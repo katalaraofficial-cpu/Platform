@@ -227,3 +227,21 @@ export async function removeMechanic(
   await supabase.from("invoice_mechanics").delete().eq("id", assignmentId);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
+
+// ── Delete invoice ────────────────────────────────────────────
+export async function deleteInvoice(invoiceId: string, basePath: string) {
+  const supabase = await createClient();
+  // RLS ensures user can only delete their own tenant's invoices.
+  // Only draft/cancelled invoices should be deleted; check status first.
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", invoiceId)
+    .single();
+  if (!inv) return;
+  if (inv.status !== "draft" && inv.status !== "cancelled")
+    return; // Jangan hapus invoice yang sudah in_progress/completed/paid
+
+  await supabase.from("invoices").delete().eq("id", invoiceId);
+  revalidatePath(`${basePath}/invoices`);
+}

@@ -8,6 +8,7 @@ import {
   Wrench,
   PiggyBank,
   Settings,
+  UserCog,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
 
@@ -48,6 +49,9 @@ export default async function OwnerLayout({
 
     // Always visible
     { label: "Pengaturan", href: "/owner/settings", icon: <Settings className="h-4 w-4" /> },
+
+    // User management — always visible for owner
+    { label: "Kelola Pengguna", href: "/owner/users", icon: <UserCog className="h-4 w-4" /> },
   ];
 
   return (

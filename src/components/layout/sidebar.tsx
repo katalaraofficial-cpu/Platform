@@ -42,10 +42,15 @@ export function Sidebar({
       )}
     >
       {/* ── Header ── */}
-      <div className="flex h-16 items-center border-b px-3 gap-2">
-        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
-          P
-        </div>
+      <div className={cn(
+        "flex h-16 items-center border-b px-3 gap-2",
+        collapsed && "justify-center"
+      )}>
+        {!collapsed && (
+          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-sm font-bold text-white">
+            P
+          </div>
+        )}
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-gray-900">
@@ -59,8 +64,7 @@ export function Sidebar({
           title={collapsed ? "Buka sidebar" : "Tutup sidebar"}
           className={cn(
             "flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md",
-            "text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors",
-            collapsed && "mx-auto"
+            "text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           )}
         >
           {collapsed ? (

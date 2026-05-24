@@ -151,9 +151,11 @@ export async function addUserToTenant(
 
   // Invite user — trigger handle_new_user() akan auto-buat profile
   // dengan role & tenant_id dari metadata
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
   const { error: inviteErr } =
     await adminClient.auth.admin.inviteUserByEmail(email, {
       data: { full_name: fullName, role, tenant_id: tenantId },
+      redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
     });
   if (inviteErr) return { error: "Gagal mengundang: " + inviteErr.message };
 
@@ -212,9 +214,11 @@ export async function approveRegistration(
     .insert({ tenant_id: tenant.id, default_markup_pct: 20, petty_cash_limit: 500000 });
 
   // Undang pemilik bengkel — trigger handle_new_user() auto-buat profile owner
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
   const { error: inviteErr } =
     await adminClient.auth.admin.inviteUserByEmail(req.email, {
       data: { full_name: req.owner_name, role: "owner", tenant_id: tenant.id },
+      redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
     });
   if (inviteErr) {
     await adminClient.from("tenants").delete().eq("id", tenant.id);

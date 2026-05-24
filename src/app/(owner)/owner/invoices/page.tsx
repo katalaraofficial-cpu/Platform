@@ -107,7 +107,6 @@ async function InvoiceTable({
             <th className={TH}>No. Nota</th>
             <th className={TH}>Tanggal</th>
             <th className={TH}>Pelanggan</th>
-            <th className={TH}>Kendaraan</th>
             <th className={TH}>Status</th>
             <th className={`${TH} text-right`}>Total</th>
             <th className={`${TH} text-right`}>Bayar</th>
@@ -154,14 +153,6 @@ async function InvoiceTable({
                 {/* Pelanggan */}
                 <td className={`${TD} text-gray-900 max-w-[140px] truncate`}>
                   {customer?.name ?? "-"}
-                </td>
-
-                {/* Kendaraan */}
-                <td className={`${TD} text-gray-500 whitespace-nowrap`}>
-                  <span className="font-medium text-gray-700">{plate}</span>
-                  {vehicle && (
-                    <span className="ml-1 text-xs text-gray-400">({vehicle})</span>
-                  )}
                 </td>
 
                 {/* Status */}
@@ -221,6 +212,7 @@ async function InvoiceTable({
                     invoiceNumber={inv.invoice_number}
                     status={inv.status}
                     basePath={BASE_PATH}
+                    isOwner={true}
                   />
                 </td>
               </tr>

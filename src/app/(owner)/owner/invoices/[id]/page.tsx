@@ -8,12 +8,14 @@ import { AssignMechanicForm } from "@/components/invoices/assign-mechanic-form";
 import {
   updateInvoiceStatus,
   removeMechanic,
+  rollbackInvoiceStatus,
 } from "@/lib/actions/invoice";
 import { PrintButton } from "@/components/invoices/print-button";
 import { TaxSettings } from "@/components/invoices/tax-settings";
 import { InvoiceItemsTable } from "@/components/invoices/invoice-items-table";
 import { DiscountSettings } from "@/components/invoices/discount-settings";
 import { UpdateInvoiceForm } from "@/components/invoices/update-invoice-form";
+import { PaymentForm } from "@/components/invoices/payment-form";
 import type { InvoiceStatus } from "@/types/database";
 
 const BASE_PATH = "/owner";
@@ -49,7 +51,6 @@ const NEXT_STATUS: Record<
     { label: "Batalkan Invoice", next: "cancelled", color: "border border-red-300 text-red-600 hover:bg-red-50" },
   ],
   completed: [
-    { label: "Tandai Lunas", next: "paid", color: "bg-green-600 hover:bg-green-500 text-white" },
     { label: "Batalkan Invoice", next: "cancelled", color: "border border-red-300 text-red-600 hover:bg-red-50" },
   ],
   paid: [],
@@ -111,8 +112,9 @@ export default async function OwnerInvoiceDetailPage({
   );
 
   const status = invoice.status as InvoiceStatus;
-  const canEdit = status === "draft" || status === "in_progress";
+  const canEdit = status !== "cancelled";
   const actions = NEXT_STATUS[status] ?? [];
+  const canRollback = status !== "draft" && status !== "cancelled";
 
   return (
     <div className="space-y-6">
@@ -315,20 +317,45 @@ export default async function OwnerInvoiceDetailPage({
         </div>
       </div>
 
-      {/* Status actions */}
-      {actions.length > 0 && (
+      {/* Payment form — shown when status is 'completed' */}
+      {status === "completed" && (
+        <PaymentForm
+          invoiceId={invoice.id}
+          basePath={BASE_PATH}
+          grandTotal={Number(invoice.grand_total)}
+        />
+      )}
+
+      {/* Payment info — shown when status is 'paid' */}
+      {status === "paid" && (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-4 shadow-sm flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-semibold text-green-700">✓ Lunas</p>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {invoice.payment_method === "cash"
+                ? "Tunai (Cash)"
+                : invoice.payment_method === "transfer"
+                ? "Transfer Bank"
+                : invoice.payment_method === "other"
+                ? "Lainnya"
+                : "-"}
+              {invoice.paid_at && (
+                <> · {new Date(invoice.paid_at).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</>
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Status actions + rollback */}
+      {(actions.length > 0 || canRollback) && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 font-semibold text-gray-900">Ubah Status</h2>
           <div className="flex flex-wrap gap-3">
             {actions.map(({ label, next, color }) => (
               <form
                 key={next}
-                action={updateInvoiceStatus.bind(
-                  null,
-                  invoice.id,
-                  next,
-                  BASE_PATH
-                )}
+                action={updateInvoiceStatus.bind(null, invoice.id, next, BASE_PATH)}
               >
                 <button
                   type="submit"
@@ -338,6 +365,17 @@ export default async function OwnerInvoiceDetailPage({
                 </button>
               </form>
             ))}
+
+            {canRollback && (
+              <form action={rollbackInvoiceStatus.bind(null, invoice.id, BASE_PATH)}>
+                <button
+                  type="submit"
+                  className="rounded-md border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 transition-colors hover:bg-amber-50"
+                >
+                  ↩ Kembalikan Status
+                </button>
+              </form>
+            )}
           </div>
         </div>
       )}

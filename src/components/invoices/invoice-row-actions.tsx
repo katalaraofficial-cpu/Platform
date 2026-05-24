@@ -1,16 +1,17 @@
 "use client";
 
 import { createPortal } from "react-dom";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Eye, Trash2, Printer } from "lucide-react";
-import { deleteInvoice } from "@/lib/actions/invoice";
+import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw } from "lucide-react";
+import { deleteInvoice, rollbackInvoiceStatus } from "@/lib/actions/invoice";
 
 interface Props {
   invoiceId: string;
   invoiceNumber: string;
   status: string;
   basePath: string;
+  isOwner?: boolean;
 }
 
 export function InvoiceRowActions({
@@ -18,10 +19,12 @@ export function InvoiceRowActions({
   invoiceNumber,
   status,
   basePath,
+  isOwner = false,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [isPending, startTransition] = useTransition();
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -48,13 +51,32 @@ export function InvoiceRowActions({
     setOpen((o) => !o);
   }
 
-  const canDelete = status === "draft" || status === "cancelled";
+  const canDelete = isOwner ? status !== "" : (status === "draft" || status === "cancelled");
+  const canRollback = isOwner && status !== "draft" && status !== "cancelled";
+
+  const ROLLBACK_LABEL: Record<string, string> = {
+    paid: "Kembalikan ke Selesai",
+    completed: "Kembalikan ke Dikerjakan",
+    in_progress: "Kembalikan ke Draft",
+    cancelled: "Kembalikan ke Draft",
+  };
 
   async function handleDelete() {
-    if (!confirm(`Hapus invoice ${invoiceNumber}? Tindakan ini tidak dapat dibatalkan.`))
-      return;
+    const warning = status === "paid" || status === "completed"
+      ? `PERHATIAN: Invoice ${invoiceNumber} sudah ${status === "paid" ? "lunas" : "selesai"}. Menghapus akan menghilangkan data kas terkait.\n\nLanjutkan hapus?`
+      : `Hapus invoice ${invoiceNumber}? Tindakan ini tidak dapat dibatalkan.`;
+    if (!confirm(warning)) return;
     setOpen(false);
     await deleteInvoice(invoiceId, basePath);
+  }
+
+  function handleRollback() {
+    const label = ROLLBACK_LABEL[status] ?? "Kembalikan status";
+    if (!confirm(`${label} untuk invoice ${invoiceNumber}?`)) return;
+    setOpen(false);
+    startTransition(async () => {
+      await rollbackInvoiceStatus(invoiceId, basePath);
+    });
   }
 
   return (
@@ -99,6 +121,21 @@ export function InvoiceRowActions({
               <Printer className="h-3.5 w-3.5 text-gray-400" />
               Cetak Invoice
             </button>
+
+            {canRollback && (
+              <>
+                <div className="my-1 border-t border-gray-100" />
+                <button
+                  onClick={handleRollback}
+                  disabled={isPending}
+                  className="flex w-full items-center gap-2.5 px-3 py-2 text-sm
+                             text-amber-600 hover:bg-amber-50 disabled:opacity-50"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  {ROLLBACK_LABEL[status] ?? "Kembalikan Status"}
+                </button>
+              </>
+            )}
 
             {canDelete && (
               <>

@@ -249,17 +249,9 @@ export async function removeMechanic(
 // ── Delete invoice ────────────────────────────────────────────
 export async function deleteInvoice(invoiceId: string, basePath: string) {
   const supabase = await createClient();
+  // Delete associated ledger entries first (reference_id is not a FK, so no cascade)
+  await supabase.from("ledger").delete().eq("reference_id", invoiceId);
   // RLS ensures user can only delete their own tenant's invoices.
-  // Only draft/cancelled invoices should be deleted; check status first.
-  const { data: inv } = await supabase
-    .from("invoices")
-    .select("status")
-    .eq("id", invoiceId)
-    .single();
-  if (!inv) return;
-  if (inv.status !== "draft" && inv.status !== "cancelled")
-    return; // Jangan hapus invoice yang sudah in_progress/completed/paid
-
   await supabase.from("invoices").delete().eq("id", invoiceId);
   revalidatePath(`${basePath}/invoices`);
 }
@@ -478,4 +470,111 @@ export async function updateInvoiceDiscount(
     .eq("tenant_id", ctx.tenantId);
 
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}
+
+// ── Process payment (completed → paid) ───────────────────────
+export async function processPayment(
+  invoiceId: string,
+  method: string,
+  paymentDate: string,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("grand_total, invoice_number, status")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv || inv.status !== "completed") return;
+
+  // Update invoice to paid
+  const paidAt = paymentDate
+    ? new Date(paymentDate).toISOString()
+    : new Date().toISOString();
+
+  await supabase
+    .from("invoices")
+    .update({
+      status: "paid",
+      paid_at: paidAt,
+      payment_method: method,
+    })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+
+  // Record kas masuk in ledger
+  const amount = Number(inv.grand_total);
+  if (amount > 0) {
+    const methodLabel: Record<string, string> = {
+      cash: "Tunai",
+      transfer: "Transfer Bank",
+      other: "Lainnya",
+    };
+    await supabase.from("ledger").insert({
+      tenant_id: ctx.tenantId,
+      transaction_type: "kas_masuk",
+      category: "Pembayaran Invoice",
+      amount,
+      reference_id: invoiceId,
+      notes: `Pembayaran invoice ${inv.invoice_number} via ${methodLabel[method] ?? method}`,
+      created_by: ctx.id,
+    });
+  }
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  revalidatePath(`${basePath}/invoices`);
+}
+
+// ── Rollback invoice status one step ─────────────────────────
+export async function rollbackInvoiceStatus(invoiceId: string, basePath: string) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return;
+
+  const prevMap: Partial<Record<string, string>> = {
+    paid: "completed",
+    completed: "in_progress",
+    in_progress: "draft",
+    cancelled: "draft",
+  };
+  const next = prevMap[inv.status];
+  if (!next) return;
+
+  type InvoiceUpdate = {
+    status: InvoiceStatus;
+    paid_at?: string | null;
+    payment_method?: string | null;
+    completed_at?: string | null;
+  };
+  const update: InvoiceUpdate = { status: next as InvoiceStatus };
+  if (inv.status === "paid") {
+    update.paid_at = null;
+    update.payment_method = null;
+    // Reverse the ledger entry
+    await supabase.from("ledger").delete().eq("reference_id", invoiceId);
+  }
+  if (inv.status === "completed") {
+    update.completed_at = null;
+  }
+
+  await supabase
+    .from("invoices")
+    .update(update)
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  revalidatePath(`${basePath}/invoices`);
 }

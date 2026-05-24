@@ -34,13 +34,24 @@ async function InvoiceTable({
   const supabase = await createClient();
   let query = supabase
     .from("invoices")
-    .select("id, invoice_number, status, grand_total, created_at, customers(name, vehicle_info)")
+    .select("id, invoice_number, status, grand_total, created_at, customer_id")
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
   if (status) query = query.eq("status", status as InvoiceStatus);
 
   const { data: invoices } = await query;
+
+  // Batch-fetch customers to avoid N+1
+  const customerIds = [
+    ...new Set(
+      (invoices ?? []).map((i) => i.customer_id).filter((x): x is string => x != null)
+    ),
+  ];
+  const { data: customers } = customerIds.length > 0
+    ? await supabase.from("customers").select("id, name, vehicle_info").in("id", customerIds)
+    : { data: [] };
+  const customerMap = Object.fromEntries((customers ?? []).map((c) => [c.id, c]));
 
   if (!invoices || invoices.length === 0) {
     return (
@@ -81,9 +92,7 @@ async function InvoiceTable({
         </thead>
         <tbody className="divide-y divide-gray-100 bg-white">
           {invoices.map((inv) => {
-            const customer = Array.isArray(inv.customers)
-              ? inv.customers[0]
-              : inv.customers;
+            const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
             const vehicleInfo = customer?.vehicle_info as
               | { plate?: string; brand?: string; model?: string }
               | null;

@@ -66,29 +66,34 @@ export default async function OwnerInvoiceDetailPage({
   const user = await getUserContext();
   const supabase = await createClient();
 
-  // Fetch invoice with customer
+  if (!user.tenantId) notFound();
+
+  // Fetch invoice
   const { data: invoice } = await supabase
     .from("invoices")
-    .select(
-      "*, customers(name, phone, vehicle_info)"
-    )
+    .select("*")
     .eq("id", id)
-    .eq("tenant_id", user.tenantId ?? "")
+    .eq("tenant_id", user.tenantId)
     .single();
 
   if (!invoice) notFound();
-  if (!user.tenantId) notFound();
 
-  // Fetch items
-  const { data: items } = await supabase
-    .from("invoice_items")
-    .select("*")
-    .eq("invoice_id", id)
-    .order("created_at", { ascending: true });
+  // Fetch customer and items in parallel
+  const [{ data: customer }, { data: items }] = await Promise.all([
+    invoice.customer_id
+      ? supabase
+          .from("customers")
+          .select("name, phone, vehicle_info")
+          .eq("id", invoice.customer_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("invoice_items")
+      .select("*")
+      .eq("invoice_id", id)
+      .order("created_at", { ascending: true }),
+  ]);
 
-  const customer = Array.isArray(invoice.customers)
-    ? invoice.customers[0]
-    : invoice.customers;
   const vehicleInfo = customer?.vehicle_info as {
     plate?: string;
     brand?: string;

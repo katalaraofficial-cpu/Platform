@@ -230,10 +230,10 @@ supabase/migrations/
 ### Owner ⚠️ Sebagian Jalan
 | Halaman | Status | Catatan |
 |---------|--------|---------|
-| Dashboard | ⚠️ Placeholder | Belum ada summary data |
+| Dashboard | ⚠️ Placeholder | Belum ada summary data nyata |
 | Running Invoice — List | ✅ Jalan | Filter tab status, tampil invoice |
-| Running Invoice — Buat Baru | ✅ Jalan | Form draft invoice |
-| Running Invoice — Detail | ✅ Jalan | Lihat item, add item |
+| Running Invoice — Buat Baru | ✅ Jalan | Form draft invoice + data customer |
+| Running Invoice — Detail | ✅ Jalan | Items, assign mekanik, transisi status |
 | Kas & Keuangan | ⚠️ Placeholder | Halaman ada, konten belum |
 | Pelanggan | ⚠️ Placeholder | |
 | Mekanik & Hutang | ⚠️ Placeholder | |
@@ -313,8 +313,10 @@ Folder `(auth)`, `(owner)`, dll **tidak menambah prefix ke URL**.
 | "Akses Ditolak" saat klik invite link | Middleware redirect user authenticated dari `/auth/set-password` | `AUTH_FLOW_PATHS` exemption di middleware |
 | Invite link tidak diproses | `@supabase/ssr` tidak auto-parse hash fragment | `/auth/exchange` page dengan manual `setSession()` |
 | Email tidak terkirim (diam-diam) | `RESEND_API_KEY` tidak di-set di Vercel + `.catch(()=>{})` | Return boolean dari `sendInviteEmail()`, tampilkan status di UI |
+| Email sender ditolak | `onboarding@resend.dev` hanya bisa kirim ke email terverifikasi | Ganti ke `noreply@katalara.com` (domain sudah verifikasi di Resend) |
 | Modal tambah user langsung tampil sukses | `useActionState` di parent component, state persist saat modal dibuka ulang | Pindah `useActionState` ke `ModalContent` sub-component |
 | Build error: useSearchParams Suspense | Next.js 15 wajib Suspense untuk `useSearchParams` | Wrap `AuthExchangeInner` dalam `<Suspense>` |
+| TypeScript error: Supabase join `profiles` di `invoice_mechanics` | Generated types tidak mengenali relasi via `mechanic_id` | Fetch profiles terpisah, build lookup map secara manual |
 
 ---
 
@@ -326,18 +328,20 @@ Folder `(auth)`, `(owner)`, dll **tidak menambah prefix ke URL**.
    supabase/migrations/003_tenant_requests.sql
    ```
 
-### Prioritas Tinggi
-2. **Owner Dashboard** — summary data: total invoice, pendapatan bulan ini, invoice aktif
-3. **Invoice flow lengkap** — assign mekanik, transisi status (in_progress → completed → paid)
-4. **Pelanggan** — CRUD data pelanggan per tenant
-5. **Kas & Keuangan** — ledger view untuk owner
+### Prioritas Tinggi (Evaluasi & Pembenahan)
+2. **Owner Dashboard** — summary data nyata: total invoice, pendapatan bulan ini, invoice aktif
+3. **Pelanggan** — CRUD data pelanggan per tenant
+4. **Kas & Keuangan** — ledger view untuk owner
+5. **Mekanik & Hutang** — daftar mekanik + hutang
+6. **Pengaturan tenant** — nama bengkel, markup default
 
 ### Prioritas Sedang
-6. **Admin module** — dashboard kas kecil, invoice operasional
-7. **Mechanic module** — work order detail, upload struk
+7. **Admin module** — dashboard kas kecil, invoice operasional
+8. **Mechanic module** — work order detail, upload struk
+9. **Cetak / export invoice PDF**
 
 ### Infrastruktur
-8. **Supabase Storage bucket `receipts`** — setup manual di Supabase dashboard, untuk upload struk mekanik
+10. **Supabase Storage bucket `receipts`** — setup manual di Supabase dashboard, untuk upload struk mekanik
 
 ---
 

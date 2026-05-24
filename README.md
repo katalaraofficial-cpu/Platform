@@ -86,6 +86,8 @@ RESEND_API_KEY=<resend-api-key>
 - [x] Buat invoice baru (draft)
 - [x] Invoice detail view
 - [x] Tambah item invoice (service, part_internal, part_external)
+- [x] Assign mekanik ke invoice (lead / helper, hapus assignment)
+- [x] Transisi status invoice (draft → in_progress → completed → paid / cancelled)
 - [x] Kas & Keuangan (placeholder)
 
 **UI/UX**
@@ -100,7 +102,9 @@ RESEND_API_KEY=<resend-api-key>
 - [ ] Migration `003_tenant_requests.sql` — **belum dijalankan manual** di Supabase SQL Editor
 
 ### ⬜ Belum Dimulai
-- [ ] Owner: Assign mekanik ke invoice, transisi status invoice, cetak/export invoice
+- [ ] Owner: Cetak / export invoice PDF
+- [ ] Owner Dashboard — data summary nyata (total invoice, pendapatan, dll)
+- [ ] Owner: Pelanggan (CRUD), Mekanik & Hutang, Kas & Keuangan, Kas Kecil, Pengaturan
 - [ ] Admin: Dashboard kas kecil, invoice operasional
 - [ ] Mechanic: Work order detail, upload struk (Supabase Storage)
 - [ ] Supabase Storage bucket `receipts`

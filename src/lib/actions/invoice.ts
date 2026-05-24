@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import type { ItemType, InvoiceStatus, Invoice, PaymentSource } from "@/types/database";
+import type { ItemType, InvoiceStatus, Invoice, PaymentSource, MechanicRoleInInvoice } from "@/types/database";
 
 export type ActionState = { error?: string };
 
@@ -245,3 +245,100 @@ export async function deleteInvoice(invoiceId: string, basePath: string) {
   await supabase.from("invoices").delete().eq("id", invoiceId);
   revalidatePath(`${basePath}/invoices`);
 }
+
+// ── Create invoice with items in one shot (POS flow) ──────────
+export type InvoiceItemDraft = {
+  description: string;
+  notes: string;
+  qty: number;
+  unitPrice: number;
+  sellPrice: number;
+  itemType: ItemType;
+};
+
+export type MechanicAssignment = {
+  id: string;
+  role: MechanicRoleInInvoice;
+};
+
+export async function createInvoiceWithItems(payload: {
+  customerId: string;
+  jobDescription: string;
+  mechanics: MechanicAssignment[];
+  items: InvoiceItemDraft[];
+  notes: string;
+  basePath: string;
+}): Promise<{ error?: string; invoiceId?: string }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sesi berakhir, silakan login kembali" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile?.tenant_id) return { error: "Akun tidak terhubung ke tenant" };
+
+  const tenantId = profile.tenant_id;
+  const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
+  const combinedNotes = [payload.jobDescription, payload.notes]
+    .map((s) => s.trim())
+    .filter(Boolean)
+    .join(" | ") || null;
+
+  const { data: invoice, error: invErr } = await supabase
+    .from("invoices")
+    .insert({
+      tenant_id: tenantId,
+      customer_id: payload.customerId || null,
+      invoice_number: invoiceNumber,
+      status: "draft" as InvoiceStatus,
+      notes: combinedNotes,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
+  if (invErr || !invoice)
+    return { error: "Gagal membuat invoice: " + (invErr?.message ?? "") };
+
+  const invoiceId = invoice.id;
+
+  if (payload.items.length > 0) {
+    const { error: itemsErr } = await supabase.from("invoice_items").insert(
+      payload.items.map((item) => ({
+        invoice_id: invoiceId,
+        tenant_id: tenantId,
+        item_type: item.itemType,
+        description: item.description,
+        quantity: item.qty,
+        unit_price: item.unitPrice,
+        markup_pct: 0,
+        final_price: item.sellPrice * item.qty,
+        payment_source: null as PaymentSource | null,
+      }))
+    );
+    if (itemsErr) {
+      await supabase.from("invoices").delete().eq("id", invoiceId);
+      return { error: "Gagal menyimpan items: " + itemsErr.message };
+    }
+    await syncTotals(supabase, invoiceId);
+  }
+
+  if (payload.mechanics.length > 0) {
+    await supabase.from("invoice_mechanics").insert(
+      payload.mechanics.map((m) => ({
+        invoice_id: invoiceId,
+        mechanic_id: m.id,
+        tenant_id: tenantId,
+        mechanic_role: m.role,
+      }))
+    );
+  }
+
+  revalidatePath(`${payload.basePath}/invoices`);
+  return { invoiceId };
+}
+

@@ -1,9 +1,9 @@
-import { createClient } from "@/lib/supabase/server";
+﻿import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { DollarSign, TrendingUp, FileText, Clock, Wallet, Users } from "lucide-react";
 
-// ── Helpers ─────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function fmt(n: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -25,7 +25,7 @@ function fmtDate(iso: string) {
   });
 }
 
-// ── Sub-components ───────────────────────────────────────────
+// â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function BarChart({ data }: { data: { label: string; value: number }[] }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
@@ -60,7 +60,7 @@ function DonutChart({
   if (total === 0) {
     return (
       <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-gray-100">
-        <span className="text-xs text-gray-400">—</span>
+        <span className="text-xs text-gray-400">â€”</span>
       </div>
     );
   }
@@ -118,7 +118,7 @@ const STATUS_CLASS: Record<string, string> = {
   paid: "bg-emerald-100 text-emerald-700",
 };
 
-// ── Page ─────────────────────────────────────────────────────
+// â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default async function OwnerDashboard() {
   const supabase = await createClient();
   const ctx = await getUserContext();
@@ -172,7 +172,7 @@ export default async function OwnerDashboard() {
       .gte("created_at", firstOfMonth),
   ]);
 
-  // ── Fetch customer names ───────────────────────────────────
+  // â”€â”€ Fetch customer names â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const allCustomerIds = [
     ...new Set([
       ...(invoicesMonth ?? []).map((i) => i.customer_id).filter(Boolean),
@@ -189,7 +189,7 @@ export default async function OwnerDashboard() {
     (customers ?? []).forEach((c) => customerMap.set(c.id, c.name));
   }
 
-  // ── Stats ──────────────────────────────────────────────────
+  // â”€â”€ Stats â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const all = invoicesMonth ?? [];
 
   const monthRevenue = all
@@ -207,7 +207,7 @@ export default async function OwnerDashboard() {
     return acc;
   }, {});
 
-  // ── Kas summary ────────────────────────────────────────────
+  // â”€â”€ Kas summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const kas = (ledgerMonth ?? []).reduce(
     (acc, e) => {
       if (e.transaction_type === "kas_masuk") acc.masuk += e.amount;
@@ -217,10 +217,10 @@ export default async function OwnerDashboard() {
     { masuk: 0, keluar: 0 }
   );
 
-  // ── Mechanic debt ──────────────────────────────────────────
+  // â”€â”€ Mechanic debt â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const totalDebt = (debtUnpaid ?? []).reduce((s, e) => s + e.amount, 0);
 
-  // ── Monthly revenue bar chart (last 6 months) ─────────────
+  // â”€â”€ Monthly revenue bar chart (last 6 months) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
     return {
@@ -235,7 +235,7 @@ export default async function OwnerDashboard() {
       .reduce((s, inv) => s + (inv.grand_total ?? 0), 0),
   }));
 
-  // ── Donut: job type breakdown ──────────────────────────────
+  // â”€â”€ Donut: job type breakdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const itemTypeCounts = (itemsMonth ?? []).reduce<Record<string, number>>(
     (acc, i) => {
       acc[i.item_type] = (acc[i.item_type] ?? 0) + 1;
@@ -249,7 +249,7 @@ export default async function OwnerDashboard() {
     { label: "Part External", value: itemTypeCounts.part_external ?? 0, color: "#F59E0B" },
   ];
 
-  // ── Top 5 customers ────────────────────────────────────────
+  // â”€â”€ Top 5 customers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const custCount = all.reduce<Record<string, { count: number; revenue: number }>>(
     (acc, inv) => {
       if (!inv.customer_id) return acc;
@@ -265,7 +265,7 @@ export default async function OwnerDashboard() {
     .slice(0, 5)
     .map(([id, data]) => ({
       id,
-      name: customerMap.get(id) ?? "—",
+      name: customerMap.get(id) ?? "â€”",
       count: data.count,
       revenue: data.revenue,
     }));
@@ -276,7 +276,7 @@ export default async function OwnerDashboard() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Dashboard Pemilik</h1>
         <p className="mt-1 text-sm text-gray-500">
-          Ringkasan keuangan dan operasional bengkel —{" "}
+          Ringkasan keuangan dan operasional bengkel â€”{" "}
           {now.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
         </p>
       </div>
@@ -377,7 +377,7 @@ export default async function OwnerDashboard() {
             href="/owner/mechanics"
             className="mt-3 inline-block text-xs text-blue-600 hover:text-blue-500"
           >
-            Lihat detail →
+            Lihat detail â†’
           </Link>
         </div>
       </div>
@@ -454,7 +454,7 @@ export default async function OwnerDashboard() {
             href="/owner/invoices"
             className="text-sm text-blue-600 hover:text-blue-500"
           >
-            Lihat semua →
+            Lihat semua â†’
           </Link>
         </div>
         {!recentRaw || recentRaw.length === 0 ? (
@@ -487,7 +487,7 @@ export default async function OwnerDashboard() {
                       </Link>
                     </td>
                     <td className="px-5 py-3 text-gray-900">
-                      {customerMap.get(inv.customer_id ?? "") ?? "—"}
+                      {customerMap.get(inv.customer_id ?? "") ?? "â€”"}
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -502,147 +502,6 @@ export default async function OwnerDashboard() {
                     <td className="px-5 py-3 text-xs text-gray-400">
                       {fmtDate(inv.created_at)}
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short" });
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  draft: "Draft",
-  in_progress: "Dalam Proses",
-  completed: "Selesai",
-  paid: "Lunas",
-};
-
-const STATUS_CLASS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  in_progress: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  paid: "bg-emerald-100 text-emerald-700",
-};
-
-export default async function OwnerDashboard() {
-  const supabase = await createClient();
-  const ctx = await getUserContext();
-  const tenantId = ctx.tenantId!;
-
-  const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-
-  const [{ data: invoicesMonth }, { data: recentInvoices }] = await Promise.all([
-    supabase
-      .from("invoices")
-      .select("status, grand_total, paid_at")
-      .eq("tenant_id", tenantId)
-      .gte("created_at", firstOfMonth),
-    supabase
-      .from("invoices")
-      .select("id, invoice_number, customer_name, status, grand_total, created_at")
-      .eq("tenant_id", tenantId)
-      .order("created_at", { ascending: false })
-      .limit(7),
-  ]);
-
-  const all = invoicesMonth ?? [];
-
-  const monthRevenue = all
-    .filter((i) => i.status === "paid")
-    .reduce((sum, i) => sum + (i.grand_total ?? 0), 0);
-
-  const todayRevenue = all
-    .filter((i) => i.status === "paid" && i.paid_at && i.paid_at >= todayStart)
-    .reduce((sum, i) => sum + (i.grand_total ?? 0), 0);
-
-  const countByStatus = ["draft", "in_progress", "completed", "paid"].reduce<Record<string, number>>(
-    (acc, s) => { acc[s] = all.filter((i) => i.status === s).length; return acc; },
-    {}
-  );
-
-  const stats = [
-    { label: "Pendapatan Hari Ini", value: formatRupiah(todayRevenue), icon: <DollarSign className="h-5 w-5 text-green-400" />, color: "text-green-700" },
-    { label: "Pendapatan Bulan Ini", value: formatRupiah(monthRevenue), icon: <TrendingUp className="h-5 w-5 text-blue-400" />, color: "text-blue-700" },
-    { label: "Invoice Aktif", value: (countByStatus.draft ?? 0) + (countByStatus.in_progress ?? 0), icon: <Clock className="h-5 w-5 text-yellow-400" />, color: "text-yellow-700" },
-    { label: "Total Invoice Bulan Ini", value: all.length, icon: <FileText className="h-5 w-5 text-slate-400" />, color: "text-slate-700" },
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Pemilik</h1>
-        <p className="text-sm text-gray-500 mt-1">Ringkasan keuangan dan operasional bengkel.</p>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-500">{s.label}</p>
-              {s.icon}
-            </div>
-            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Status breakdown */}
-      <div className="grid grid-cols-4 gap-3">
-        {["draft", "in_progress", "completed", "paid"].map((status) => (
-          <div key={status} className="rounded-lg border border-gray-200 bg-white p-4 text-center">
-            <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium mb-2 ${STATUS_CLASS[status]}`}>
-              {STATUS_LABEL[status]}
-            </span>
-            <p className="text-2xl font-bold text-gray-900">{countByStatus[status] ?? 0}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Recent invoices */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-          <h2 className="font-semibold text-gray-900">Invoice Terbaru</h2>
-          <Link href="/owner/invoices" className="text-sm text-blue-600 hover:text-blue-500">
-            Lihat semua →
-          </Link>
-        </div>
-        {!recentInvoices || recentInvoices.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">Belum ada invoice</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-5 py-3 text-left">No. Invoice</th>
-                  <th className="px-5 py-3 text-left">Pelanggan</th>
-                  <th className="px-5 py-3 text-left">Status</th>
-                  <th className="px-5 py-3 text-right">Total</th>
-                  <th className="px-5 py-3 text-left">Tanggal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {recentInvoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-5 py-3 font-mono text-xs text-gray-600">{inv.invoice_number}</td>
-                    <td className="px-5 py-3 text-gray-900">{String(inv.customer_name ?? "")}</td>
-                    <td className="px-5 py-3">
-                      <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[inv.status]}`}>
-                        {STATUS_LABEL[inv.status]}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right text-gray-700">{formatRupiah(inv.grand_total ?? 0)}</td>
-                    <td className="px-5 py-3 text-gray-400 text-xs">{formatDate(inv.created_at)}</td>
                   </tr>
                 ))}
               </tbody>

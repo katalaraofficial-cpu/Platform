@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { AddItemForm } from "@/components/invoices/add-item-form";
+import { AssignMechanicForm } from "@/components/invoices/assign-mechanic-form";
 import {
   removeInvoiceItem,
   updateInvoiceStatus,
+  removeMechanic,
 } from "@/lib/actions/invoice";
 import { PrintButton } from "@/components/invoices/print-button";
 import type { InvoiceStatus, ItemType } from "@/types/database";
@@ -79,21 +81,37 @@ export default async function OwnerInvoiceDetailPage({
   if (!invoiceData) notFound();
   const invoice = invoiceData!;
 
-  // Fetch customer and items in parallel
-  const [{ data: customer }, { data: items }] = await Promise.all([
-    invoice.customer_id
-      ? supabase
-          .from("customers")
-          .select("name, phone, vehicle_info")
-          .eq("id", invoice.customer_id)
-          .single()
-      : Promise.resolve({ data: null }),
-    supabase
-      .from("invoice_items")
-      .select("*")
-      .eq("invoice_id", id)
-      .order("created_at", { ascending: true }),
-  ]);
+  // Fetch customer, items, assigned mechanics, and all tenant mechanics in parallel
+  const [{ data: customer }, { data: items }, { data: assignedMechanics }, { data: allMechanics }] =
+    await Promise.all([
+      invoice.customer_id
+        ? supabase
+            .from("customers")
+            .select("name, phone, vehicle_info")
+            .eq("id", invoice.customer_id)
+            .single()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from("invoice_items")
+        .select("*")
+        .eq("invoice_id", id)
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("invoice_mechanics")
+        .select("id, mechanic_role, mechanic_id")
+        .eq("invoice_id", id)
+        .order("assigned_at", { ascending: true }),
+      supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("tenant_id", user.tenantId ?? "")
+        .eq("role", "mechanic"),
+    ]);
+
+  // Build mechanic name lookup map
+  const mechanicNameMap = Object.fromEntries(
+    (allMechanics ?? []).map((m) => [m.id, m.full_name])
+  );
 
   const vehicleInfo = customer?.vehicle_info as {
     plate?: string;
@@ -296,6 +314,74 @@ export default async function OwnerInvoiceDetailPage({
             />
           </div>
         )}
+      </div>
+
+      {/* Mechanics card */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="font-semibold text-gray-900">Mekanik Bertugas</h2>
+        </div>
+
+        <div className="px-6 py-4 space-y-3">
+          {/* Assigned list */}
+          {assignedMechanics && assignedMechanics.length > 0 ? (
+            <ul className="divide-y divide-gray-100">
+              {assignedMechanics.map((am) => {
+                const name = mechanicNameMap[am.mechanic_id] ?? am.mechanic_id;
+                return (
+                  <li key={am.id} className="flex items-center justify-between py-2">
+                    <div>
+                      <span className="text-sm font-medium text-gray-900">
+                        {name}
+                      </span>
+                      <span
+                        className={`ml-2 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          am.mechanic_role === "lead"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-gray-100 text-gray-600"
+                        }`}
+                      >
+                        {am.mechanic_role === "lead" ? "Lead" : "Helper"}
+                      </span>
+                    </div>
+                    {canEdit && (
+                      <form
+                        action={removeMechanic.bind(
+                          null,
+                          am.id,
+                          invoice.id,
+                          BASE_PATH
+                        )}
+                      >
+                        <button
+                          type="submit"
+                          className="text-xs text-red-500 hover:text-red-700"
+                        >
+                          Hapus
+                        </button>
+                      </form>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : (
+            <p className="text-sm text-gray-400">Belum ada mekanik ditugaskan.</p>
+          )}
+
+          {/* Assign form */}
+          {canEdit && (
+            <div className="border-t border-dashed border-gray-200 pt-4">
+              <AssignMechanicForm
+                invoiceId={invoice.id}
+                tenantId={invoice.tenant_id}
+                basePath={BASE_PATH}
+                mechanics={allMechanics ?? []}
+                assignedIds={(assignedMechanics ?? []).map((m) => m.mechanic_id)}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Status actions */}

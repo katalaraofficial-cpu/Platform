@@ -185,3 +185,45 @@ export async function updateInvoiceStatus(
   revalidatePath(`${basePath}/invoices`);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
+
+// ── Assign mechanic to invoice ───────────────────────────────
+export async function assignMechanic(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const invoiceId = formData.get("invoice_id") as string;
+  const mechanicId = formData.get("mechanic_id") as string;
+  const tenantId = formData.get("tenant_id") as string;
+  const basePath = formData.get("base_path") as string;
+  const mechanicRole = (formData.get("mechanic_role") as string) || "lead";
+
+  if (!mechanicId) return { error: "Pilih mekanik terlebih dahulu" };
+
+  const { error } = await supabase.from("invoice_mechanics").insert({
+    invoice_id: invoiceId,
+    mechanic_id: mechanicId,
+    tenant_id: tenantId,
+    mechanic_role: mechanicRole as "lead" | "helper",
+  });
+
+  if (error) {
+    if (error.code === "23505")
+      return { error: "Mekanik sudah ditugaskan ke invoice ini" };
+    return { error: "Gagal menugaskan mekanik: " + error.message };
+  }
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  return {};
+}
+
+// ── Remove mechanic from invoice ─────────────────────────────
+export async function removeMechanic(
+  assignmentId: string,
+  invoiceId: string,
+  basePath: string
+) {
+  const supabase = await createClient();
+  await supabase.from("invoice_mechanics").delete().eq("id", assignmentId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}

@@ -31,7 +31,10 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(
-    `${origin}/error?reason=auth_callback_failed`
-  );
+  // Implicit flow: Supabase embeds #access_token in the hash fragment.
+  // Hash fragments are never sent to the server — redirect to a client page
+  // that can read window.location.hash and create the session in the browser.
+  const exchangeUrl = new URL(`${origin}/auth/exchange`);
+  exchangeUrl.searchParams.set("next", next);
+  return NextResponse.redirect(exchangeUrl.toString());
 }

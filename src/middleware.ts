@@ -31,10 +31,10 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 // Public routes that do NOT require authentication
-const PUBLIC_PATHS = ["/", "/login", "/error", "/register", "/auth/callback", "/auth/set-password"];
+const PUBLIC_PATHS = ["/", "/login", "/error", "/register", "/auth/callback", "/auth/set-password", "/auth/exchange"];
 
 // Auth-flow paths: accessible even when authenticated (invite/reset flows)
-const AUTH_FLOW_PATHS = ["/auth/callback", "/auth/set-password"];
+const AUTH_FLOW_PATHS = ["/auth/callback", "/auth/set-password", "/auth/exchange"];
 
 // ============================================================
 // MIDDLEWARE

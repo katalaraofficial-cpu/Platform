@@ -746,7 +746,7 @@ export async function updateInvoiceMechanicStatus(
     return { error: "Transisi status tidak diizinkan dari kondisi saat ini" };
   }
 
-  const updateData: { status: string; completed_at?: string } = { status: newStatus };
+  const updateData: { status: "in_progress" | "completed"; completed_at?: string } = { status: newStatus };
   if (newStatus === "completed") {
     updateData.completed_at = new Date().toISOString();
   }

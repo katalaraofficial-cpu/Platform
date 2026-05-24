@@ -70,7 +70,7 @@ export default async function AdminInvoiceDetailPage({
     .from("invoices")
     .select("*, customers(name, phone, vehicle_info)")
     .eq("id", id)
-    .eq("tenant_id", user.tenantId)
+    .eq("tenant_id", user.tenantId ?? "")
     .single();
 
   if (!invoice) notFound();

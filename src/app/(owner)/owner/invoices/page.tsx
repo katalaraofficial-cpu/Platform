@@ -141,6 +141,7 @@ export default async function OwnerInvoicesPage({
 }) {
   const { status } = await searchParams;
   const user = await getUserContext();
+  if (!user.tenantId) return null;
 
   return (
     <div className="space-y-6">

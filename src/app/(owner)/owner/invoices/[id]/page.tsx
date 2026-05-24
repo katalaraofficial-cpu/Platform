@@ -73,10 +73,11 @@ export default async function OwnerInvoiceDetailPage({
       "*, customers(name, phone, vehicle_info)"
     )
     .eq("id", id)
-    .eq("tenant_id", user.tenantId)
+    .eq("tenant_id", user.tenantId ?? "")
     .single();
 
   if (!invoice) notFound();
+  if (!user.tenantId) notFound();
 
   // Fetch items
   const { data: items } = await supabase

@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { createTenant, type ActionState } from "@/lib/actions/tenant";
 import Link from "next/link";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 
 export default function NewTenantPage() {
   const [state, action, isPending] = useActionState<ActionState, FormData>(

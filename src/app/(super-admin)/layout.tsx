@@ -5,12 +5,14 @@ import {
   Building2,
   Settings,
   ShieldCheck,
+  Inbox,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", href: "/super-admin/dashboard", icon: <LayoutDashboard className="h-4 w-4" /> },
   { label: "Kelola Tenant", href: "/super-admin/tenants", icon: <Building2 className="h-4 w-4" /> },
+  { label: "Pendaftaran", href: "/super-admin/registrations", icon: <Inbox className="h-4 w-4" /> },
   { label: "Pengaturan Platform", href: "/super-admin/settings", icon: <Settings className="h-4 w-4" /> },
 ];
 

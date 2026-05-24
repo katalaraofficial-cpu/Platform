@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { Building2, Users, CheckCircle, XCircle } from "lucide-react";
+import { Building2, Users, CheckCircle, XCircle, Inbox } from "lucide-react";
 
 export default async function SuperAdminDashboard() {
   const supabase = await createClient();
@@ -9,6 +9,7 @@ export default async function SuperAdminDashboard() {
     { count: totalTenants },
     { count: activeTenants },
     { count: totalUsers },
+    { count: pendingRegistrations },
   ] = await Promise.all([
     supabase.from("tenants").select("*", { count: "exact", head: true }),
     supabase
@@ -19,6 +20,10 @@ export default async function SuperAdminDashboard() {
       .from("profiles")
       .select("*", { count: "exact", head: true })
       .neq("role", "super_admin"),
+    supabase
+      .from("tenant_requests")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "pending"),
   ]);
 
   const stats = [
@@ -46,6 +51,12 @@ export default async function SuperAdminDashboard() {
       icon: <Users className="h-5 w-5 text-blue-400" />,
       href: "/super-admin/tenants",
     },
+    {
+      label: "Pendaftaran Baru",
+      value: pendingRegistrations ?? 0,
+      icon: <Inbox className="h-5 w-5 text-yellow-400" />,
+      href: "/super-admin/registrations",
+    },
   ];
 
   return (
@@ -60,7 +71,7 @@ export default async function SuperAdminDashboard() {
       </div>
 
       {/* Stats grid */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
         {stats.map((s) => (
           <Link
             key={s.label}

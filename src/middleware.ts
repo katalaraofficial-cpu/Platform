@@ -31,7 +31,7 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 // Public routes that do NOT require authentication
-const PUBLIC_PATHS = ["/", "/login", "/error"];
+const PUBLIC_PATHS = ["/", "/login", "/error", "/register"];
 
 // ============================================================
 // MIDDLEWARE

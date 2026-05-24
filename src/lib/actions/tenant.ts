@@ -1,10 +1,12 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import type { UserRole } from "@/types/database";
 
-export type ActionState = { error?: string };
+export type ActionState = { error?: string; success?: string };
 
 async function assertSuperAdmin() {
   const supabase = await createClient();
@@ -129,3 +131,151 @@ export async function updateTenantSettings(
   revalidatePath(`/super-admin/tenants/${tenantId}`);
   return {};
 }
+
+// ── Tambah user ke tenant (via Admin API) ────────────────────
+export async function addUserToTenant(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  await assertSuperAdmin();
+  const adminClient = createAdminClient();
+
+  const tenantId = formData.get("tenant_id") as string;
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const role = formData.get("role") as UserRole;
+
+  if (!fullName || !email || !role) return { error: "Semua field wajib diisi" };
+  if (!["owner", "admin", "mechanic"].includes(role))
+    return { error: "Role tidak valid" };
+
+  // Invite user — kirim email dengan link set password
+  const { data: invited, error: inviteErr } =
+    await adminClient.auth.admin.inviteUserByEmail(email, {
+      data: { full_name: fullName },
+    });
+  if (inviteErr) return { error: "Gagal mengundang: " + inviteErr.message };
+
+  // Buat baris profile
+  const { error: profileErr } = await adminClient.from("profiles").insert({
+    id: invited.user.id,
+    tenant_id: tenantId,
+    full_name: fullName,
+    role,
+    is_active: true,
+  });
+
+  if (profileErr) {
+    // Rollback: hapus user yang baru dibuat
+    await adminClient.auth.admin.deleteUser(invited.user.id);
+    return { error: "Gagal membuat profil: " + profileErr.message };
+  }
+
+  revalidatePath(`/super-admin/tenants/${tenantId}`);
+  return { success: `Undangan berhasil dikirim ke ${email}` };
+}
+
+// ── Setujui pendaftaran tenant ────────────────────────────────
+export async function approveRegistration(
+  requestId: string
+): Promise<ActionState> {
+  const supabase = await assertSuperAdmin();
+  const adminClient = createAdminClient();
+
+  const { data: req } = await supabase
+    .from("tenant_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!req) return { error: "Permintaan tidak ditemukan" };
+  if (req.status !== "pending") return { error: "Permintaan sudah diproses" };
+
+  // Generate slug unik dari nama bisnis
+  const baseSlug = req.business_name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const { count } = await adminClient
+    .from("tenants")
+    .select("*", { count: "exact", head: true })
+    .like("slug", `${baseSlug}%`);
+  const slug = count && count > 0 ? `${baseSlug}-${count}` : baseSlug;
+
+  // Buat tenant
+  const { data: tenant, error: tenantErr } = await adminClient
+    .from("tenants")
+    .insert({
+      name: req.business_name,
+      slug,
+      is_active: true,
+      feature_toggles: {
+        module_ledger: true,
+        module_petty_cash: true,
+        module_mechanic_portal: true,
+        module_customer_history: true,
+      },
+    })
+    .select("id")
+    .single();
+  if (tenantErr || !tenant) return { error: "Gagal membuat tenant: " + (tenantErr?.message ?? "") };
+
+  // Buat settings default
+  await adminClient
+    .from("settings")
+    .insert({ tenant_id: tenant.id, default_markup_pct: 20, petty_cash_limit: 500000 });
+
+  // Undang pemilik bengkel via email
+  const { data: invited, error: inviteErr } =
+    await adminClient.auth.admin.inviteUserByEmail(req.email, {
+      data: { full_name: req.owner_name },
+    });
+  if (inviteErr) {
+    await adminClient.from("tenants").delete().eq("id", tenant.id);
+    return { error: "Gagal mengundang pemilik: " + inviteErr.message };
+  }
+
+  // Buat profile owner
+  await adminClient.from("profiles").insert({
+    id: invited.user.id,
+    tenant_id: tenant.id,
+    full_name: req.owner_name,
+    role: "owner" as UserRole,
+    is_active: true,
+  });
+
+  // Update status request
+  const { data: { user } } = await supabase.auth.getUser();
+  await adminClient
+    .from("tenant_requests")
+    .update({ status: "approved", reviewed_by: user?.id ?? null, reviewed_at: new Date().toISOString() })
+    .eq("id", requestId);
+
+  revalidatePath("/super-admin/registrations");
+  revalidatePath("/super-admin/dashboard");
+  return {};
+}
+
+// ── Tolak pendaftaran tenant ──────────────────────────────────
+export async function rejectRegistration(
+  requestId: string,
+  rejectionNote: string
+): Promise<ActionState> {
+  const supabase = await assertSuperAdmin();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { error } = await supabase
+    .from("tenant_requests")
+    .update({
+      status: "rejected",
+      rejection_note: rejectionNote || null,
+      reviewed_by: user?.id ?? null,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq("id", requestId);
+
+  if (error) return { error: "Gagal memperbarui status: " + error.message };
+  revalidatePath("/super-admin/registrations");
+  return {};
+}
+

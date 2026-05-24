@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { TenantDetailForms } from "@/components/super-admin/tenant-detail-forms";
+import { AddUserForm } from "@/components/super-admin/add-user-form";
 import type { FeatureToggles } from "@/types/database";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -92,10 +93,11 @@ export default async function TenantDetailPage({
 
       {/* Users */}
       <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-4">
+        <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
           <h2 className="font-semibold text-gray-900">
             Pengguna ({users?.length ?? 0})
           </h2>
+          <AddUserForm tenantId={tenant.id} />
         </div>
         {!users || users.length === 0 ? (
           <p className="py-8 text-center text-sm text-gray-400">

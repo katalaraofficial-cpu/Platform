@@ -149,6 +149,21 @@ export interface PettyCashTransaction {
   created_at: string;
 }
 
+export interface TenantRequest {
+  id: string;
+  business_name: string;
+  owner_name: string;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  message: string | null;
+  status: "pending" | "approved" | "rejected";
+  rejection_note: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
 // ============================================================
 // Supabase Database schema type (for createClient<Database>)
 // ============================================================
@@ -214,6 +229,13 @@ export interface Database {
         Row: PettyCashTransaction & Record<string, unknown>;
         Insert: Omit<PettyCashTransaction, "id" | "created_at">;
         Update: never;
+        Relationships: never[];
+      };
+      tenant_requests: {
+        Row: TenantRequest & Record<string, unknown>;
+        Insert: Omit<TenantRequest, "id" | "created_at" | "reviewed_by" | "reviewed_at" | "rejection_note"> &
+          Partial<Pick<TenantRequest, "reviewed_by" | "reviewed_at" | "rejection_note">>;
+        Update: Partial<Omit<TenantRequest, "id" | "created_at">>;
         Relationships: never[];
       };
     };

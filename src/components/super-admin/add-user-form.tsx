@@ -15,8 +15,9 @@ const ROLE_OPTIONS = [
   { value: "mechanic", label: "Mekanik" },
 ];
 
-export function AddUserForm({ tenantId }: Props) {
-  const [open, setOpen] = useState(false);
+// Sub-komponen yang di-mount hanya saat modal terbuka.
+// Saat modal ditutup → unmount → useActionState reset otomatis.
+function ModalContent({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     addUserToTenant,
@@ -30,29 +31,18 @@ export function AddUserForm({ tenantId }: Props) {
   }
 
   return (
-    <div>
-      <button
-        onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm
-                   font-medium text-white hover:bg-blue-500 transition-colors"
-      >
-        <UserPlus className="h-4 w-4" />
-        Tambah Pengguna
-      </button>
-
-      {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-              <h3 className="font-semibold text-gray-900">Tambah Pengguna Baru</h3>
-              <button
-                onClick={() => setOpen(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+          <h3 className="font-semibold text-gray-900">Tambah Pengguna Baru</h3>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
 
             {state.invite_link ? (
               <div className="px-6 py-6">
@@ -110,7 +100,7 @@ export function AddUserForm({ tenantId }: Props) {
                 )}
 
                 <button
-                  onClick={() => setOpen(false)}
+                  onClick={onClose}
                   className="mt-4 w-full rounded-lg border border-gray-300 py-2 text-sm
                              font-medium text-gray-700 hover:bg-gray-50"
                 >
@@ -180,7 +170,7 @@ export function AddUserForm({ tenantId }: Props) {
                 <div className="flex gap-3 pt-1">
                   <button
                     type="button"
-                    onClick={() => setOpen(false)}
+                    onClick={onClose}
                     className="flex-1 rounded-lg border border-gray-300 py-2 text-sm
                                font-medium text-gray-700 hover:bg-gray-50"
                   >
@@ -197,9 +187,27 @@ export function AddUserForm({ tenantId }: Props) {
                 </div>
               </form>
             )}
-          </div>
-        </div>
-      )}
+      </div>
+    </div>
+  );
+}
+
+export function AddUserForm({ tenantId }: Props) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div>
+      <button
+        onClick={() => setOpen(true)}
+        className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm
+                   font-medium text-white hover:bg-blue-500 transition-colors"
+      >
+        <UserPlus className="h-4 w-4" />
+        Tambah Pengguna
+      </button>
+
+      {/* Mount ModalContent hanya saat open=true → unmount saat ditutup → state reset */}
+      {open && <ModalContent tenantId={tenantId} onClose={() => setOpen(false)} />}
     </div>
   );
 }

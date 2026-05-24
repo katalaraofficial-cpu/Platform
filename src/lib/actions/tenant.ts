@@ -33,7 +33,7 @@ async function sendInviteEmail(
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: "Katalara POS <onboarding@resend.dev>",
+        from: "Katalara POS <noreply@katalara.com>",
         to: [email],
         subject: "Undangan Bergabung - Katalara POS",
         html: `

@@ -260,3 +260,26 @@ export async function rejectRegistration(
   return {};
 }
 
+// ── Hapus pengguna dari tenant (hapus auth user + cascade ke profile) ──
+export async function removeUsersFromTenant(
+  userIds: string[],
+  tenantId: string
+): Promise<ActionState> {
+  await assertSuperAdmin();
+  const adminClient = createAdminClient();
+
+  if (!userIds.length) return { error: "Tidak ada pengguna yang dipilih" };
+
+  const failed: string[] = [];
+  for (const uid of userIds) {
+    const { error } = await adminClient.auth.admin.deleteUser(uid);
+    if (error) failed.push(error.message);
+  }
+
+  if (failed.length > 0)
+    return { error: `${failed.length} pengguna gagal dihapus: ${failed[0]}` };
+
+  revalidatePath(`/super-admin/tenants/${tenantId}`);
+  return { success: `${userIds.length} pengguna berhasil dihapus` };
+}
+

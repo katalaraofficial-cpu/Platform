@@ -149,27 +149,13 @@ export async function addUserToTenant(
   if (!["owner", "admin", "mechanic"].includes(role))
     return { error: "Role tidak valid" };
 
-  // Invite user — kirim email dengan link set password
-  const { data: invited, error: inviteErr } =
+  // Invite user — trigger handle_new_user() akan auto-buat profile
+  // dengan role & tenant_id dari metadata
+  const { error: inviteErr } =
     await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName },
+      data: { full_name: fullName, role, tenant_id: tenantId },
     });
   if (inviteErr) return { error: "Gagal mengundang: " + inviteErr.message };
-
-  // Buat baris profile
-  const { error: profileErr } = await adminClient.from("profiles").insert({
-    id: invited.user.id,
-    tenant_id: tenantId,
-    full_name: fullName,
-    role,
-    is_active: true,
-  });
-
-  if (profileErr) {
-    // Rollback: hapus user yang baru dibuat
-    await adminClient.auth.admin.deleteUser(invited.user.id);
-    return { error: "Gagal membuat profil: " + profileErr.message };
-  }
 
   revalidatePath(`/super-admin/tenants/${tenantId}`);
   return { success: `Undangan berhasil dikirim ke ${email}` };
@@ -225,24 +211,15 @@ export async function approveRegistration(
     .from("settings")
     .insert({ tenant_id: tenant.id, default_markup_pct: 20, petty_cash_limit: 500000 });
 
-  // Undang pemilik bengkel via email
-  const { data: invited, error: inviteErr } =
+  // Undang pemilik bengkel — trigger handle_new_user() auto-buat profile owner
+  const { error: inviteErr } =
     await adminClient.auth.admin.inviteUserByEmail(req.email, {
-      data: { full_name: req.owner_name },
+      data: { full_name: req.owner_name, role: "owner", tenant_id: tenant.id },
     });
   if (inviteErr) {
     await adminClient.from("tenants").delete().eq("id", tenant.id);
     return { error: "Gagal mengundang pemilik: " + inviteErr.message };
   }
-
-  // Buat profile owner
-  await adminClient.from("profiles").insert({
-    id: invited.user.id,
-    tenant_id: tenant.id,
-    full_name: req.owner_name,
-    role: "owner" as UserRole,
-    is_active: true,
-  });
 
   // Update status request
   const { data: { user } } = await supabase.auth.getUser();

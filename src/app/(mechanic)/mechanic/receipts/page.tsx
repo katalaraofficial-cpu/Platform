@@ -48,7 +48,7 @@ export default async function UploadReceiptPage() {
     }
   }
 
-  const tenantId = ctx.tenantId;
+  const tenantId = ctx.tenantId ?? "";
 
   return (
     <div className="space-y-5 pb-24">

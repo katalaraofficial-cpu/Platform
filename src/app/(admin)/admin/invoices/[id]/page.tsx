@@ -5,12 +5,14 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { AddItemForm } from "@/components/invoices/add-item-form";
 import {
-  removeInvoiceItem,
   updateInvoiceStatus,
 } from "@/lib/actions/invoice";
 import { PrintButton } from "@/components/invoices/print-button";
 import { TaxSettings } from "@/components/invoices/tax-settings";
-import type { InvoiceStatus, ItemType } from "@/types/database";
+import { InvoiceItemsTable } from "@/components/invoices/invoice-items-table";
+import { DiscountSettings } from "@/components/invoices/discount-settings";
+import { UpdateInvoiceForm } from "@/components/invoices/update-invoice-form";
+import type { InvoiceStatus } from "@/types/database";
 
 const BASE_PATH = "/admin";
 
@@ -31,12 +33,6 @@ function formatDateTime(iso: string) {
     minute: "2-digit",
   });
 }
-
-const ITEM_TYPE_LABELS: Record<ItemType, string> = {
-  service: "Jasa",
-  part_internal: "Part (stok)",
-  part_external: "Part (beli)",
-};
 
 const NEXT_STATUS: Record<
   InvoiceStatus,
@@ -93,13 +89,6 @@ export default async function AdminInvoiceDetailPage({
       .eq("invoice_id", id)
       .order("created_at", { ascending: true }),
   ]);
-
-  const vehicleInfo = customer?.vehicle_info as {
-    plate?: string;
-    brand?: string;
-    model?: string;
-    year?: number;
-  } | null;
 
   const status = invoice.status as InvoiceStatus;
   const canEdit = status === "draft" || status === "in_progress";
@@ -166,99 +155,18 @@ export default async function AdminInvoiceDetailPage({
           <h2 className="font-semibold text-gray-900">Item Pekerjaan</h2>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-100">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Tipe
-                </th>
-                <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Deskripsi
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Qty
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Harga Satuan
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Markup
-                </th>
-                <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                  Total
-                </th>
-                {canEdit && <th className="px-4 py-3" />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100 bg-white">
-              {!items || items.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={canEdit ? 7 : 6}
-                    className="py-8 text-center text-sm text-gray-400"
-                  >
-                    Belum ada item. Tambahkan item di bawah.
-                  </td>
-                </tr>
-              ) : (
-                items.map((item) => (
-                  <tr key={item.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-xs text-gray-500">
-                      {ITEM_TYPE_LABELS[item.item_type as ItemType]}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-900">
-                      {item.description}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">
-                      {Number(item.quantity)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-700">
-                      {formatRupiah(Number(item.unit_price))}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500">
-                      {Number(item.markup_pct) > 0
-                        ? `${Number(item.markup_pct)}%`
-                        : "-"}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {formatRupiah(Number(item.final_price))}
-                    </td>
-                    {canEdit && (
-                      <td className="whitespace-nowrap px-4 py-3 text-right">
-                        <form
-                          action={removeInvoiceItem.bind(
-                            null,
-                            item.id,
-                            invoice.id,
-                            BASE_PATH
-                          )}
-                        >
-                          <button
-                            type="submit"
-                            className="text-xs text-red-500 hover:text-red-700"
-                          >
-                            Hapus
-                          </button>
-                        </form>
-                      </td>
-                    )}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <InvoiceItemsTable
+          items={items ?? []}
+          invoiceId={invoice.id}
+          canEdit={canEdit}
+          basePath={BASE_PATH}
+        />
 
         <div className="border-t border-gray-200 px-6 py-4">
-          <div className="ml-auto max-w-xs space-y-1">
+          <div className="ml-auto max-w-xs space-y-2">
             <div className="flex justify-between text-sm text-gray-500">
-              <span>Subtotal</span>
-              <span>{formatRupiah(Number(invoice.subtotal))}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Markup</span>
-              <span>{formatRupiah(Number(invoice.total_markup))}</span>
+              <span>Subtotal (sebelum pajak)</span>
+              <span>{formatRupiah(Number(invoice.subtotal) + Number(invoice.total_markup))}</span>
             </div>
             <TaxSettings
               invoiceId={invoice.id}
@@ -266,6 +174,13 @@ export default async function AdminInvoiceDetailPage({
               preTax={Number(invoice.subtotal) + Number(invoice.total_markup)}
               ppnPct={Number(invoice.ppn_pct ?? 0)}
               pphPct={Number(invoice.pph_pct ?? 0)}
+              canEdit={canEdit}
+            />
+            <DiscountSettings
+              invoiceId={invoice.id}
+              basePath={BASE_PATH}
+              preTax={Number(invoice.subtotal) + Number(invoice.total_markup)}
+              discountAmount={Number(invoice.discount_amount ?? 0)}
               canEdit={canEdit}
             />
             <div className="flex justify-between border-t border-gray-200 pt-2 text-base font-bold text-gray-900">
@@ -289,6 +204,22 @@ export default async function AdminInvoiceDetailPage({
           </div>
         )}
       </div>
+
+      {/* Update Invoice (notes) card */}
+      {canEdit && (
+        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-6 py-4">
+            <h2 className="font-semibold text-gray-900">Perbarui Catatan Invoice</h2>
+          </div>
+          <div className="px-6 py-4">
+            <UpdateInvoiceForm
+              invoiceId={invoice.id}
+              basePath={BASE_PATH}
+              currentNotes={invoice.notes ?? null}
+            />
+          </div>
+        </div>
+      )}
 
       {actions.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">

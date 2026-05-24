@@ -1,4 +1,5 @@
-"use client";
+const fs = require("fs");
+const content = `"use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { addInvoiceItem, type ActionState } from "@/lib/actions/invoice";
@@ -132,7 +133,7 @@ export function AddItemForm({ invoiceId, tenantId, basePath, role }: Props) {
                 "flex h-[38px] items-center rounded-md border px-3 text-sm",
                 marginPct >= 0 ? "border-green-200 bg-green-50 text-green-700" : "border-red-200 bg-red-50 text-red-700"
               )}>
-                {buyPrice > 0 ? `${marginPct.toFixed(1)}%` : "-"}
+                {buyPrice > 0 ? \`\${marginPct.toFixed(1)}%\` : "-"}
                 {buyPrice > 0 && sellPrice > 0 && (
                   <span className="ml-2 text-xs text-gray-400">({fmt(sellPrice - buyPrice)}/unit)</span>
                 )}
@@ -199,3 +200,6 @@ export function AddItemForm({ invoiceId, tenantId, basePath, role }: Props) {
     </form>
   );
 }
+`;
+fs.writeFileSync("src/components/invoices/add-item-form.tsx", content, "utf8");
+console.log("Written", content.split("\n").length, "lines");

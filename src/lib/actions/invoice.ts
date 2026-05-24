@@ -26,14 +26,14 @@ async function genInvoiceNumber(
 
 // ── Internal: recalculate invoice totals from items ──────────
 async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
-  const [{ data: items }, { data: taxData }] = await Promise.all([
+  const [{ data: items }, { data: invData }] = await Promise.all([
     supabase
       .from("invoice_items")
       .select("unit_price, quantity, final_price")
       .eq("invoice_id", invoiceId),
     supabase
       .from("invoices")
-      .select("ppn_pct, pph_pct")
+      .select("ppn_pct, pph_pct, discount_amount")
       .eq("id", invoiceId)
       .single(),
   ]);
@@ -44,8 +44,11 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
   );
   const preTax = items.reduce((s, i) => s + Number(i.final_price), 0);
   const totalMarkup = preTax - subtotal;
-  const ppnPct = Number((taxData as { ppn_pct?: unknown } | null)?.ppn_pct ?? 0);
-  const pphPct = Number((taxData as { pph_pct?: unknown } | null)?.pph_pct ?? 0);
+  type InvData = { ppn_pct?: unknown; pph_pct?: unknown; discount_amount?: unknown } | null;
+  const d = invData as InvData;
+  const ppnPct = Number(d?.ppn_pct ?? 0);
+  const pphPct = Number(d?.pph_pct ?? 0);
+  const discountAmount = Number(d?.discount_amount ?? 0);
   const ppnAmount = preTax * ppnPct / 100;
   const pphAmount = preTax * pphPct / 100;
   await supabase
@@ -55,7 +58,7 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
       total_markup: totalMarkup,
       ppn_amount: ppnAmount,
       pph_amount: pphAmount,
-      grand_total: preTax + ppnAmount + pphAmount,
+      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
     })
     .eq("id", invoiceId);
 }
@@ -144,7 +147,7 @@ export async function addInvoiceItem(
   const quantity = Math.max(0.01, Number(formData.get("quantity")) || 1);
   const unitPrice = Math.max(0, Number(formData.get("unit_price")) || 0);
   const markupPct =
-    itemType === "part_external"
+    (itemType === "part_external" || itemType === "part_internal")
       ? Math.max(0, Number(formData.get("markup_pct")) || 0)
       : 0;
   const finalPrice = unitPrice * quantity * (1 + markupPct / 100);
@@ -370,13 +373,14 @@ export async function updateInvoiceTax(
 
   const { data: inv } = await supabase
     .from("invoices")
-    .select("subtotal, total_markup")
+    .select("subtotal, total_markup, discount_amount")
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId)
     .single();
   if (!inv) return;
 
   const preTax = Number(inv.subtotal) + Number(inv.total_markup);
+  const discountAmount = Number(inv.discount_amount ?? 0);
   const ppnAmount = preTax * ppnPct / 100;
   const pphAmount = preTax * pphPct / 100;
 
@@ -387,7 +391,7 @@ export async function updateInvoiceTax(
       ppn_amount: ppnAmount,
       pph_pct: pphPct,
       pph_amount: pphAmount,
-      grand_total: preTax + ppnAmount + pphAmount,
+      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
     })
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId);
@@ -395,3 +399,83 @@ export async function updateInvoiceTax(
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 
+// ── Update invoice item (inline edit) ────────────────────────
+export async function updateInvoiceItem(
+  itemId: string,
+  invoiceId: string,
+  basePath: string,
+  data: { description: string; quantity: number; unitPrice: number }
+) {
+  const supabase = await createClient();
+  const { data: item } = await supabase
+    .from("invoice_items")
+    .select("markup_pct")
+    .eq("id", itemId)
+    .single();
+  const markupPct = Number(item?.markup_pct ?? 0);
+  const finalPrice = data.unitPrice * data.quantity * (1 + markupPct / 100);
+  await supabase
+    .from("invoice_items")
+    .update({
+      description: data.description,
+      quantity: data.quantity,
+      unit_price: data.unitPrice,
+      final_price: finalPrice,
+    })
+    .eq("id", itemId);
+  await syncTotals(supabase, invoiceId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}
+
+// ── Update invoice notes ──────────────────────────────────────
+export async function updateInvoiceNotes(
+  invoiceId: string,
+  notes: string,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  await supabase
+    .from("invoices")
+    .update({ notes: notes.trim() || null })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}
+
+// ── Update invoice global discount ───────────────────────────
+export async function updateInvoiceDiscount(
+  invoiceId: string,
+  discountAmount: number,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("subtotal, total_markup, ppn_pct, pph_pct")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return;
+
+  const preTax = Number(inv.subtotal) + Number(inv.total_markup);
+  const ppnPct = Number(inv.ppn_pct ?? 0);
+  const pphPct = Number(inv.pph_pct ?? 0);
+  const ppnAmount = preTax * ppnPct / 100;
+  const pphAmount = preTax * pphPct / 100;
+
+  await supabase
+    .from("invoices")
+    .update({
+      discount_amount: discountAmount,
+      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
+    })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}

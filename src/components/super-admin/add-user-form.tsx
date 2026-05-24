@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { addUserToTenant, type ActionState } from "@/lib/actions/tenant";
 import { useState } from "react";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus, X, Copy, Check } from "lucide-react";
 
 interface Props {
   tenantId: string;
@@ -17,14 +17,16 @@ const ROLE_OPTIONS = [
 
 export function AddUserForm({ tenantId }: Props) {
   const [open, setOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     addUserToTenant,
     {}
   );
 
-  // Close and reset after success
-  function handleSuccess() {
-    setOpen(false);
+  function handleCopy(link: string) {
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
@@ -52,16 +54,40 @@ export function AddUserForm({ tenantId }: Props) {
               </button>
             </div>
 
-            {state.success ? (
-              <div className="px-6 py-8 text-center">
+            {state.invite_link ? (
+              <div className="px-6 py-6">
                 <div className="mx-auto mb-3 h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                  <UserPlus className="h-6 w-6 text-green-600" />
+                  <Check className="h-6 w-6 text-green-600" />
                 </div>
-                <p className="font-medium text-gray-900">Undangan Terkirim!</p>
-                <p className="mt-1 text-sm text-gray-500">{state.success}</p>
+                <p className="text-center font-medium text-gray-900 mb-1">Link Undangan Siap!</p>
+                <p className="text-center text-sm text-gray-500 mb-4">{state.success}</p>
+
+                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                  <p className="text-xs text-gray-500 mb-1.5 font-medium">Link Undangan</p>
+                  <p className="text-xs text-gray-700 break-all leading-relaxed mb-3 font-mono">
+                    {state.invite_link}
+                  </p>
+                  <button
+                    onClick={() => handleCopy(state.invite_link!)}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-lg
+                               bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500"
+                  >
+                    {copied ? (
+                      <><Check className="h-4 w-4" /> Tersalin!</>
+                    ) : (
+                      <><Copy className="h-4 w-4" /> Salin Link</>
+                    )}
+                  </button>
+                </div>
+
+                <p className="mt-3 text-xs text-gray-400 text-center">
+                  Kirim link ini ke pengguna via WhatsApp atau email. Link berlaku 24 jam.
+                </p>
+
                 <button
-                  onClick={handleSuccess}
-                  className="mt-4 rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-500"
+                  onClick={() => setOpen(false)}
+                  className="mt-4 w-full rounded-lg border border-gray-300 py-2 text-sm
+                             font-medium text-gray-700 hover:bg-gray-50"
                 >
                   Selesai
                 </button>
@@ -97,7 +123,7 @@ export function AddUserForm({ tenantId }: Props) {
                     placeholder="budi@bengkel.com"
                   />
                   <p className="mt-1 text-xs text-gray-400">
-                    Email undangan akan dikirim ke alamat ini
+                    Link undangan akan dibuat untuk akun ini
                   </p>
                 </div>
 
@@ -141,7 +167,7 @@ export function AddUserForm({ tenantId }: Props) {
                     className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-medium
                                text-white hover:bg-blue-500 disabled:opacity-50"
                   >
-                    {pending ? "Mengirim..." : "Kirim Undangan"}
+                    {pending ? "Membuat Link..." : "Buat Link Undangan"}
                   </button>
                 </div>
               </form>
@@ -152,3 +178,4 @@ export function AddUserForm({ tenantId }: Props) {
     </div>
   );
 }
+

@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { UserRole } from "@/types/database";
 
-export type ActionState = { error?: string; success?: string };
+export type ActionState = { error?: string; success?: string; invite_link?: string };
 
 async function assertSuperAdmin() {
   const supabase = await createClient();
@@ -149,18 +149,26 @@ export async function addUserToTenant(
   if (!["owner", "admin", "mechanic"].includes(role))
     return { error: "Role tidak valid" };
 
-  // Invite user — trigger handle_new_user() akan auto-buat profile
-  // dengan role & tenant_id dari metadata
+  // Generate invite link tanpa mengirim email (bypass SMTP/rate-limit issues).
+  // Link diberikan ke admin untuk dikirim manual via WhatsApp / email.
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
-  const { error: inviteErr } =
-    await adminClient.auth.admin.inviteUserByEmail(email, {
-      data: { full_name: fullName, role, tenant_id: tenantId },
-      redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
+  const { data: linkData, error: linkErr } =
+    await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email,
+      options: {
+        data: { full_name: fullName, role, tenant_id: tenantId },
+        redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
+      },
     });
-  if (inviteErr) return { error: "Gagal mengundang: " + inviteErr.message };
+  if (linkErr || !linkData?.properties?.action_link)
+    return { error: "Gagal membuat link undangan: " + (linkErr?.message ?? "unknown") };
 
   revalidatePath(`/super-admin/tenants/${tenantId}`);
-  return { success: `Undangan berhasil dikirim ke ${email}` };
+  return {
+    success: `Link undangan berhasil dibuat untuk ${email}`,
+    invite_link: linkData.properties.action_link,
+  };
 }
 
 // ── Setujui pendaftaran tenant ────────────────────────────────
@@ -213,16 +221,20 @@ export async function approveRegistration(
     .from("settings")
     .insert({ tenant_id: tenant.id, default_markup_pct: 20, petty_cash_limit: 500000 });
 
-  // Undang pemilik bengkel — trigger handle_new_user() auto-buat profile owner
+  // Generate invite link untuk pemilik bengkel (tanpa kirim email)
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
-  const { error: inviteErr } =
-    await adminClient.auth.admin.inviteUserByEmail(req.email, {
-      data: { full_name: req.owner_name, role: "owner", tenant_id: tenant.id },
-      redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
+  const { data: linkData, error: linkErr } =
+    await adminClient.auth.admin.generateLink({
+      type: "invite",
+      email: req.email,
+      options: {
+        data: { full_name: req.owner_name, role: "owner", tenant_id: tenant.id },
+        redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
+      },
     });
-  if (inviteErr) {
+  if (linkErr || !linkData?.properties?.action_link) {
     await adminClient.from("tenants").delete().eq("id", tenant.id);
-    return { error: "Gagal mengundang pemilik: " + inviteErr.message };
+    return { error: "Gagal membuat link undangan: " + (linkErr?.message ?? "unknown") };
   }
 
   // Update status request
@@ -234,7 +246,10 @@ export async function approveRegistration(
 
   revalidatePath("/super-admin/registrations");
   revalidatePath("/super-admin/dashboard");
-  return {};
+  return {
+    success: `Tenant berhasil dibuat. Link undangan untuk ${req.email}:`,
+    invite_link: linkData.properties.action_link,
+  };
 }
 
 // ── Tolak pendaftaran tenant ──────────────────────────────────

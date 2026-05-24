@@ -1513,7 +1513,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           {/* Bottom CTA */}
           <div className="mt-auto p-4 space-y-2">
             {saveError && <p className="text-xs text-red-600">{saveError}</p>}
-            {!isEdit ? (
+            {!isEdit && (
               <>
                 <button
                   type="button"

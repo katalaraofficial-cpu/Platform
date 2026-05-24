@@ -76,9 +76,6 @@ async function InvoiceTable({
               Pelanggan
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-              Kendaraan
-            </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
               Status
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -93,13 +90,6 @@ async function InvoiceTable({
         <tbody className="divide-y divide-gray-100 bg-white">
           {invoices.map((inv) => {
             const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
-            const vehicleInfo = customer?.vehicle_info as
-              | { plate?: string; brand?: string; model?: string }
-              | null;
-            const vehicle = [vehicleInfo?.brand, vehicleInfo?.model]
-              .filter(Boolean)
-              .join(" ");
-            const plate = vehicleInfo?.plate ?? "-";
 
             return (
               <tr key={inv.id} className="hover:bg-gray-50">
@@ -108,14 +98,6 @@ async function InvoiceTable({
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-700">
                   {customer?.name ?? "-"}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500">
-                  <span className="font-medium">{plate}</span>
-                  {vehicle && (
-                    <span className="ml-1 text-xs text-gray-400">
-                      ({vehicle})
-                    </span>
-                  )}
                 </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={inv.status as InvoiceStatus} />

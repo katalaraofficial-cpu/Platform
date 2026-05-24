@@ -19,6 +19,7 @@ import {
 } from "@/lib/actions/customer";
 import {
   createInvoiceWithItems,
+  searchItemDescriptions,
   type InvoiceItemDraft,
   type MechanicAssignment,
 } from "@/lib/actions/invoice";
@@ -374,6 +375,12 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
   const [itemSellPrice, setItemSellPrice] = useState<number | "">("");
   const [items, setItems] = useState<ItemRow[]>([]);
 
+  // Item autocomplete
+  const [itemSuggestions, setItemSuggestions] = useState<{ description: string; item_type: string }[]>([]);
+  const [showItemSuggestions, setShowItemSuggestions] = useState(false);
+  const [, startSuggest] = useTransition();
+  const itemDropdownRef = useRef<HTMLDivElement>(null);
+
   // UI
   const [printSize, setPrintSize] = useState("thermal-80");
   const [error, setError] = useState("");
@@ -415,6 +422,12 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
       ) {
         setShowCustDropdown(false);
       }
+      if (
+        itemDropdownRef.current &&
+        !itemDropdownRef.current.contains(e.target as Node)
+      ) {
+        setShowItemSuggestions(false);
+      }
     }
     document.addEventListener("mousedown", onMouseDown);
     return () => document.removeEventListener("mousedown", onMouseDown);
@@ -427,6 +440,19 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
     setCustomerResults([]);
     itemInputRef.current?.focus();
   }
+
+  // Item autocomplete search
+  useEffect(() => {
+    if (!itemInput.trim()) { setItemSuggestions([]); setShowItemSuggestions(false); return; }
+    const timer = setTimeout(() => {
+      startSuggest(async () => {
+        const res = await searchItemDescriptions(itemInput);
+        setItemSuggestions(res);
+        setShowItemSuggestions(res.length > 0);
+      });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [itemInput]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Item management
   function addItem() {
@@ -485,6 +511,8 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
     setItemQty(1);
     setItemSellPrice("");
     setError("");
+    setItemSuggestions([]);
+    setShowItemSuggestions(false);
     custInputRef.current?.focus();
   }
 
@@ -674,13 +702,30 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
               <input
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && jobDescription.trim()) {
+                    e.preventDefault();
+                    setItems((prev) => [
+                      ...prev,
+                      { id: uid(), description: jobDescription.trim(), notes: "", qty: 1, unitPrice: 0, sellPrice: 0, itemType: "service" },
+                    ]);
+                    itemInputRef.current?.focus();
+                  }
+                }}
                 placeholder="Tune Up, Ganti Oli..."
                 className={`${inputCls} flex-1`}
               />
               <button
                 type="button"
-                onClick={() => setItemType("service")}
-                title="Tambah Jasa"
+                onClick={() => {
+                  if (!jobDescription.trim()) return;
+                  setItems((prev) => [
+                    ...prev,
+                    { id: uid(), description: jobDescription.trim(), notes: "", qty: 1, unitPrice: 0, sellPrice: 0, itemType: "service" },
+                  ]);
+                  itemInputRef.current?.focus();
+                }}
+                title="Tambah sebagai item jasa"
                 className="flex shrink-0 items-center gap-1 rounded bg-white/10 px-2 py-1.5 text-xs text-white/60 hover:bg-white/20 hover:text-white"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -770,19 +815,51 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
             </div>
 
             {/* Item name */}
-            <input
-              ref={itemInputRef}
-              value={itemInput}
-              onChange={(e) => setItemInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  addItem();
-                }
-              }}
-              placeholder="Nama item atau jasa..."
-              className="min-w-0 flex-1 rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div ref={itemDropdownRef} className="relative min-w-0 flex-1">
+              <input
+                ref={itemInputRef}
+                value={itemInput}
+                onChange={(e) => setItemInput(e.target.value)}
+                onFocus={() => itemSuggestions.length > 0 && setShowItemSuggestions(true)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    setShowItemSuggestions(false);
+                    addItem();
+                  }
+                  if (e.key === "Escape") setShowItemSuggestions(false);
+                }}
+                placeholder="Nama item atau jasa..."
+                autoComplete="off"
+                className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              {showItemSuggestions && (
+                <div className="absolute left-0 top-full z-30 mt-1 w-full overflow-hidden rounded-lg bg-white shadow-xl ring-1 ring-black/5">
+                  {itemSuggestions.map((s, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onMouseDown={() => {
+                        setItemInput(s.description);
+                        if (s.item_type === "service" || s.item_type === "part_internal") {
+                          setItemType(s.item_type as ItemType);
+                        }
+                        setShowItemSuggestions(false);
+                        itemInputRef.current?.focus();
+                      }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-blue-50"
+                    >
+                      <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-semibold ${
+                        s.item_type === "service" ? "bg-blue-100 text-blue-600" : "bg-amber-100 text-amber-700"
+                      }`}>
+                        {s.item_type === "service" ? "Jasa" : "Part"}
+                      </span>
+                      <span className="text-sm text-gray-800">{s.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             <span className="shrink-0 text-gray-300">+</span>
 
@@ -815,6 +892,7 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
+                  setShowItemSuggestions(false);
                   addItem();
                 }
               }}

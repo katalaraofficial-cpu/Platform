@@ -7,7 +7,7 @@ import { AddItemForm } from "@/components/invoices/add-item-form";
 import {
   updateInvoiceStatus,
 } from "@/lib/actions/invoice";
-import { PrintButton } from "@/components/invoices/print-button";
+import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
 import { TaxSettings } from "@/components/invoices/tax-settings";
 import { InvoiceItemsTable } from "@/components/invoices/invoice-items-table";
 import { DiscountSettings } from "@/components/invoices/discount-settings";
@@ -121,7 +121,12 @@ export default async function AdminInvoiceDetailPage({
               Dibuat: {formatDateTime(invoice.created_at)}
             </p>
           </div>
-          <PrintButton />
+          <PrintOptionsModal
+            invoiceId={invoice.id}
+            invoiceNumber={invoice.invoice_number}
+            customerPhone={customer?.phone}
+            grandTotal={Number(invoice.grand_total)}
+          />
         </div>
 
         {/* Customer info only (no Kendaraan) */}

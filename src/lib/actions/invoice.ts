@@ -578,3 +578,28 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
   revalidatePath(`${basePath}/invoices`);
 }
+
+// ── Item description autocomplete ────────────────────────────
+export async function searchItemDescriptions(
+  query: string
+): Promise<{ description: string; item_type: string }[]> {
+  if (!query.trim()) return [];
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("invoice_items")
+    .select("description, item_type")
+    .eq("tenant_id", ctx.tenantId)
+    .ilike("description", `%${query}%`)
+    .order("created_at", { ascending: false })
+    .limit(12);
+  // Deduplicate by description (keep most recent)
+  const seen = new Set<string>();
+  return (data ?? []).filter((item) => {
+    const key = item.description.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

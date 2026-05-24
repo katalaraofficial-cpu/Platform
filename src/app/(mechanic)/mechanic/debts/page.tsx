@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import type { MechanicDebtLedger, Invoice } from "@/types/database";
-import { Wallet, Image as ImageIcon } from "lucide-react";
+import { Wallet } from "lucide-react";
 
 function formatRp(n: number) {
   return new Intl.NumberFormat("id-ID", {

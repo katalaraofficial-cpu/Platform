@@ -396,25 +396,49 @@ export async function updateInvoiceItem(
   itemId: string,
   invoiceId: string,
   basePath: string,
-  data: { description: string; quantity: number; unitPrice: number }
+  data: { description: string; quantity: number; unitPrice: number; sellPrice?: number }
 ) {
   const supabase = await createClient();
-  const { data: item } = await supabase
-    .from("invoice_items")
-    .select("markup_pct")
-    .eq("id", itemId)
-    .single();
-  const markupPct = Number(item?.markup_pct ?? 0);
-  const finalPrice = data.unitPrice * data.quantity * (1 + markupPct / 100);
-  await supabase
-    .from("invoice_items")
-    .update({
-      description: data.description,
-      quantity: data.quantity,
-      unit_price: data.unitPrice,
-      final_price: finalPrice,
-    })
-    .eq("id", itemId);
+  let markupPct: number;
+  let finalPrice: number;
+
+  if (data.sellPrice !== undefined) {
+    // Explicit sell price provided — recalculate markup from buy/sell
+    finalPrice = data.sellPrice * data.quantity;
+    markupPct =
+      data.unitPrice > 0
+        ? Math.max(0, ((data.sellPrice - data.unitPrice) / data.unitPrice) * 100)
+        : 0;
+    await supabase
+      .from("invoice_items")
+      .update({
+        description: data.description,
+        quantity: data.quantity,
+        unit_price: data.unitPrice,
+        markup_pct: markupPct,
+        final_price: finalPrice,
+      })
+      .eq("id", itemId);
+  } else {
+    // Legacy: unitPrice is the sell price (services) or buy price (parts, recalculate via existing markup)
+    const { data: item } = await supabase
+      .from("invoice_items")
+      .select("markup_pct")
+      .eq("id", itemId)
+      .single();
+    markupPct = Number(item?.markup_pct ?? 0);
+    finalPrice = data.unitPrice * data.quantity * (1 + markupPct / 100);
+    await supabase
+      .from("invoice_items")
+      .update({
+        description: data.description,
+        quantity: data.quantity,
+        unit_price: data.unitPrice,
+        final_price: finalPrice,
+      })
+      .eq("id", itemId);
+  }
+
   await syncTotals(supabase, invoiceId);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }

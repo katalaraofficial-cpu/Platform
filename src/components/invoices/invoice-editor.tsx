@@ -398,6 +398,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [editDesc, setEditDesc] = useState("");
   const [editQty, setEditQty] = useState(1);
   const [editSellPrice, setEditSellPrice] = useState(0);
+  const [editBuyPrice, setEditBuyPrice] = useState(0); // for part rows
+
+  // ── Margin profit state ───────────────────────────────────────────────
+  const [marginEnabled, setMarginEnabled] = useState(false);
+  const [marginPct, setMarginPct] = useState(20);
 
   // ── Tax / Discount state ──────────────────────────────────────────────
   const [ppnEnabled, setPpnEnabled] = useState(() => Number(editInvoice?.ppnPct ?? 0) > 0);
@@ -468,10 +473,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     }, 250);
   }
 
+  // ── Auto-compute H.Jual from H.Beli + margin ─────────────────────────
+  useEffect(() => {
+    if (marginEnabled && itemType !== "service" && itemBuyPrice > 0) {
+      setItemSellPrice(Math.round(itemBuyPrice * (1 + marginPct / 100)));
+    }
+  }, [itemBuyPrice, marginPct, marginEnabled, itemType]);
+
   // ── Add item ──────────────────────────────────────────────────────────
   function handleAddItem() {
     if (!itemDesc.trim()) { setAddItemError("Deskripsi wajib diisi"); return; }
-    if (itemSellPrice <= 0) { setAddItemError("Harga jual wajib diisi"); return; }
+    // Services must have H.Jual; parts can be 0 (price TBD)
+    if (itemType === "service" && itemSellPrice <= 0) { setAddItemError("Harga jual wajib diisi untuk jasa"); return; }
     setAddItemError("");
 
     const isPart = itemType !== "service";
@@ -551,34 +564,47 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     setEditDesc(item.description);
     setEditQty(item.qty);
     setEditSellPrice(item.sellPrice);
+    setEditBuyPrice(item.unitPrice);
   }
 
   function saveEditRow(item: EditorItem) {
     const newDesc = editDesc.trim() || item.description;
     const newQty = Math.max(0.01, editQty);
     const newSell = editSellPrice;
+    const newBuy = editBuyPrice;
 
     if (!isEdit) {
       setItems((prev) =>
         prev.map((i) =>
-          i.id === item.id ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell } : i
+          i.id === item.id
+            ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy }
+            : i
         )
       );
       setEditRowId(null);
     } else {
-      // For services: unitPrice = sellPrice (since markup=0)
-      // For parts: keep existing unitPrice, sell price changes via markup recalc server-side
-      const unitPriceForAction = item.itemType === "service" ? newSell : item.unitPrice;
       startTransition(async () => {
-        await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
-          description: newDesc,
-          quantity: newQty,
-          unitPrice: unitPriceForAction,
-        });
+        if (item.itemType === "service") {
+          await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
+            description: newDesc,
+            quantity: newQty,
+            unitPrice: newSell, // for services unit_price = sell_price
+          });
+        } else {
+          await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
+            description: newDesc,
+            quantity: newQty,
+            unitPrice: newBuy,  // H.Beli
+            sellPrice: newSell > 0 ? newSell : undefined, // H.Jual override
+          });
+        }
+        const newMarkupPct = newBuy > 0 && newSell > 0
+          ? Math.max(0, ((newSell - newBuy) / newBuy) * 100)
+          : item.markupPct;
         setItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell }
+              ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, markupPct: newMarkupPct }
               : i
           )
         );
@@ -1017,15 +1043,48 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   </div>
                 )}
 
+                {/* Margin toggle (parts only) */}
+                {itemType !== "service" && (
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    <label className="flex cursor-pointer items-center gap-1 text-xs text-gray-500 select-none">
+                      <input
+                        type="checkbox"
+                        checked={marginEnabled}
+                        onChange={(e) => setMarginEnabled(e.target.checked)}
+                        className="rounded"
+                      />
+                      Margin
+                    </label>
+                    {marginEnabled && (
+                      <>
+                        <input
+                          type="number" min="0" max="999" step="1"
+                          value={marginPct}
+                          onChange={(e) => setMarginPct(Number(e.target.value))}
+                          className="w-14 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-right text-sm focus:outline-none"
+                        />
+                        <span className="text-xs text-amber-600">%</span>
+                      </>
+                    )}
+                  </div>
+                )}
+
                 {/* Sell price */}
                 <div className="flex shrink-0 items-center gap-1">
                   <span className="text-xs text-gray-500">H.Jual</span>
                   <input
                     type="number" min="0" step="any"
                     value={itemSellPrice || ""}
-                    onChange={(e) => setItemSellPrice(Number(e.target.value))}
-                    placeholder="0"
-                    className="w-28 rounded border border-gray-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                    onChange={(e) => {
+                      setItemSellPrice(Number(e.target.value));
+                      if (marginEnabled) setMarginEnabled(false); // manual override disables margin
+                    }}
+                    placeholder={itemType === "service" ? "wajib" : "opsional"}
+                    className={`w-28 rounded border px-2 py-1.5 text-right text-sm focus:outline-none ${
+                      itemType !== "service" && itemSellPrice === 0
+                        ? "border-amber-300 bg-amber-50 placeholder-amber-400 focus:border-amber-500"
+                        : "border-gray-300 focus:border-blue-500"
+                    }`}
                   />
                 </div>
 
@@ -1086,6 +1145,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                             value={editDesc}
                             onChange={(e) => setEditDesc(e.target.value)}
                           />
+                          {item.itemType !== "service" && (
+                            <div className="mt-1 flex items-center gap-1">
+                              <span className="text-[10px] text-gray-400">H.Beli</span>
+                              <input
+                                type="number" min="0" step="any"
+                                className="w-24 rounded border border-blue-300 px-1 py-0.5 text-right text-xs focus:outline-none"
+                                value={editBuyPrice || ""}
+                                onChange={(e) => setEditBuyPrice(Number(e.target.value))}
+                                placeholder="0"
+                              />
+                            </div>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <input
@@ -1099,8 +1170,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           <input
                             type="number" min="0" step="any"
                             className="w-full rounded border border-blue-400 px-1 py-1 text-right text-sm focus:outline-none"
-                            value={editSellPrice}
+                            value={editSellPrice || ""}
                             onChange={(e) => setEditSellPrice(Number(e.target.value))}
+                            placeholder="0"
                           />
                         </td>
                         <td className="px-3 py-2 text-right font-mono text-xs text-gray-500">
@@ -1141,10 +1213,24 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           {item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)}
                         </td>
                         <td className="px-3 py-2.5 text-right font-mono text-gray-700">
-                          {fmt(item.sellPrice)}
+                          {item.sellPrice === 0 && item.itemType !== "service" ? (
+                            <button
+                              type="button"
+                              onClick={() => startEditRow(item)}
+                              className="inline-flex items-center gap-1 rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 hover:bg-amber-200"
+                              title="Klik untuk set harga jual"
+                            >
+                              ✏ Set Harga
+                            </button>
+                          ) : (
+                            fmt(item.sellPrice)
+                          )}
                         </td>
                         <td className="px-3 py-2.5 text-right font-mono font-semibold text-gray-900">
-                          {fmt(item.sellPrice * item.qty)}
+                          {item.sellPrice === 0 && item.itemType !== "service"
+                            ? <span className="text-xs text-amber-500">–</span>
+                            : fmt(item.sellPrice * item.qty)
+                          }
                         </td>
                         <td className="px-3 py-2.5">
                           <div className="flex justify-center gap-2">

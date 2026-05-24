@@ -580,6 +580,98 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
 }
 
 // ── Item description autocomplete ────────────────────────────
+// ── Add item (structured params, returns created item) ───────
+export async function addItemToInvoice(params: {
+  invoiceId: string;
+  tenantId: string;
+  basePath: string;
+  itemType: ItemType;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  markupPct: number;
+  paymentSource: PaymentSource | null;
+}): Promise<
+  | {
+      item: {
+        id: string;
+        description: string;
+        quantity: number;
+        unit_price: number;
+        markup_pct: number;
+        final_price: number;
+        item_type: string;
+      };
+    }
+  | { error: string }
+> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Unauthorized" };
+
+  const { description, itemType, quantity, unitPrice, markupPct, paymentSource } = params;
+  if (!description.trim()) return { error: "Deskripsi wajib diisi" };
+
+  const qty = Math.max(0.01, quantity);
+  const finalPrice = unitPrice * qty * (1 + markupPct / 100);
+
+  const { data, error } = await supabase
+    .from("invoice_items")
+    .insert({
+      invoice_id: params.invoiceId,
+      tenant_id: params.tenantId,
+      item_type: itemType,
+      description: description.trim(),
+      quantity: qty,
+      unit_price: unitPrice,
+      markup_pct: markupPct,
+      final_price: finalPrice,
+      payment_source: paymentSource,
+      submitted_by: user.id,
+    })
+    .select("id, description, quantity, unit_price, markup_pct, final_price, item_type")
+    .single();
+
+  if (error || !data) return { error: "Gagal menambah item: " + (error?.message ?? "") };
+
+  await syncTotals(supabase, params.invoiceId);
+  revalidatePath(`${params.basePath}/invoices/${params.invoiceId}`);
+  return { item: data };
+}
+
+// ── Assign mechanic (structured params, returns assignment ID) ─
+export async function addMechanicToInvoice(
+  invoiceId: string,
+  mechanicId: string,
+  role: MechanicRoleInInvoice,
+  basePath: string
+): Promise<{ assignmentId: string } | { error: string }> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
+
+  const { data, error } = await supabase
+    .from("invoice_mechanics")
+    .insert({
+      invoice_id: invoiceId,
+      mechanic_id: mechanicId,
+      tenant_id: ctx.tenantId,
+      mechanic_role: role,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    if (error.code === "23505") return { error: "Mekanik sudah ditugaskan" };
+    return { error: "Gagal menugaskan mekanik: " + error.message };
+  }
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  return { assignmentId: data.id };
+}
+
 export async function searchItemDescriptions(
   query: string
 ): Promise<{ description: string; item_type: string }[]> {

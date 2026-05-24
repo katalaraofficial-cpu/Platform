@@ -1,7 +1,7 @@
 ﻿import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import { notFound } from "next/navigation";
-import { NewInvoicePos } from "@/components/invoices/new-invoice-pos";
+import { InvoiceEditor } from "@/components/invoices/invoice-editor";
 
 const BASE_PATH = "/admin";
 
@@ -19,7 +19,8 @@ export default async function NewAdminInvoicePage() {
     .order("full_name");
 
   return (
-    <NewInvoicePos
+    <InvoiceEditor
+      mode="create"
       basePath={BASE_PATH}
       mechanics={(mechanics ?? []).map((m) => ({
         id: m.id,
@@ -28,3 +29,4 @@ export default async function NewAdminInvoicePage() {
     />
   );
 }
+

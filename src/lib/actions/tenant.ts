@@ -8,6 +8,56 @@ import type { UserRole } from "@/types/database";
 
 export type ActionState = { error?: string; success?: string; invite_link?: string };
 
+const ROLE_LABELS: Record<string, string> = {
+  owner: "Owner (Pemilik Bengkel)",
+  admin: "Admin / Kasir",
+  mechanic: "Mekanik",
+};
+
+/** Kirim email undangan via Resend REST API. Tidak gagalkan action jika error. */
+async function sendInviteEmail(
+  email: string,
+  fullName: string,
+  role: string,
+  inviteLink: string
+) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return;
+
+  await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "Katalara POS <onboarding@resend.dev>",
+      to: [email],
+      subject: "Undangan Bergabung - Katalara POS",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto">
+          <h2 style="color:#1e3a5f">Anda Diundang ke Katalara POS</h2>
+          <p>Halo <strong>${fullName}</strong>,</p>
+          <p>Anda telah diundang untuk bergabung sebagai <strong>${ROLE_LABELS[role] ?? role}</strong>
+             di platform manajemen bengkel <strong>Katalara POS</strong>.</p>
+          <p>Klik tombol di bawah untuk membuat password dan mulai menggunakan platform:</p>
+          <p style="text-align:center;margin:28px 0">
+            <a href="${inviteLink}"
+               style="background:#2563eb;color:#fff;padding:13px 32px;border-radius:8px;
+                      text-decoration:none;font-weight:600;display:inline-block;font-size:15px">
+              Terima Undangan
+            </a>
+          </p>
+          <p style="color:#6b7280;font-size:13px">Link ini berlaku selama 24 jam. Jika Anda tidak merasa diundang, abaikan email ini.</p>
+          <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0">
+          <p style="color:#9ca3af;font-size:12px">Katalara POS — Platform Manajemen Bengkel</p>
+        </div>`,
+    }),
+  }).catch(() => {
+    /* jangan gagalkan action jika email error */
+  });
+}
+
 async function assertSuperAdmin() {
   const supabase = await createClient();
   const {
@@ -164,10 +214,15 @@ export async function addUserToTenant(
   if (linkErr || !linkData?.properties?.action_link)
     return { error: "Gagal membuat link undangan: " + (linkErr?.message ?? "unknown") };
 
+  const inviteLink = linkData.properties.action_link;
+
+  // Kirim email undangan via Resend (fire-and-forget, tidak gagalkan action)
+  await sendInviteEmail(email, fullName, role, inviteLink);
+
   revalidatePath(`/super-admin/tenants/${tenantId}`);
   return {
-    success: `Link undangan berhasil dibuat untuk ${email}`,
-    invite_link: linkData.properties.action_link,
+    success: `Undangan berhasil dikirim ke ${email}`,
+    invite_link: inviteLink,
   };
 }
 
@@ -237,6 +292,9 @@ export async function approveRegistration(
     return { error: "Gagal membuat link undangan: " + (linkErr?.message ?? "unknown") };
   }
 
+  const ownerInviteLink = linkData.properties.action_link;
+  await sendInviteEmail(req.email, req.owner_name, "owner", ownerInviteLink);
+
   // Update status request
   const { data: { user } } = await supabase.auth.getUser();
   await adminClient
@@ -247,8 +305,8 @@ export async function approveRegistration(
   revalidatePath("/super-admin/registrations");
   revalidatePath("/super-admin/dashboard");
   return {
-    success: `Tenant berhasil dibuat. Link undangan untuk ${req.email}:`,
-    invite_link: linkData.properties.action_link,
+    success: `Tenant berhasil dibuat. Undangan dikirim ke ${req.email}.`,
+    invite_link: ownerInviteLink,
   };
 }
 

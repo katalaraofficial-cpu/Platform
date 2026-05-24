@@ -13,39 +13,31 @@ function AuthExchangeInner() {
     const next = searchParams.get("next") ?? "/";
     const supabase = createClient();
 
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        subscription.unsubscribe();
-        router.replace(next);
-      }
-    });
+    // Parse hash fragment manual — createBrowserClient (@supabase/ssr) tidak
+    // memproses hash secara otomatis karena default-nya PKCE flow.
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
 
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        setErrorMsg("Gagal memproses autentikasi: " + error.message);
-        subscription.unsubscribe();
-        return;
-      }
-      if (session) {
-        subscription.unsubscribe();
-        router.replace(next);
-      } else {
-        setTimeout(() => {
-          supabase.auth.getSession().then(({ data: { session: s } }) => {
-            if (!s) {
-              subscription.unsubscribe();
-              setErrorMsg(
-                "Link undangan sudah kedaluwarsa atau tidak valid. Minta undangan baru dari administrator."
-              );
-            }
-          });
-        }, 3000);
-      }
-    });
-
-    return () => subscription.unsubscribe();
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data, error }) => {
+          if (error || !data.session) {
+            setErrorMsg(
+              "Link undangan sudah kedaluwarsa atau tidak valid. Minta undangan baru dari administrator."
+            );
+          } else {
+            router.replace(next);
+          }
+        });
+    } else {
+      // Tidak ada hash token — tampilkan error langsung
+      setErrorMsg(
+        "Link undangan tidak valid. Minta undangan baru dari administrator."
+      );
+    }
   }, [router, searchParams]);
 
   if (errorMsg) {

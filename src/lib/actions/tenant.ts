@@ -271,6 +271,7 @@ export async function approveRegistration(
         module_petty_cash: true,
         module_mechanic_portal: true,
         module_customer_history: true,
+        module_engineer: true,
       },
     })
     .select("id")

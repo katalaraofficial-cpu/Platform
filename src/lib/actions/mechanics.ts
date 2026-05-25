@@ -55,3 +55,54 @@ export async function reimburseDebt(data: {
   revalidatePath("/admin/reimburse");
   return { success: true };
 }
+
+// ============================================================
+// DELETE DEBT ENTRIES  — bulk delete rows from debt ledger
+// ============================================================
+export async function deleteDebtEntries(
+  ids: string[]
+): Promise<{ success: true } | { error: string }> {
+  if (!ids.length) return { success: true };
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
+  if (!["owner", "admin"].includes(ctx.role)) return { error: "Akses ditolak" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("mechanic_debt_ledger")
+    .delete()
+    .in("id", ids)
+    .eq("tenant_id", ctx.tenantId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/owner/mechanics");
+  revalidatePath("/owner/dashboard");
+  revalidatePath("/admin/reimburse");
+  return { success: true };
+}
+
+// ============================================================
+// MARK DEBT ENTRIES  — bulk mark advance rows as is_paid = true
+// ============================================================
+export async function markDebtEntries(
+  ids: string[]
+): Promise<{ success: true } | { error: string }> {
+  if (!ids.length) return { success: true };
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
+  if (!["owner", "admin"].includes(ctx.role)) return { error: "Akses ditolak" };
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("mechanic_debt_ledger")
+    .update({ is_paid: true })
+    .in("id", ids)
+    .eq("tenant_id", ctx.tenantId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/owner/mechanics");
+  revalidatePath("/admin/reimburse");
+  return { success: true };
+}

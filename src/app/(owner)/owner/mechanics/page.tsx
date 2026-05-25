@@ -10,7 +10,6 @@ import {
   ArrowDown,
   Wrench,
   TrendingUp,
-  ClipboardList,
   Star,
 } from "lucide-react";
 import {
@@ -18,17 +17,14 @@ import {
   QuickReimburseButton,
   type MechanicOption,
 } from "@/components/mechanics/reimburse-modal";
+import {
+  DebtHistoryTable,
+  type MechanicInfo,
+} from "@/components/mechanics/debt-history-table";
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n: number) {
   return "Rp " + Math.abs(n).toLocaleString("id-ID");
-}
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 function initials(name: string) {
   return name
@@ -99,10 +95,10 @@ export default async function MechanicsPage({
 
     supabase
       .from("mechanic_debt_ledger")
-      .select("id, mechanic_id, transaction_type, amount, notes, created_at, invoice_items(receipt_image_url)")
+      .select("id, mechanic_id, transaction_type, amount, notes, is_paid, created_at, invoice_items(receipt_image_url)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
-      .limit(100),
+      .limit(500),
   ]);
 
   // ── Derived data ─────────────────────────────────────────────
@@ -110,8 +106,6 @@ export default async function MechanicsPage({
     id: m.id,
     full_name: m.full_name ?? "—",
   }));
-  const mechanicNameMap = new Map(mechanics.map((m) => [m.id, m.full_name]));
-
   type DebtSummaryRow = {
     mechanic_id: string;
     total_advanced: number;
@@ -167,10 +161,17 @@ export default async function MechanicsPage({
       transaction_type: string;
       amount: number;
       notes: string | null;
+      is_paid: boolean;
       created_at: string;
       invoice_items: { receipt_image_url: string | null } | null;
     }[] | null
   ) ?? [];
+
+  const mechanicInfos: MechanicInfo[] = mechanics.map((m) => ({
+    id: m.id,
+    name: m.full_name,
+    color: avatarColor(m.id),
+  }));
 
   return (
     <div className="flex flex-col gap-6">
@@ -419,86 +420,7 @@ export default async function MechanicsPage({
             </div>
           )}
 
-          {/* History table */}
-          <div>
-            <div className="mb-3 flex items-center gap-2">
-              <ClipboardList className="h-4 w-4 text-gray-400" />
-              <p className="text-sm font-semibold text-gray-700">Riwayat Transaksi</p>
-            </div>
-            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
-                      <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tanggal</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Engineer</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipe</th>
-                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Jumlah</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Keterangan</th>
-                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Nota</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50">
-                    {debtHistory.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
-                          Belum ada riwayat kasbon atau reimburse
-                        </td>
-                      </tr>
-                    ) : (
-                      debtHistory.map((row) => {
-                        const isAdvance = row.transaction_type === "advance";
-                        const receiptUrl = row.invoice_items?.receipt_image_url ?? null;
-                        return (
-                          <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
-                            <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtDate(row.created_at)}</td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(row.mechanic_id)}`}>
-                                  {initials(mechanicNameMap.get(row.mechanic_id) ?? "?")}
-                                </div>
-                                <span className="text-sm text-gray-800">{mechanicNameMap.get(row.mechanic_id) ?? "—"}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isAdvance ? "bg-orange-50 text-orange-700" : "bg-emerald-50 text-emerald-700"}`}>
-                                {isAdvance ? "Advance" : "Reimburse"}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right font-semibold">
-                              <span className={isAdvance ? "text-orange-600" : "text-emerald-600"}>
-                                {isAdvance ? "+" : "-"}{fmt(Number(row.amount))}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">
-                              {row.notes ?? "—"}
-                            </td>
-                            <td className="px-4 py-3">
-                              {receiptUrl ? (
-                                <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="group relative inline-block">
-                                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={receiptUrl}
-                                    alt="Nota"
-                                    className="h-10 w-10 rounded-lg object-cover border border-gray-200 group-hover:opacity-80 transition-opacity"
-                                  />
-                                  <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <span className="rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">Buka</span>
-                                  </span>
-                                </a>
-                              ) : (
-                                <span className="text-xs text-gray-300">—</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
+          <DebtHistoryTable initialRows={debtHistory} mechanicInfos={mechanicInfos} />
         </div>
       )}
     </div>

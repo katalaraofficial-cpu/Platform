@@ -27,8 +27,15 @@ export function UploadReceiptForm({
   const [file, setFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [amountDisplay, setAmountDisplay] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value.replace(/\D/g, "");
+    if (!raw) { setAmountDisplay(""); return; }
+    setAmountDisplay(Number(raw).toLocaleString("id-ID"));
+  }
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -106,6 +113,7 @@ export function UploadReceiptForm({
       // Success
       setSuccess(true);
       clearFile();
+      setAmountDisplay("");
       formRef.current?.reset();
       setTimeout(() => setSuccess(false), 4000);
     });
@@ -171,15 +179,22 @@ export function UploadReceiptForm({
         <label className="mb-1 block text-sm font-medium text-gray-700">
           Nominal Pembelian (Rp) <span className="text-red-500">*</span>
         </label>
-        <input
-          name="amount"
-          type="number"
-          required
-          min="1"
-          step="1000"
-          placeholder="0"
-          className="w-full rounded-xl border border-gray-300 px-3 py-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-        />
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-medium text-gray-400">
+            Rp
+          </span>
+          <input
+            name="amount"
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9.]*"
+            required
+            value={amountDisplay}
+            onChange={handleAmountChange}
+            placeholder="0"
+            className="w-full rounded-xl border border-gray-300 py-3 pl-10 pr-3 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
         <p className="mt-1 text-xs text-gray-400">
           Nominal ini akan dicatat sebagai piutang kepada bengkel.
         </p>

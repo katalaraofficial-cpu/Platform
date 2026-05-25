@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
-import { FileText, Clock, CheckCircle2, Plus } from "lucide-react";
+import { Banknote, AlertCircle, Wrench, FileText, Plus } from "lucide-react";
 
 function formatRupiah(value: number) {
   return new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", minimumFractionDigits: 0 }).format(value);
@@ -32,13 +32,41 @@ export default async function AdminDashboard() {
 
   const now = new Date();
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 
-  const [{ data: activeInvoices }, { data: recentInvoices }] = await Promise.all([
+  const [
+    { data: paidToday },
+    { data: needPayment },
+    { data: inProgress },
+    { data: thisMonth },
+    { data: recentInvoices },
+  ] = await Promise.all([
+    // Pemasukan hari ini
     supabase
       .from("invoices")
-      .select("id, status, grand_total, completed_at")
+      .select("grand_total")
       .eq("tenant_id", tenantId)
-      .in("status", ["draft", "in_progress", "completed"]),
+      .eq("status", "paid")
+      .gte("paid_at", todayStart),
+    // Perlu dilunasi (completed, belum bayar)
+    supabase
+      .from("invoices")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("status", "completed"),
+    // Sedang dikerjakan
+    supabase
+      .from("invoices")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .eq("status", "in_progress"),
+    // Invoice bulan ini
+    supabase
+      .from("invoices")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .gte("created_at", monthStart),
+    // Invoice terkini
     supabase
       .from("invoices")
       .select("id, invoice_number, status, grand_total, created_at, customers(name)")
@@ -47,19 +75,10 @@ export default async function AdminDashboard() {
       .limit(10),
   ]);
 
-  const all = activeInvoices ?? [];
-  const draftCount = all.filter((i) => i.status === "draft").length;
-  const inProgressCount = all.filter((i) => i.status === "in_progress").length;
-  const completedToday = all.filter(
-    (i) => i.status === "completed" && i.completed_at && i.completed_at >= todayStart
-  ).length;
-  const totalActive = draftCount + inProgressCount;
-
-  const stats = [
-    { label: "Invoice Aktif", value: totalActive, icon: <FileText className="h-5 w-5 text-blue-400" />, color: "text-blue-700" },
-    { label: "Dalam Proses", value: inProgressCount, icon: <Clock className="h-5 w-5 text-yellow-400" />, color: "text-yellow-700" },
-    { label: "Selesai Hari Ini", value: completedToday, icon: <CheckCircle2 className="h-5 w-5 text-green-400" />, color: "text-green-700" },
-  ];
+  const pemasukanHariIni = (paidToday ?? []).reduce((s, i) => s + (i.grand_total ?? 0), 0);
+  const perluDilunasi = (needPayment ?? []).length;
+  const sedangDikerjakan = (inProgress ?? []).length;
+  const invoiceBulanIni = (thisMonth ?? []).length;
 
   return (
     <div className="space-y-6">
@@ -78,16 +97,46 @@ export default async function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
-        {stats.map((s) => (
-          <div key={s.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <p className="text-xs text-gray-500">{s.label}</p>
-              {s.icon}
-            </div>
-            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* Pemasukan Hari Ini */}
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5 shadow-sm lg:col-span-1">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-green-700">Pemasukan Hari Ini</p>
+            <Banknote className="h-5 w-5 text-green-500" />
           </div>
-        ))}
+          <p className="text-2xl font-bold text-green-800">{formatRupiah(pemasukanHariIni)}</p>
+          <p className="mt-1 text-xs text-green-600">Pembayaran lunas hari ini</p>
+        </div>
+
+        {/* Perlu Dilunasi */}
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-amber-700">Perlu Dilunasi</p>
+            <AlertCircle className="h-5 w-5 text-amber-500" />
+          </div>
+          <p className="text-3xl font-bold text-amber-700">{perluDilunasi}</p>
+          <p className="mt-1 text-xs text-amber-600">Invoice selesai, belum bayar</p>
+        </div>
+
+        {/* Sedang Dikerjakan */}
+        <div className="rounded-xl border border-blue-200 bg-blue-50 p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-blue-700">Sedang Dikerjakan</p>
+            <Wrench className="h-5 w-5 text-blue-500" />
+          </div>
+          <p className="text-3xl font-bold text-blue-700">{sedangDikerjakan}</p>
+          <p className="mt-1 text-xs text-blue-600">Invoice dalam proses</p>
+        </div>
+
+        {/* Invoice Bulan Ini */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-medium text-gray-500">Invoice Bulan Ini</p>
+            <FileText className="h-5 w-5 text-gray-400" />
+          </div>
+          <p className="text-3xl font-bold text-gray-700">{invoiceBulanIni}</p>
+          <p className="mt-1 text-xs text-gray-400">Total invoice dibuat bulan ini</p>
+        </div>
       </div>
 
       {/* Invoice table */}

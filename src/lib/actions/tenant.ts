@@ -148,6 +148,7 @@ export async function updateFeatureToggles(
     module_petty_cash: formData.get("module_petty_cash") === "on",
     module_mechanic_portal: formData.get("module_mechanic_portal") === "on",
     module_customer_history: formData.get("module_customer_history") === "on",
+    module_engineer: formData.get("module_engineer") === "on",
   };
 
   const { error } = await supabase

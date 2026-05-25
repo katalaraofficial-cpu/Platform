@@ -3,7 +3,7 @@ import { getUserContext } from "@/lib/get-user-context";
 import { redirect } from "next/navigation";
 import { AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
 import {
-  QuickReimburseButton,
+  LunasiButton,
   type MechanicOption,
 } from "@/components/mechanics/reimburse-modal";
 import {
@@ -106,14 +106,11 @@ export default async function AdminReimbursePage() {
   return (
     <div className="flex flex-col gap-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reimburse Mekanik</h1>
-          <p className="text-sm text-gray-500">
-            Catat pembayaran reimburse advance sparepart mekanik
-          </p>
-        </div>
-        <QuickReimburseButton mechanics={mechanics} tenantId={tenantId} />
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Reimburse Mekanik</h1>
+        <p className="text-sm text-gray-500">
+          Catat pembayaran reimburse advance sparepart mekanik
+        </p>
       </div>
 
       {/* KPI cards */}
@@ -172,6 +169,12 @@ export default async function AdminReimbursePage() {
                   <span className="text-xs font-bold text-red-600">
                     {fmt(Number(r.outstanding_balance))}
                   </span>
+                  <LunasiButton
+                    mechanic={{ id: r.mechanic_id, full_name: mechanicNameMap.get(r.mechanic_id) ?? "—" }}
+                    allMechanics={mechanics}
+                    tenantId={tenantId}
+                    outstanding={Number(r.outstanding_balance)}
+                  />
                 </div>
               ))}
           </div>

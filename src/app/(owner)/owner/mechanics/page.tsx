@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 import {
   LunasiButton,
-  QuickReimburseButton,
   type MechanicOption,
 } from "@/components/mechanics/reimburse-modal";
 import {
@@ -334,7 +333,6 @@ export default async function MechanicsPage({
             <p className="text-sm text-gray-500">
               Pencatatan hutang piutang sparepart &amp; kasbon per engineer
             </p>
-            <QuickReimburseButton mechanics={mechanics} tenantId={tenantId} />
           </div>
 
           {/* Cards per mechanic */}

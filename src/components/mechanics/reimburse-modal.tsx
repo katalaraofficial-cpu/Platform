@@ -363,29 +363,3 @@ export function LunasiButton({
   );
 }
 
-// ============================================================
-// QUICK REIMBURSE BUTTON  — for the top of Reimburse tab
-// Opens modal without pre-selected mechanic
-// ============================================================
-export function QuickReimburseButton({
-  mechanics,
-  tenantId,
-}: {
-  mechanics: MechanicOption[];
-  tenantId: string;
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-primary/90 transition-colors"
-      >
-        + Catat Reimburse
-      </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Catat Reimbursement">
-        <ReimburseModal mechanics={mechanics} tenantId={tenantId} onClose={() => setOpen(false)} />
-      </Modal>
-    </>
-  );
-}

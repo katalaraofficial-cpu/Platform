@@ -188,7 +188,8 @@ export default async function OwnerDashboard({
     { data: debtUnpaid },
     { data: itemsRaw },
     { data: invoicesPeriod },
-    { data: mechInvoicesRaw },
+    { data: mechAssignmentsRaw },
+    { data: completedInvIds },
   ] = await Promise.all([
     supabase
       .from("invoices")
@@ -225,8 +226,12 @@ export default async function OwnerDashboard({
       .eq("tenant_id", tenantId)
       .gte("created_at", topStart),
     supabase
+      .from("invoice_mechanics")
+      .select("mechanic_id, invoice_id")
+      .eq("tenant_id", tenantId),
+    supabase
       .from("invoices")
-      .select("id, status, invoice_mechanics(mechanic_id)")
+      .select("id")
       .eq("tenant_id", tenantId)
       .in("status", ["completed", "paid"])
       .gte("created_at", mechStart),
@@ -341,11 +346,11 @@ export default async function OwnerDashboard({
     }));
 
   // Mechanic ranking
+  const completedSet = new Set((completedInvIds ?? []).map((i) => i.id));
   const mechJobCount: Record<string, number> = {};
-  for (const inv of mechInvoicesRaw ?? []) {
-    for (const m of (inv.invoice_mechanics ?? []) as { mechanic_id: string }[]) {
-      mechJobCount[m.mechanic_id] = (mechJobCount[m.mechanic_id] ?? 0) + 1;
-    }
+  for (const m of mechAssignmentsRaw ?? []) {
+    if (!completedSet.has(m.invoice_id)) continue;
+    mechJobCount[m.mechanic_id] = (mechJobCount[m.mechanic_id] ?? 0) + 1;
   }
   const mechIds = Object.keys(mechJobCount);
   const mechNameMap = new Map<string, string>();

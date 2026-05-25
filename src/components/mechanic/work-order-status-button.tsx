@@ -28,10 +28,14 @@ export function WorkOrderStatusButton({ invoiceId, nextStatus, label }: Props) {
       if (result?.error) {
         toast.error(result.error);
       } else {
-        toast.success(
-          nextStatus === "in_progress" ? "Pekerjaan dimulai" : "Pekerjaan selesai"
-        );
-        router.refresh(); // re-render server component → button disappears, status badge updates
+        if (nextStatus === "completed") {
+          // Navigate back to dashboard — fresh server render shows updated status
+          toast.success("Pekerjaan selesai! Kembali ke dashboard…");
+          router.push("/mechanic/dashboard");
+        } else {
+          toast.success("Pekerjaan dimulai");
+          router.refresh();
+        }
       }
     });
   }

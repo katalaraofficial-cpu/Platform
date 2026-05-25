@@ -43,6 +43,7 @@ export async function reimburseDebt(data: {
     amount: data.amount,
     notes: data.notes || null,
     transfer_ref: null,
+    reference_id: null,
     created_by: ctx.id,
   });
 

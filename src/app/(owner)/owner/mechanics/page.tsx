@@ -333,7 +333,7 @@ export default async function MechanicsPage({
             <p className="text-sm text-gray-500">
               Pencatatan hutang piutang sparepart &amp; kasbon per engineer
             </p>
-            <QuickReimburseButton mechanics={mechanics} />
+            <QuickReimburseButton mechanics={mechanics} tenantId={tenantId} />
           </div>
 
           {/* Cards per mechanic */}
@@ -411,7 +411,7 @@ export default async function MechanicsPage({
                     {/* Lunasi button */}
                     {hasDebt && (
                       <div className="mt-3">
-                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} />
+                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} tenantId={tenantId} />
                       </div>
                     )}
                   </div>

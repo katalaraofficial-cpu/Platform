@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
-import type { MechanicDebtLedger, Invoice } from "@/types/database";
-import { Wallet } from "lucide-react";
+import type { MechanicDebtLedger } from "@/types/database";
+import { Wallet, ImageIcon } from "lucide-react";
 
 function formatRp(n: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -15,14 +15,19 @@ export default async function PiutangSayaPage() {
   const supabase = await createClient();
   const ctx = await getUserContext();
 
-  // Fetch all debt records for this mechanic
+  // Fetch only advance entries (purchases by the mechanic)
   const { data: ledger } = await supabase
     .from("mechanic_debt_ledger")
-    .select("*")
+    .select("*, invoice_items(receipt_image_url)")
     .eq("mechanic_id", ctx.id)
+    .eq("transaction_type", "advance")
     .order("created_at", { ascending: false });
 
-  const entries = (ledger ?? []) as MechanicDebtLedger[];
+  type EntryWithReceipt = MechanicDebtLedger & {
+    invoice_items: { receipt_image_url: string | null } | null;
+  };
+
+  const entries = (ledger ?? []) as EntryWithReceipt[];
 
   // Collect invoice item IDs to look up invoice numbers
   const itemIds = entries
@@ -46,7 +51,7 @@ export default async function PiutangSayaPage() {
         .in("id", invoiceIds);
 
       const invByIdMap = new Map(
-        (invoices ?? []).map((inv) => [inv.id, (inv as Invoice).invoice_number])
+        (invoices ?? []).map((inv) => [inv.id, inv.invoice_number as string])
       );
 
       (items ?? []).forEach((it) => {
@@ -112,40 +117,63 @@ export default async function PiutangSayaPage() {
 
               return (
                 <li key={entry.id} className="px-4 py-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate font-medium text-gray-800">
-                          {entry.notes ?? "—"}
-                        </p>
-                        {isPaid ? (
-                          <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
-                            Lunas
-                          </span>
-                        ) : (
-                          <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
-                            Belum Dibayar
-                          </span>
-                        )}
+                  <div className="flex items-start gap-3">
+                    {/* Receipt thumbnail */}
+                    {entry.invoice_items?.receipt_image_url ? (
+                      <a
+                        href={entry.invoice_items.receipt_image_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={entry.invoice_items.receipt_image_url}
+                          alt="Struk"
+                          className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
+                        <ImageIcon className="h-5 w-5 text-gray-300" />
                       </div>
-                      <p className="mt-0.5 text-xs text-gray-400">
-                        {invoiceNum && (
-                          <span className="mr-2 font-mono">{invoiceNum}</span>
-                        )}
-                        {new Date(entry.created_at).toLocaleDateString("id-ID", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
+                    )}
+
+                    <div className="flex flex-1 items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <p className="truncate font-medium text-gray-800">
+                            {entry.notes ?? "—"}
+                          </p>
+                          {isPaid ? (
+                            <span className="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+                              Lunas
+                            </span>
+                          ) : (
+                            <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                              Belum Dibayar
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {invoiceNum && (
+                            <span className="mr-2 font-mono">{invoiceNum}</span>
+                          )}
+                          {new Date(entry.created_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </p>
+                      </div>
+                      <p
+                        className={`shrink-0 text-sm font-bold ${
+                          isPaid ? "text-gray-400 line-through" : "text-gray-900"
+                        }`}
+                      >
+                        {formatRp(entry.amount)}
                       </p>
                     </div>
-                    <p
-                      className={`shrink-0 text-sm font-bold ${
-                        isPaid ? "text-gray-400 line-through" : "text-gray-900"
-                      }`}
-                    >
-                      {formatRp(entry.amount)}
-                    </p>
                   </div>
                 </li>
               );

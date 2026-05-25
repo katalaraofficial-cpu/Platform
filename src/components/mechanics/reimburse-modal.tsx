@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { X, Loader2, ChevronsUpDown } from "lucide-react";
+import { X, Loader2, ChevronsUpDown, Upload, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { reimburseDebt } from "@/lib/actions/mechanics";
+import { createClient } from "@/lib/supabase/client";
 
 // ── Types ─────────────────────────────────────────────────────
 export type MechanicOption = { id: string; full_name: string };
@@ -61,16 +62,54 @@ function Modal({
 export function ReimburseModal({
   mechanics,
   defaultMechanicId,
+  tenantId,
   onClose,
 }: {
   mechanics: MechanicOption[];
   defaultMechanicId?: string;
+  tenantId: string;
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
   const [amount, setAmount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"kas_tunai" | "bank">("kas_tunai");
+  const [proofUrl, setProofUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  function handleMethodChange(method: "kas_tunai" | "bank") {
+    setPaymentMethod(method);
+    if (method === "kas_tunai") setProofUrl(null); // clear proof when switching to cash
+  }
+
+  async function handleProofUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 3 * 1024 * 1024) {
+      setErr("Ukuran file maksimal 3 MB");
+      return;
+    }
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setErr("Hanya JPEG, PNG, atau WebP yang diizinkan");
+      return;
+    }
+    setErr("");
+    setIsUploading(true);
+    const supabase = createClient();
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const path = `payment-proofs/${tenantId}/${Date.now()}.${ext}`;
+    const { error: storageErr } = await supabase.storage
+      .from("receipt")
+      .upload(path, file, { contentType: file.type, upsert: false });
+    if (storageErr) {
+      setErr("Gagal upload bukti: " + storageErr.message);
+      setIsUploading(false);
+      return;
+    }
+    const { data: urlData } = supabase.storage.from("receipt").getPublicUrl(path);
+    setProofUrl(urlData.publicUrl);
+    setIsUploading(false);
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -92,6 +131,7 @@ export function ReimburseModal({
         amount: amtVal,
         notes: (fd.get("notes") as string) || undefined,
         paymentMethod,
+        transferProofUrl: proofUrl ?? undefined,
       });
       if ("error" in res) {
         setErr(res.error);
@@ -155,7 +195,7 @@ export function ReimburseModal({
             <button
               key={opt}
               type="button"
-              onClick={() => setPaymentMethod(opt)}
+              onClick={() => handleMethodChange(opt)}
               className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
                 paymentMethod === opt
                   ? opt === "kas_tunai"
@@ -169,6 +209,65 @@ export function ReimburseModal({
           ))}
         </div>
       </div>
+
+      {/* Transfer proof upload — only when bank is selected */}
+      {paymentMethod === "bank" && (
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+            Bukti Transfer
+          </label>
+          {proofUrl ? (
+            <div className="flex items-center gap-3 rounded-xl border border-blue-200 bg-blue-50 p-2.5">
+              <a href={proofUrl} target="_blank" rel="noopener noreferrer" className="shrink-0">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={proofUrl}
+                  alt="Bukti Transfer"
+                  className="h-14 w-14 rounded-lg border border-blue-200 object-cover"
+                />
+              </a>
+              <div className="flex flex-1 items-center gap-1.5">
+                <CheckCircle2 className="h-4 w-4 text-blue-500" />
+                <span className="text-xs font-medium text-blue-700">Foto terunggah</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProofUrl(null)}
+                className="rounded-lg p-1 text-gray-400 hover:bg-white hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : (
+            <label
+              className={`flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed py-3 text-sm transition-colors ${
+                isUploading
+                  ? "border-blue-300 bg-blue-50 text-blue-400"
+                  : "border-gray-200 text-gray-400 hover:border-blue-300 hover:bg-blue-50/50"
+              }`}
+            >
+              {isUploading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Mengunggah...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Upload Bukti Transfer
+                </>
+              )}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="hidden"
+                onChange={handleProofUpload}
+                disabled={isUploading}
+              />
+            </label>
+          )}
+        </div>
+      )}
 
       {/* Amount */}
       <div className="flex flex-col gap-1">
@@ -221,9 +320,11 @@ export function ReimburseModal({
 export function LunasiButton({
   mechanic,
   allMechanics,
+  tenantId,
 }: {
   mechanic: MechanicOption;
   allMechanics: MechanicOption[];
+  tenantId: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -242,6 +343,7 @@ export function LunasiButton({
         <ReimburseModal
           mechanics={allMechanics}
           defaultMechanicId={mechanic.id}
+          tenantId={tenantId}
           onClose={() => setOpen(false)}
         />
       </Modal>
@@ -255,8 +357,10 @@ export function LunasiButton({
 // ============================================================
 export function QuickReimburseButton({
   mechanics,
+  tenantId,
 }: {
   mechanics: MechanicOption[];
+  tenantId: string;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -268,7 +372,7 @@ export function QuickReimburseButton({
         + Catat Reimburse
       </button>
       <Modal open={open} onClose={() => setOpen(false)} title="Catat Reimbursement">
-        <ReimburseModal mechanics={mechanics} onClose={() => setOpen(false)} />
+        <ReimburseModal mechanics={mechanics} tenantId={tenantId} onClose={() => setOpen(false)} />
       </Modal>
     </>
   );

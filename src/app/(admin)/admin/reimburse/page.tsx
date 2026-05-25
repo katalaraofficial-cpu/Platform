@@ -112,7 +112,7 @@ export default async function AdminReimbursePage() {
             Catat pembayaran reimburse advance sparepart mekanik
           </p>
         </div>
-        <QuickReimburseButton mechanics={mechanics} />
+        <QuickReimburseButton mechanics={mechanics} tenantId={tenantId} />
       </div>
 
       {/* KPI cards */}

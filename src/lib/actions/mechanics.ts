@@ -13,6 +13,7 @@ export async function reimburseDebt(data: {
   amount: number;
   notes?: string;
   paymentMethod: "kas_tunai" | "bank";
+  transferProofUrl?: string;
 }): Promise<{ success: true } | { error: string }> {
   const ctx = await getUserContext();
   if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
@@ -42,7 +43,7 @@ export async function reimburseDebt(data: {
     category: "Reimburse Mekanik",
     amount: data.amount,
     notes: data.notes || null,
-    transfer_ref: null,
+    transfer_ref: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
     reference_id: null,
     created_by: ctx.id,
   });
@@ -53,6 +54,7 @@ export async function reimburseDebt(data: {
   revalidatePath("/owner/kas");
   revalidatePath("/owner/dashboard");
   revalidatePath("/admin/reimburse");
+  revalidatePath("/mechanic/debts");
   return { success: true };
 }
 
@@ -79,6 +81,7 @@ export async function deleteDebtEntries(
   revalidatePath("/owner/mechanics");
   revalidatePath("/owner/dashboard");
   revalidatePath("/admin/reimburse");
+  revalidatePath("/mechanic/debts");
   return { success: true };
 }
 
@@ -104,5 +107,6 @@ export async function markDebtEntries(
 
   revalidatePath("/owner/mechanics");
   revalidatePath("/admin/reimburse");
+  revalidatePath("/mechanic/debts");
   return { success: true };
 }

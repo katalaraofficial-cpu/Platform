@@ -41,7 +41,7 @@ export default async function AdminDashboard() {
       .in("status", ["draft", "in_progress", "completed"]),
     supabase
       .from("invoices")
-      .select("id, invoice_number, customer_name, status, grand_total, created_at")
+      .select("id, invoice_number, status, grand_total, created_at, customers(name)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(10),
@@ -116,7 +116,7 @@ export default async function AdminDashboard() {
                 {recentInvoices.map((inv) => (
                   <tr key={inv.id} className="hover:bg-gray-50 cursor-pointer">
                     <td className="px-5 py-3 font-mono text-xs text-gray-600">{inv.invoice_number}</td>
-                    <td className="px-5 py-3 text-gray-900">{String(inv.customer_name ?? "")}</td>
+                    <td className="px-5 py-3 text-gray-900">{String((inv.customers as { name?: string } | null)?.name ?? "—")}</td>
                     <td className="px-5 py-3">
                       <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[inv.status]}`}>
                         {STATUS_LABEL[inv.status]}

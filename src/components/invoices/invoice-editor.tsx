@@ -967,7 +967,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               <div className="flex flex-wrap items-center gap-2">
                 {/* Type toggle */}
                 <div className="flex shrink-0 overflow-hidden rounded border border-gray-200">
-                  {(["service", "part_internal", "part_external"] as const).map((t, i) => (
+                  {(["service", "part_internal"] as const).map((t, i) => (
                     <button
                       key={t}
                       type="button"
@@ -980,7 +980,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           : "bg-white text-gray-600 hover:bg-gray-50"
                       }`}
                     >
-                      {t === "service" ? "Jasa" : t === "part_internal" ? "Part Int." : "Part Ext."}
+                      {t === "service" ? "Jasa" : "Barang"}
                     </button>
                   ))}
                 </div>
@@ -1088,18 +1088,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   />
                 </div>
 
-                {/* Payment source */}
-                {itemType === "part_external" && (
-                  <select
-                    value={itemPaymentSource}
-                    onChange={(e) => setItemPaymentSource(e.target.value as PaymentSource)}
-                    className="rounded border border-gray-300 px-2 py-1.5 text-xs focus:outline-none"
-                  >
-                    <option value="owner">Dana Toko</option>
-                    <option value="mechanic">Dana Mekanik</option>
-                    <option value="petty_cash">Kas Kecil</option>
-                  </select>
-                )}
+
 
                 <button
                   type="button"
@@ -1201,7 +1190,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                         <td className="px-3 py-2.5">
                           <div className="font-medium text-gray-900">{item.description}</div>
                           <div className="mt-0.5 text-xs text-gray-400">
-                            {item.itemType === "service" ? "Jasa" : item.itemType === "part_internal" ? "Part Internal" : "Part External"}
+                            {item.itemType === "service" ? "Jasa" : item.itemType === "part_internal" ? "Barang" : "Part Ext."}
                             {item.markupPct > 0 && (
                               <span className="ml-1.5">
                                 · Beli {fmt(item.unitPrice)} (+{item.markupPct.toFixed(0)}%)

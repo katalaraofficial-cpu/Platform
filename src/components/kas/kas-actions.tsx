@@ -16,7 +16,7 @@ import {
   updateKasEntry,
   deleteKasEntry,
 } from "@/lib/actions/kas";
-import type { AccountType, LedgerType } from "@/types/database";
+import type { AccountType } from "@/types/database";
 
 // ── Number formatting (id-ID locale: 1.000.000) ─────────────
 function fmtDisplay(raw: string): string {

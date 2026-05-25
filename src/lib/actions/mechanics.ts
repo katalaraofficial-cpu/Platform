@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 
@@ -35,18 +36,20 @@ export async function reimburseDebt(data: {
 
   if (debtError) return { error: debtError.message };
 
-  // 2. Deduct from kas/bank ledger so balance reflects the payment
-  const { error: ledgerError } = await supabase.from("ledger").insert({
+  // 2. Deduct from kas/bank ledger (adminClient — owner is blocked from ledger by RLS)
+  const adminClient = createAdminClient();
+  const { error: ledgerError } = await adminClient.from("ledger").insert({
     tenant_id: ctx.tenantId,
     transaction_type: "kas_keluar",
     account_type: data.paymentMethod,
     category: "Reimburse Mekanik",
     amount: data.amount,
     notes: data.notes || null,
-    transfer_ref: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
+    proof_url: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
+    transfer_ref: null,
     reference_id: null,
     created_by: ctx.id,
-  });
+  } as never);
 
   if (ledgerError) return { error: ledgerError.message };
 

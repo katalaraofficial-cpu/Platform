@@ -5,6 +5,7 @@ import {
   FileText,
   PiggyBank,
   Users,
+  Wrench,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
 
@@ -25,6 +26,11 @@ export default async function AdminLayout({
     // Toggle: module_petty_cash
     ...(toggles?.module_petty_cash !== false
       ? [{ label: "Kas Kecil", href: "/admin/petty-cash", icon: <PiggyBank className="h-4 w-4" /> }]
+      : []),
+
+    // Toggle: module_mechanic_portal — admin can process reimbursements
+    ...(toggles?.module_mechanic_portal !== false
+      ? [{ label: "Reimburse Mekanik", href: "/admin/reimburse", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_customer_history

@@ -390,8 +390,8 @@ export async function updateUserProfile(
   const { error } = await adminClient
     .from("profiles")
     .update({
-      full_name: data.full_name.trim() || null,
-      phone: data.phone.trim() || null,
+      full_name: data.full_name.trim() || undefined,
+      phone: data.phone.trim() || undefined,
     })
     .eq("id", userId);
 

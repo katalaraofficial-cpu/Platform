@@ -17,9 +17,6 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
--- 2. Enable RLS on storage.objects (already enabled by default, but ensure it)
-ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
-
 -- ============================================================
 -- INSERT policy: mechanic can upload to their own folder
 -- Path: {tenant_id}/{mechanic_id}/...

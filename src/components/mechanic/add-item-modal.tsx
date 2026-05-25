@@ -62,7 +62,7 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
           />
 
           {/* Bottom sheet */}
-          <div className="relative w-full rounded-t-2xl bg-white px-5 pb-10 pt-5 shadow-xl">
+          <div className="relative w-full rounded-t-2xl bg-white px-5 pt-5 shadow-xl" style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 5rem)" }}>
             {/* Handle */}
             <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-gray-200" />
 

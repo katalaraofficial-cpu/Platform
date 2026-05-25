@@ -23,6 +23,7 @@ export async function reimburseDebt(data: {
     tenant_id: ctx.tenantId,
     mechanic_id: data.mechanicId,
     transaction_type: "reimbursement",
+    invoice_item_id: null,
     amount: data.amount,
     notes: data.notes || null,
     is_paid: true,

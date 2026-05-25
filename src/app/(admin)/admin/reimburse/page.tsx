@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import { redirect } from "next/navigation";
-import { Wallet, AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertCircle, ArrowUp, ArrowDown } from "lucide-react";
 import {
   QuickReimburseButton,
   type MechanicOption,

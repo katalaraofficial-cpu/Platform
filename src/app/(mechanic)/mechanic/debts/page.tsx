@@ -27,7 +27,7 @@ export default async function PiutangSayaPage() {
     invoice_items: { receipt_image_url: string | null } | null;
   };
 
-  const entries = (ledger ?? []) as EntryWithReceipt[];
+  const entries = (ledger ?? []) as unknown as EntryWithReceipt[];
 
   // Collect invoice item IDs to look up invoice numbers
   const itemIds = entries

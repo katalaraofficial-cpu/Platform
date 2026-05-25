@@ -117,6 +117,7 @@ export async function createInvoice(
       status: "draft" as InvoiceStatus,
       notes: (formData.get("notes") as string) || null,
       created_by: user.id,
+      invoice_date: (formData.get("invoice_date") as string) || new Date().toISOString().split("T")[0],
     })
     .select("id")
     .single();

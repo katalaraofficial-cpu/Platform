@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, User, Wrench, Package } from "lucide-react";
 import type { Invoice, Customer, InvoiceItem, InvoiceStatus } from "@/types/database";
 import { WorkOrderStatusButton } from "@/components/mechanic/work-order-status-button";
+import { AddMechanicItemButton } from "@/components/mechanic/add-item-modal";
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   draft: "Menunggu Dikerjakan",
@@ -160,6 +161,9 @@ export default async function WorkOrderDetail({
           <span className="ml-1 rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-600">
             {items.length}
           </span>
+          {(status === "draft" || status === "in_progress") && (
+            <AddMechanicItemButton invoiceId={invoice.id} />
+          )}
         </div>
         {items.length === 0 ? (
           <div className="px-4 py-8 text-center text-sm text-gray-400">

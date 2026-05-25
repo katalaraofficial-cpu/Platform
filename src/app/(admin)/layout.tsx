@@ -28,8 +28,8 @@ export default async function AdminLayout({
       ? [{ label: "Kas Kecil", href: "/admin/petty-cash", icon: <PiggyBank className="h-4 w-4" /> }]
       : []),
 
-    // Toggle: module_mechanic_portal — admin can process reimbursements
-    ...(toggles?.module_mechanic_portal !== false
+    // Toggle: module_engineer — admin can process reimbursements
+    ...(toggles?.module_engineer !== false
       ? [{ label: "Engineer", href: "/admin/reimburse", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 

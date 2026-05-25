@@ -37,8 +37,8 @@ export default async function OwnerLayout({
       ? [{ label: "Pelanggan", href: "/owner/customers", icon: <Users className="h-4 w-4" /> }]
       : []),
 
-    // Toggle: module_mechanic_portal — mechanic & debt management
-    ...(toggles?.module_mechanic_portal !== false
+    // Toggle: module_engineer — performa mekanik & reimburse
+    ...(toggles?.module_engineer !== false
       ? [{ label: "Engineer", href: "/owner/mechanics", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 

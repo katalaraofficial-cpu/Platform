@@ -19,6 +19,7 @@ export interface FeatureToggles {
   module_petty_cash: boolean;
   module_mechanic_portal: boolean;
   module_customer_history: boolean;
+  module_engineer: boolean;
 }
 
 // ── Vehicle info shape (stored as JSONB in customers) ───────

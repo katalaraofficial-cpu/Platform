@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState } from "react";
-import { updateFeatureToggles, updateTenantSettings, toggleTenantActive, type ActionState } from "@/lib/actions/tenant";
+import { updateFeatureToggles, toggleTenantActive, type ActionState } from "@/lib/actions/tenant";
 
 interface FeatureToggles {
   module_ledger: boolean;
   module_petty_cash: boolean;
   module_mechanic_portal: boolean;
   module_customer_history: boolean;
+  module_engineer: boolean;
 }
 
 interface Props {
@@ -22,15 +23,12 @@ const TOGGLE_LABELS: Record<keyof FeatureToggles, string> = {
   module_petty_cash: "Kas Kecil",
   module_mechanic_portal: "Portal Mekanik & Hutang",
   module_customer_history: "Riwayat Pelanggan",
+  module_engineer: "Engineer (Performa & Reimburse)",
 };
 
-export function TenantDetailForms({ tenantId, isActive, toggles, settings }: Props) {
+export function TenantDetailForms({ tenantId, isActive, toggles }: Props) {
   const [toggleState, toggleAction, togglePending] = useActionState<ActionState, FormData>(
     updateFeatureToggles,
-    {}
-  );
-  const [settingsState, settingsAction, settingsPending] = useActionState<ActionState, FormData>(
-    updateTenantSettings,
     {}
   );
 
@@ -77,7 +75,7 @@ export function TenantDetailForms({ tenantId, isActive, toggles, settings }: Pro
               <input
                 type="checkbox"
                 name={key}
-                defaultChecked={toggles[key]}
+                defaultChecked={toggles[key] ?? false}
                 className="h-4 w-4 rounded border-gray-300 text-slate-900 focus:ring-slate-500"
               />
               <span className="text-sm text-gray-700">{TOGGLE_LABELS[key]}</span>
@@ -92,55 +90,6 @@ export function TenantDetailForms({ tenantId, isActive, toggles, settings }: Pro
               {togglePending ? "Menyimpan..." : "Simpan Modul"}
             </button>
           </div>
-        </form>
-      </div>
-
-      {/* Settings */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 font-semibold text-gray-900">Pengaturan Bengkel</h2>
-        {settingsState.error && (
-          <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">
-            {settingsState.error}
-          </p>
-        )}
-        <form action={settingsAction} className="space-y-4">
-          <input type="hidden" name="tenant_id" value={tenantId} />
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Default Markup Part (%)
-              </label>
-              <input
-                type="number"
-                name="default_markup_pct"
-                defaultValue={settings?.default_markup_pct ?? 20}
-                min="0"
-                max="1000"
-                step="0.5"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Batas Kas Kecil (Rp)
-              </label>
-              <input
-                type="number"
-                name="petty_cash_limit"
-                defaultValue={settings?.petty_cash_limit ?? 500000}
-                min="0"
-                step="50000"
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
-          <button
-            type="submit"
-            disabled={settingsPending}
-            className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:bg-gray-400"
-          >
-            {settingsPending ? "Menyimpan..." : "Simpan Pengaturan"}
-          </button>
         </form>
       </div>
     </div>

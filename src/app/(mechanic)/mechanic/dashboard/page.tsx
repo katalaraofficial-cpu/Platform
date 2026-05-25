@@ -55,10 +55,15 @@ export default async function MechanicDashboard({
     const invoiceIds = assignments.map((a) => a.invoice_id);
 
     // 2. Fetch invoices
-    const { data: invoices } = await supabase
+    const { data: invoices, error: invoiceError } = await supabase
       .from("invoices")
       .select("*")
       .in("id", invoiceIds);
+
+    if (invoiceError) {
+      console.error("[MechanicDashboard] invoices query error:", invoiceError);
+    }
+    console.log("[MechanicDashboard] assignments:", assignments?.length, "invoices fetched:", invoices?.length ?? 0);
 
     // 3. Fetch relevant customers
     const customerIds = [
@@ -172,8 +177,11 @@ export default async function MechanicDashboard({
           {/* Diagnostic info — helps verify mechanic ID matches DB */}
           <p className="mt-3 rounded bg-yellow-50 px-3 py-2 text-[10px] text-yellow-700 border border-yellow-200">
             ID Mekanik: <span className="font-mono select-all">{ctx.id}</span>
+            <span className="block mt-1">
+              Assignments: {assignments?.length ?? 0} | Work orders: {workOrders.length}
+            </span>
             {assignError && (
-              <span className="block mt-1 text-red-600">Error: {assignError.message}</span>
+              <span className="block mt-1 text-red-600">Error assignments: {assignError.message}</span>
             )}
             {!assignError && (assignments === null || assignments?.length === 0) && (
               <span className="block mt-1">Tidak ada data di tabel invoice_mechanics untuk ID ini.</span>

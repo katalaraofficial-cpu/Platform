@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
-import { DollarSign, TrendingUp, FileText, Clock, Wallet, Users } from "lucide-react";
+import { DollarSign, TrendingUp, FileText, Clock, Wallet, Users, Trophy } from "lucide-react";
 
 function fmt(n: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -30,14 +30,14 @@ function BarChart({ data }: { data: { label: string; value: number }[] }) {
     <div className="flex h-28 items-end gap-1.5">
       {data.map((d) => (
         <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-          <span className="text-[9px] font-medium text-gray-500">
+          <span className="text-[9px] font-medium text-gray-400">
             {d.value > 0 ? fmtShort(d.value) : ""}
           </span>
           <div
-            className="w-full rounded-t bg-blue-400 transition-all"
+            className="w-full rounded-t bg-blue-500 transition-all"
             style={{ height: `${Math.max((d.value / max) * 100, d.value > 0 ? 4 : 0)}%` }}
           />
-          <span className="text-[9px] text-gray-400">{d.label}</span>
+          <span className="text-[9px] text-gray-500">{d.label}</span>
         </div>
       ))}
     </div>
@@ -57,7 +57,7 @@ function DonutChart({
 
   if (total === 0) {
     return (
-      <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-gray-100">
+      <div className="flex h-[100px] w-[100px] items-center justify-center rounded-full bg-slate-700">
         <span className="text-xs text-gray-400">-</span>
       </div>
     );
@@ -87,7 +87,7 @@ function DonutChart({
           transform="rotate(-90 50 50)"
         />
       ))}
-      <circle cx={cx} cy={cy} r="28" fill="white" />
+      <circle cx={cx} cy={cy} r="28" fill="#1e293b" />
       <text
         x={cx}
         y={cy}
@@ -95,7 +95,7 @@ function DonutChart({
         dominantBaseline="middle"
         fontSize="11"
         fontWeight="bold"
-        fill="#374151"
+        fill="#e2e8f0"
       >
         {total}
       </text>
@@ -108,12 +108,14 @@ const STATUS_LABEL: Record<string, string> = {
   in_progress: "Proses",
   completed: "Selesai",
   paid: "Lunas",
+  cancelled: "Batal",
 };
 const STATUS_CLASS: Record<string, string> = {
-  draft: "bg-gray-100 text-gray-600",
-  in_progress: "bg-blue-100 text-blue-700",
-  completed: "bg-green-100 text-green-700",
-  paid: "bg-emerald-100 text-emerald-700",
+  draft: "bg-slate-700 text-gray-300",
+  in_progress: "bg-blue-900/60 text-blue-300",
+  completed: "bg-green-900/60 text-green-300",
+  paid: "bg-emerald-900/60 text-emerald-300",
+  cancelled: "bg-red-900/60 text-red-300",
 };
 
 export default async function OwnerDashboard({
@@ -124,6 +126,7 @@ export default async function OwnerDashboard({
     top?: string;
     donut_type?: string;
     donut_period?: string;
+    mech?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -136,6 +139,8 @@ export default async function OwnerDashboard({
   const donutType = ["jasa", "barang"].includes(sp.donut_type ?? "") ? sp.donut_type! : "all";
   // donut period: 1m (default) | 3m | 6m
   const donutPeriod = ["3m", "6m"].includes(sp.donut_period ?? "") ? sp.donut_period! : "1m";
+  // mechanic ranking period: 1m (default) | 3m | 6m
+  const mech = ["3m", "6m"].includes(sp.mech ?? "") ? sp.mech! : "1m";
 
   const supabase = await createClient();
   const ctx = await getUserContext();
@@ -160,6 +165,12 @@ export default async function OwnerDashboard({
       ? firstOfMonth
       : new Date(now.getFullYear(), now.getMonth() - (donutMonths - 1), 1).toISOString();
 
+  const mechMonths = mech === "6m" ? 6 : mech === "3m" ? 3 : 1;
+  const mechStart =
+    mechMonths === 1
+      ? firstOfMonth
+      : new Date(now.getFullYear(), now.getMonth() - (mechMonths - 1), 1).toISOString();
+
   let itemsQuery = supabase
     .from("invoice_items")
     .select("item_type")
@@ -177,6 +188,7 @@ export default async function OwnerDashboard({
     { data: debtUnpaid },
     { data: itemsRaw },
     { data: invoicesPeriod },
+    { data: mechInvoicesRaw },
   ] = await Promise.all([
     supabase
       .from("invoices")
@@ -212,6 +224,12 @@ export default async function OwnerDashboard({
       .select("customer_id, grand_total")
       .eq("tenant_id", tenantId)
       .gte("created_at", topStart),
+    supabase
+      .from("invoices")
+      .select("id, status, invoice_mechanics(mechanic_id)")
+      .eq("tenant_id", tenantId)
+      .in("status", ["completed", "paid"])
+      .gte("created_at", mechStart),
   ]);
 
   // Customer names
@@ -322,12 +340,36 @@ export default async function OwnerDashboard({
       revenue: data.revenue,
     }));
 
-  // URL builder (preserves all params)
+  // Mechanic ranking
+  const mechJobCount: Record<string, number> = {};
+  for (const inv of mechInvoicesRaw ?? []) {
+    for (const m of (inv.invoice_mechanics ?? []) as { mechanic_id: string }[]) {
+      mechJobCount[m.mechanic_id] = (mechJobCount[m.mechanic_id] ?? 0) + 1;
+    }
+  }
+  const mechIds = Object.keys(mechJobCount);
+  const mechNameMap = new Map<string, string>();
+  if (mechIds.length > 0) {
+    const { data: mechProfiles } = await supabase
+      .from("profiles")
+      .select("id, full_name")
+      .in("id", mechIds);
+    (mechProfiles ?? []).forEach((p: { id: string; full_name: string | null }) =>
+      mechNameMap.set(p.id, p.full_name ?? "-")
+    );
+  }
+  const topMechanics = Object.entries(mechJobCount)
+    .sort(([, a], [, b]) => b - a)
+    .slice(0, 5)
+    .map(([id, count]) => ({ id, name: mechNameMap.get(id) ?? "-", count }));
+
+  // URL builder (preserves all params, omits defaults)
   function buildUrl(overrides: {
     period?: string;
     top?: string;
     donut_type?: string;
     donut_period?: string;
+    mech?: string;
   }) {
     const p = new URLSearchParams();
     const vals = {
@@ -335,12 +377,14 @@ export default async function OwnerDashboard({
       top,
       donut_type: donutType,
       donut_period: donutPeriod,
+      mech,
       ...overrides,
     };
     if (vals.period !== "6m") p.set("period", vals.period);
     if (vals.top !== "1m") p.set("top", vals.top);
     if (vals.donut_type !== "all") p.set("donut_type", vals.donut_type);
     if (vals.donut_period !== "1m") p.set("donut_period", vals.donut_period);
+    if (vals.mech !== "1m") p.set("mech", vals.mech);
     const qs = p.toString();
     return `/owner/dashboard${qs ? "?" + qs : ""}`;
   }
@@ -353,299 +397,335 @@ export default async function OwnerDashboard({
   const donutPeriodLabel =
     donutPeriod === "3m" ? "3 Bulan Terakhir" : donutPeriod === "6m" ? "6 Bulan Terakhir" : "Bulan Ini";
 
+  // Pill helper — dark theme
   const pill = (active: boolean) =>
     `rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${
       active
-        ? "bg-blue-100 text-blue-700"
-        : "text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+        ? "bg-blue-600 text-white"
+        : "text-gray-400 hover:bg-slate-700 hover:text-gray-200"
     }`;
 
   return (
-    <div className="space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard Pemilik</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Ringkasan keuangan dan operasional bengkel &mdash;{" "}
-          {now.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
-        </p>
-      </div>
+    <div className="-m-6 bg-slate-900 p-6">
+      <div className="space-y-6">
+        {/* Title */}
+        <div>
+          <h1 className="text-2xl font-bold text-white">Dashboard Pemilik</h1>
+          <p className="mt-1 text-sm text-gray-400">
+            Ringkasan keuangan dan operasional bengkel &mdash;{" "}
+            {now.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
+          </p>
+        </div>
 
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {[
-          {
-            label: "Pendapatan Hari Ini",
-            value: fmt(todayRevenue),
-            icon: <DollarSign className="h-5 w-5 text-green-400" />,
-            color: "text-green-700",
-          },
-          {
-            label: "Pendapatan Bulan Ini",
-            value: fmt(monthRevenue),
-            icon: <TrendingUp className="h-5 w-5 text-blue-400" />,
-            color: "text-blue-700",
-          },
-          {
-            label: "Invoice Aktif",
-            value: (countByStatus.draft ?? 0) + (countByStatus.in_progress ?? 0),
-            icon: <Clock className="h-5 w-5 text-yellow-400" />,
-            color: "text-yellow-700",
-          },
-          {
-            label: "Total Invoice Bulan Ini",
-            value: all.length,
-            icon: <FileText className="h-5 w-5 text-slate-400" />,
-            color: "text-slate-700",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs text-gray-500">{s.label}</p>
-              {s.icon}
-            </div>
-            <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Status breakdown */}
-      <div className="grid grid-cols-4 gap-3">
-        {(["draft", "in_progress", "completed", "paid"] as const).map((s) => (
-          <div
-            key={s}
-            className="rounded-lg border border-gray-200 bg-white p-4 text-center"
-          >
-            <span
-              className={`mb-2 inline-block rounded-full px-2 py-0.5 text-xs font-medium ${STATUS_CLASS[s]}`}
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          {[
+            {
+              label: "Pendapatan Hari Ini",
+              value: fmt(todayRevenue),
+              icon: <DollarSign className="h-5 w-5 text-green-400" />,
+              color: "text-green-400",
+            },
+            {
+              label: "Pendapatan Bulan Ini",
+              value: fmt(monthRevenue),
+              icon: <TrendingUp className="h-5 w-5 text-blue-400" />,
+              color: "text-blue-400",
+            },
+            {
+              label: "Invoice Aktif",
+              value: (countByStatus.draft ?? 0) + (countByStatus.in_progress ?? 0),
+              icon: <Clock className="h-5 w-5 text-yellow-400" />,
+              color: "text-yellow-400",
+            },
+            {
+              label: "Total Invoice Bulan Ini",
+              value: all.length,
+              icon: <FileText className="h-5 w-5 text-slate-400" />,
+              color: "text-slate-300",
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm"
             >
-              {STATUS_LABEL[s]}
-            </span>
-            <p className="text-2xl font-bold text-gray-900">{countByStatus[s] ?? 0}</p>
-          </div>
-        ))}
-      </div>
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-gray-400">{s.label}</p>
+                {s.icon}
+              </div>
+              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
+            </div>
+          ))}
+        </div>
 
-      {/* Kas + Piutang */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-700">Kas Bulan Ini</h2>
+        {/* Kas + Piutang + Ranking Mekanik */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {/* Kas Bulan Ini */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-gray-400" />
+              <h2 className="text-sm font-semibold text-gray-200">Kas Bulan Ini</h2>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Kas Masuk</span>
+                <span className="font-semibold text-green-400">{fmt(kas.masuk)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Kas Keluar</span>
+                <span className="font-semibold text-red-400">{fmt(kas.keluar)}</span>
+              </div>
+              <div className="mt-2 border-t border-slate-600 pt-2 flex justify-between text-sm font-bold">
+                <span className="text-gray-200">Selisih Bersih</span>
+                <span className={kas.masuk - kas.keluar >= 0 ? "text-green-400" : "text-red-400"}>
+                  {fmt(kas.masuk - kas.keluar)}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Kas Masuk</span>
-              <span className="font-semibold text-green-700">{fmt(kas.masuk)}</span>
+
+          {/* Piutang Mekanik */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2">
+              <Users className="h-4 w-4 text-gray-400" />
+              <h2 className="text-sm font-semibold text-gray-200">Piutang Mekanik</h2>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-500">Kas Keluar</span>
-              <span className="font-semibold text-red-600">{fmt(kas.keluar)}</span>
+            <p className="text-3xl font-bold text-amber-400">{fmt(totalDebt)}</p>
+            <p className="mt-1 text-xs text-gray-400">Total belum dibayar ke mekanik</p>
+            <Link
+              href="/owner/mechanics"
+              className="mt-3 inline-block text-xs text-blue-400 hover:text-blue-300"
+            >
+              Lihat detail &rarr;
+            </Link>
+          </div>
+
+          {/* Ranking Mekanik */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Trophy className="h-4 w-4 text-yellow-400" />
+                <h2 className="text-sm font-semibold text-gray-200">Ranking Mekanik</h2>
+              </div>
+              <div className="flex gap-1">
+                <Link href={buildUrl({ mech: "1m" })} className={pill(mech === "1m")}>
+                  Bln ini
+                </Link>
+                <Link href={buildUrl({ mech: "3m" })} className={pill(mech === "3m")}>
+                  3 bln
+                </Link>
+                <Link href={buildUrl({ mech: "6m" })} className={pill(mech === "6m")}>
+                  6 bln
+                </Link>
+              </div>
             </div>
-            <div className="mt-2 border-t border-gray-100 pt-2 flex justify-between text-sm font-bold">
-              <span className="text-gray-700">Selisih Bersih</span>
-              <span className={kas.masuk - kas.keluar >= 0 ? "text-green-700" : "text-red-600"}>
-                {fmt(kas.masuk - kas.keluar)}
-              </span>
-            </div>
+            {topMechanics.length === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-400">Belum ada data pekerjaan selesai.</p>
+            ) : (
+              <ul className="space-y-2">
+                {topMechanics.map((m, i) => (
+                  <li key={m.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
+                          i === 0
+                            ? "bg-yellow-500 text-slate-900"
+                            : i === 1
+                              ? "bg-slate-400 text-slate-900"
+                              : i === 2
+                                ? "bg-amber-700 text-white"
+                                : "bg-slate-700 text-gray-300"
+                        }`}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="text-sm text-gray-200">{m.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-gray-300">{m.count} selesai</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         </div>
 
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center gap-2">
-            <Users className="h-4 w-4 text-gray-400" />
-            <h2 className="text-sm font-semibold text-gray-700">Piutang Mekanik</h2>
+        {/* Bar chart + Top customers */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          {/* Bar chart */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-gray-200">
+                Pendapatan {periodLabel}
+              </h2>
+              <div className="flex gap-1">
+                <Link href={buildUrl({ period: "3m" })} className={pill(period === "3m")}>
+                  3 bln
+                </Link>
+                <Link href={buildUrl({ period: "6m" })} className={pill(period === "6m")}>
+                  6 bln
+                </Link>
+                <Link href={buildUrl({ period: "12m" })} className={pill(period === "12m")}>
+                  12 bln
+                </Link>
+              </div>
+            </div>
+            <BarChart data={revenueByMonth} />
           </div>
-          <p className="text-3xl font-bold text-amber-600">{fmt(totalDebt)}</p>
-          <p className="mt-1 text-xs text-gray-400">Total belum dibayar ke mekanik</p>
-          <Link
-            href="/owner/mechanics"
-            className="mt-3 inline-block text-xs text-blue-600 hover:text-blue-500"
-          >
-            Lihat detail &rarr;
-          </Link>
-        </div>
-      </div>
 
-      {/* Bar chart + Top customers */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        {/* Bar chart */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-gray-700">
-              Pendapatan {periodLabel}
-            </h2>
-            <div className="flex gap-1">
-              <Link href={buildUrl({ period: "3m" })} className={pill(period === "3m")}>
-                3 bln
-              </Link>
-              <Link href={buildUrl({ period: "6m" })} className={pill(period === "6m")}>
-                6 bln
-              </Link>
-              <Link href={buildUrl({ period: "12m" })} className={pill(period === "12m")}>
-                12 bln
-              </Link>
+          {/* Top customers */}
+          <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold text-gray-200">
+                Top Pelanggan {topLabel}
+              </h2>
+              <div className="flex gap-1">
+                <Link href={buildUrl({ top: "1m" })} className={pill(top === "1m")}>
+                  Bln ini
+                </Link>
+                <Link href={buildUrl({ top: "3m" })} className={pill(top === "3m")}>
+                  3 bln
+                </Link>
+                <Link href={buildUrl({ top: "6m" })} className={pill(top === "6m")}>
+                  6 bln
+                </Link>
+              </div>
+            </div>
+            {topCustomers.length === 0 ? (
+              <p className="py-8 text-center text-sm text-gray-400">
+                Belum ada data pelanggan.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {topCustomers.map((c, i) => (
+                  <li key={c.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-700 text-xs font-bold text-gray-300">
+                        {i + 1}
+                      </span>
+                      <span className="text-sm font-medium text-gray-200">{c.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-semibold text-gray-200">{c.count} order</p>
+                      <p className="text-[10px] text-gray-400">{fmt(c.revenue)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* Donut chart */}
+        <div className="rounded-xl border border-slate-700 bg-slate-800 p-5 shadow-sm">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-200">
+                Komposisi Item Pekerjaan
+              </h2>
+              <p className="text-xs text-gray-400 mt-0.5">{donutPeriodLabel}</p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Type filter */}
+              <div className="flex gap-1 rounded-lg border border-slate-600 bg-slate-700 p-0.5">
+                <Link href={buildUrl({ donut_type: "all" })} className={pill(donutType === "all")}>
+                  Semua
+                </Link>
+                <Link href={buildUrl({ donut_type: "jasa" })} className={pill(donutType === "jasa")}>
+                  Jasa
+                </Link>
+                <Link href={buildUrl({ donut_type: "barang" })} className={pill(donutType === "barang")}>
+                  Barang
+                </Link>
+              </div>
+              {/* Period filter */}
+              <div className="flex gap-1 rounded-lg border border-slate-600 bg-slate-700 p-0.5">
+                <Link href={buildUrl({ donut_period: "1m" })} className={pill(donutPeriod === "1m")}>
+                  Bln ini
+                </Link>
+                <Link href={buildUrl({ donut_period: "3m" })} className={pill(donutPeriod === "3m")}>
+                  3 bln
+                </Link>
+                <Link href={buildUrl({ donut_period: "6m" })} className={pill(donutPeriod === "6m")}>
+                  6 bln
+                </Link>
+              </div>
             </div>
           </div>
-          <BarChart data={revenueByMonth} />
-        </div>
-
-        {/* Top customers */}
-        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-          <div className="mb-4 flex items-center justify-between gap-2">
-            <h2 className="text-sm font-semibold text-gray-700">
-              Top Pelanggan {topLabel}
-            </h2>
-            <div className="flex gap-1">
-              <Link href={buildUrl({ top: "1m" })} className={pill(top === "1m")}>
-                Bln ini
-              </Link>
-              <Link href={buildUrl({ top: "3m" })} className={pill(top === "3m")}>
-                3 bln
-              </Link>
-              <Link href={buildUrl({ top: "6m" })} className={pill(top === "6m")}>
-                6 bln
-              </Link>
-            </div>
-          </div>
-          {topCustomers.length === 0 ? (
-            <p className="py-8 text-center text-sm text-gray-400">
-              Belum ada data pelanggan.
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {topCustomers.map((c, i) => (
-                <li key={c.id} className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-100 text-xs font-bold text-gray-500">
-                      {i + 1}
-                    </span>
-                    <span className="text-sm font-medium text-gray-800">{c.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-semibold text-gray-700">{c.count} order</p>
-                    <p className="text-[10px] text-gray-400">{fmt(c.revenue)}</p>
-                  </div>
+          <div className="flex items-center gap-8">
+            <DonutChart segments={donutSegments} />
+            <ul className="space-y-3">
+              {donutSegments.map((seg) => (
+                <li key={seg.label} className="flex items-center gap-2.5">
+                  <span
+                    className="h-3 w-3 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: seg.color }}
+                  />
+                  <span className="text-sm text-gray-300">{seg.label}</span>
+                  <span className="ml-auto pl-4 text-sm font-bold text-gray-100">
+                    {seg.value}
+                  </span>
                 </li>
               ))}
             </ul>
+          </div>
+        </div>
+
+        {/* Recent invoices */}
+        <div className="rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-700 px-6 py-4">
+            <h2 className="font-semibold text-gray-100">Invoice Terbaru</h2>
+            <Link href="/owner/invoices" className="text-sm text-blue-400 hover:text-blue-300">
+              Lihat semua &rarr;
+            </Link>
+          </div>
+          {!recentRaw || recentRaw.length === 0 ? (
+            <p className="py-8 text-center text-sm text-gray-400">Belum ada invoice</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead className="bg-slate-700/50 text-xs uppercase tracking-wide text-gray-400">
+                  <tr>
+                    <th className="px-5 py-3 text-left">No. Invoice</th>
+                    <th className="px-5 py-3 text-left">Pelanggan</th>
+                    <th className="px-5 py-3 text-left">Status</th>
+                    <th className="px-5 py-3 text-right">Total</th>
+                    <th className="px-5 py-3 text-left">Tanggal</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-700">
+                  {recentRaw.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-slate-700/40">
+                      <td className="px-5 py-3">
+                        <Link
+                          href={`/owner/invoices/${inv.id}`}
+                          className="font-mono text-xs text-blue-400 hover:underline"
+                        >
+                          {inv.invoice_number}
+                        </Link>
+                      </td>
+                      <td className="px-5 py-3 text-gray-200">
+                        {customerMap.get(inv.customer_id ?? "") ?? "-"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[inv.status] ?? "bg-slate-700 text-gray-300"}`}
+                        >
+                          {STATUS_LABEL[inv.status] ?? inv.status}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right text-gray-300">
+                        {fmt(inv.grand_total ?? 0)}
+                      </td>
+                      <td className="px-5 py-3 text-xs text-gray-400">
+                        {fmtDate(inv.created_at)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
-      </div>
-
-      {/* Donut chart */}
-      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-semibold text-gray-700">
-              Komposisi Item Pekerjaan
-            </h2>
-            <p className="text-xs text-gray-400 mt-0.5">{donutPeriodLabel}</p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Type filter */}
-            <div className="flex gap-1 rounded-lg border border-gray-100 bg-gray-50 p-0.5">
-              <Link href={buildUrl({ donut_type: "all" })} className={pill(donutType === "all")}>
-                Semua
-              </Link>
-              <Link href={buildUrl({ donut_type: "jasa" })} className={pill(donutType === "jasa")}>
-                Jasa
-              </Link>
-              <Link href={buildUrl({ donut_type: "barang" })} className={pill(donutType === "barang")}>
-                Barang
-              </Link>
-            </div>
-            {/* Period filter */}
-            <div className="flex gap-1 rounded-lg border border-gray-100 bg-gray-50 p-0.5">
-              <Link href={buildUrl({ donut_period: "1m" })} className={pill(donutPeriod === "1m")}>
-                Bln ini
-              </Link>
-              <Link href={buildUrl({ donut_period: "3m" })} className={pill(donutPeriod === "3m")}>
-                3 bln
-              </Link>
-              <Link href={buildUrl({ donut_period: "6m" })} className={pill(donutPeriod === "6m")}>
-                6 bln
-              </Link>
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-8">
-          <DonutChart segments={donutSegments} />
-          <ul className="space-y-3">
-            {donutSegments.map((seg) => (
-              <li key={seg.label} className="flex items-center gap-2.5">
-                <span
-                  className="h-3 w-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: seg.color }}
-                />
-                <span className="text-sm text-gray-600">{seg.label}</span>
-                <span className="ml-auto pl-4 text-sm font-bold text-gray-800">
-                  {seg.value}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-
-      {/* Recent invoices */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-          <h2 className="font-semibold text-gray-900">Invoice Terbaru</h2>
-          <Link href="/owner/invoices" className="text-sm text-blue-600 hover:text-blue-500">
-            Lihat semua &rarr;
-          </Link>
-        </div>
-        {!recentRaw || recentRaw.length === 0 ? (
-          <p className="py-8 text-center text-sm text-gray-400">Belum ada invoice</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-50 text-xs uppercase tracking-wide text-gray-500">
-                <tr>
-                  <th className="px-5 py-3 text-left">No. Invoice</th>
-                  <th className="px-5 py-3 text-left">Pelanggan</th>
-                  <th className="px-5 py-3 text-left">Status</th>
-                  <th className="px-5 py-3 text-right">Total</th>
-                  <th className="px-5 py-3 text-left">Tanggal</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {recentRaw.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="px-5 py-3">
-                      <Link
-                        href={`/owner/invoices/${inv.id}`}
-                        className="font-mono text-xs text-blue-600 hover:underline"
-                      >
-                        {inv.invoice_number}
-                      </Link>
-                    </td>
-                    <td className="px-5 py-3 text-gray-900">
-                      {customerMap.get(inv.customer_id ?? "") ?? "-"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${STATUS_CLASS[inv.status] ?? ""}`}
-                      >
-                        {STATUS_LABEL[inv.status] ?? inv.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-right text-gray-700">
-                      {fmt(inv.grand_total ?? 0)}
-                    </td>
-                    <td className="px-5 py-3 text-xs text-gray-400">
-                      {fmtDate(inv.created_at)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { processPayment } from "@/lib/actions/invoice";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Props {
   invoiceId: string;
@@ -31,18 +32,31 @@ export function PaymentForm({ invoiceId, basePath, grandTotal }: Props) {
   const [method, setMethod] = useState("cash");
   const [paymentDate, setPaymentDate] = useState(todayStr());
   const [isPending, startTransition] = useTransition();
+  const [showConfirm, setShowConfirm] = useState(false);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!confirm(`Konfirmasi pembayaran sebesar ${fmtRp(grandTotal)} via ${METHODS.find((m) => m.value === method)?.label}?`))
-      return;
+    setShowConfirm(true);
+  }
+
+  function handleConfirm() {
+    setShowConfirm(false);
     startTransition(async () => {
       await processPayment(invoiceId, method, paymentDate, basePath);
     });
   }
 
   return (
-    <div className="rounded-xl border border-green-200 bg-green-50 p-6 shadow-sm">
+    <>
+      <ConfirmDialog
+        open={showConfirm}
+        title="Konfirmasi Pembayaran"
+        message={`Proses pembayaran sebesar ${fmtRp(grandTotal)} via ${METHODS.find((m) => m.value === method)?.label}?`}
+        confirmLabel="Ya, Proses"
+        onConfirm={handleConfirm}
+        onCancel={() => setShowConfirm(false)}
+      />
+      <div className="rounded-xl border border-green-200 bg-green-50 p-6 shadow-sm">
       <h2 className="mb-1 font-semibold text-gray-900">Konfirmasi Pembayaran</h2>
       <p className="mb-4 text-sm text-gray-500">
         Pekerjaan selesai. Pilih metode pembayaran dan tanggal untuk menandai invoice sebagai Lunas.
@@ -108,5 +122,6 @@ export function PaymentForm({ invoiceId, basePath, grandTotal }: Props) {
         </button>
       </form>
     </div>
+    </>
   );
 }

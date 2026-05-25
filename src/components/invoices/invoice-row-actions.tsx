@@ -5,6 +5,7 @@ import { useRef, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw } from "lucide-react";
 import { deleteInvoice, rollbackInvoiceStatus } from "@/lib/actions/invoice";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Props {
   invoiceId: string;
@@ -25,6 +26,7 @@ export function InvoiceRowActions({
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [pendingAction, setPendingAction] = useState<"delete" | "rollback" | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -62,25 +64,53 @@ export function InvoiceRowActions({
   };
 
   async function handleDelete() {
-    const warning = status === "paid" || status === "completed"
-      ? `PERHATIAN: Invoice ${invoiceNumber} sudah ${status === "paid" ? "lunas" : "selesai"}. Menghapus akan menghilangkan data kas terkait.\n\nLanjutkan hapus?`
-      : `Hapus invoice ${invoiceNumber}? Tindakan ini tidak dapat dibatalkan.`;
-    if (!confirm(warning)) return;
     setOpen(false);
+    setPendingAction("delete");
+  }
+
+  async function executeDelete() {
+    setPendingAction(null);
     await deleteInvoice(invoiceId, basePath);
   }
 
   function handleRollback() {
-    const label = ROLLBACK_LABEL[status] ?? "Kembalikan status";
-    if (!confirm(`${label} untuk invoice ${invoiceNumber}?`)) return;
     setOpen(false);
+    setPendingAction("rollback");
+  }
+
+  function executeRollback() {
+    setPendingAction(null);
     startTransition(async () => {
       await rollbackInvoiceStatus(invoiceId, basePath);
     });
   }
 
+  const deleteMessage =
+    status === "paid" || status === "completed"
+      ? `PERHATIAN: Invoice ${invoiceNumber} sudah ${status === "paid" ? "lunas" : "selesai"}. Menghapus akan menghilangkan data kas terkait.\n\nLanjutkan hapus?`
+      : `Hapus invoice ${invoiceNumber}? Tindakan ini tidak dapat dibatalkan.`;
+
+  const rollbackLabel = ROLLBACK_LABEL[status] ?? "Kembalikan status";
+
   return (
     <>
+      <ConfirmDialog
+        open={pendingAction === "delete"}
+        title="Hapus Invoice"
+        message={deleteMessage}
+        confirmLabel="Ya, Hapus"
+        danger
+        onConfirm={executeDelete}
+        onCancel={() => setPendingAction(null)}
+      />
+      <ConfirmDialog
+        open={pendingAction === "rollback"}
+        title="Kembalikan Status"
+        message={`${rollbackLabel} untuk invoice ${invoiceNumber}?`}
+        confirmLabel="Ya, Kembalikan"
+        onConfirm={executeRollback}
+        onCancel={() => setPendingAction(null)}
+      />
       <button
         ref={btnRef}
         onClick={handleOpen}

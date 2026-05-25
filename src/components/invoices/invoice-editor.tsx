@@ -30,6 +30,7 @@ import {
   processPayment,
 } from "@/lib/actions/invoice";
 import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type {
   ItemType,
   MechanicRoleInInvoice,
@@ -425,6 +426,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // ── Transitions ───────────────────────────────────────────────────────
   const [isPending, startTransition] = useTransition();
 
+  // ── Confirm dialog state ──────────────────────────────────────────────
+  const [pendingConfirm, setPendingConfirm] = useState<"rollback" | "payment" | null>(null);
+
   // ── Save state (create) ───────────────────────────────────────────────
   const [saveError, setSaveError] = useState("");
 
@@ -689,21 +693,29 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   function handleRollback() {
     if (!isEdit) return;
-    if (!confirm("Kembalikan status ke tahap sebelumnya?")) return;
-    startTransition(async () => {
-      await rollbackInvoiceStatus(editInvoice!.id, props.basePath);
-      router.refresh();
-    });
+    setPendingConfirm("rollback");
   }
 
   // ── Payment ───────────────────────────────────────────────────────────
   function handleProcessPayment() {
     if (!isEdit) return;
-    if (!confirm(`Konfirmasi pembayaran ${fmt(grandTotal)}?`)) return;
-    startTransition(async () => {
-      await processPayment(editInvoice!.id, payMethod, payDate, props.basePath);
-      router.refresh();
-    });
+    setPendingConfirm("payment");
+  }
+
+  function executeConfirmedAction() {
+    const action = pendingConfirm;
+    setPendingConfirm(null);
+    if (action === "rollback") {
+      startTransition(async () => {
+        await rollbackInvoiceStatus(editInvoice!.id, props.basePath);
+        router.refresh();
+      });
+    } else if (action === "payment") {
+      startTransition(async () => {
+        await processPayment(editInvoice!.id, payMethod, payDate, props.basePath);
+        router.refresh();
+      });
+    }
   }
 
   // ── Save invoice (create mode) ────────────────────────────────────────
@@ -738,6 +750,23 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // ─────────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden bg-gray-50">
+      {/* Confirm dialogs */}
+      <ConfirmDialog
+        open={pendingConfirm === "rollback"}
+        title="Kembalikan Status"
+        message="Kembalikan status invoice ke tahap sebelumnya?"
+        confirmLabel="Ya, Kembalikan"
+        onConfirm={executeConfirmedAction}
+        onCancel={() => setPendingConfirm(null)}
+      />
+      <ConfirmDialog
+        open={pendingConfirm === "payment"}
+        title="Konfirmasi Pembayaran"
+        message={`Proses pelunasan sebesar ${fmt(grandTotal)}?`}
+        confirmLabel="Ya, Proses"
+        onConfirm={executeConfirmedAction}
+        onCancel={() => setPendingConfirm(null)}
+      />
       {/* Modals */}
       {showAddCustomer && (
         <QuickAddCustomerModal

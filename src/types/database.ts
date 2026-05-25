@@ -227,7 +227,7 @@ export interface Database {
       mechanic_debt_ledger: {
         Row: MechanicDebtLedger & Record<string, unknown>;
         Insert: Omit<MechanicDebtLedger, "id" | "created_at">;
-        Update: never;
+        Update: Partial<Omit<MechanicDebtLedger, "id" | "created_at">>;
         Relationships: never[];
       };
       ledger: {

@@ -29,9 +29,10 @@ export function WorkOrderStatusButton({ invoiceId, nextStatus, label }: Props) {
         toast.error(result.error);
       } else {
         if (nextStatus === "completed") {
-          // Navigate back to dashboard — fresh server render shows updated status
-          toast.success("Pekerjaan selesai! Kembali ke dashboard…");
-          router.push("/mechanic/dashboard");
+          // Hard navigation bypasses Next.js client router cache,
+          // guaranteeing the dashboard re-fetches fresh server data.
+          toast.success("Pekerjaan selesai!");
+          window.location.href = "/mechanic/dashboard";
         } else {
           toast.success("Pekerjaan dimulai");
           router.refresh();

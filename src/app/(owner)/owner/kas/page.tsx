@@ -96,7 +96,7 @@ export default async function KasPage({
     query = query.eq("account_type", accountFilter as import("@/types/database").AccountType);
   }
   if (typeFilter !== "all") {
-    query = query.eq("transaction_type", typeFilter);
+    query = query.eq("transaction_type", typeFilter as import("@/types/database").LedgerType);
   }
   if (fromDate) {
     query = query.gte("created_at", fromDate);

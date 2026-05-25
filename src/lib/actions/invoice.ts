@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -728,21 +729,37 @@ export async function searchItemDescriptions(
 }
 
 // ── Mechanic: update work order status ───────────────────────
-// Valid transitions: draft → in_progress → completed only.
-// RLS in migration 007 enforces mechanic must be assigned.
+// Uses admin client (service role) so RLS never blocks the update.
+// Security is enforced manually: mechanic must be assigned to the invoice.
 export async function updateInvoiceMechanicStatus(
   invoiceId: string,
   newStatus: "in_progress" | "completed"
 ): Promise<{ error?: string }> {
-  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (ctx.role !== "mechanic") return { error: "Akses ditolak" };
 
-  const { data: inv } = await supabase
+  const supabase = await createClient(); // user client for ownership checks
+  const admin = createAdminClient();     // service role for the actual update
+
+  // 1. Verify this mechanic is assigned to the invoice
+  const { data: assignment } = await supabase
+    .from("invoice_mechanics")
+    .select("id")
+    .eq("invoice_id", invoiceId)
+    .eq("mechanic_id", ctx.id)
+    .maybeSingle();
+
+  if (!assignment) return { error: "Anda tidak ditugaskan pada invoice ini" };
+
+  // 2. Fetch current status (via admin so tenant isolation is done manually)
+  const { data: inv } = await admin
     .from("invoices")
-    .select("status")
+    .select("status, tenant_id")
     .eq("id", invoiceId)
     .single();
 
   if (!inv) return { error: "Invoice tidak ditemukan" };
+  if (inv.tenant_id !== ctx.tenantId) return { error: "Akses ditolak" };
 
   const transitions: Record<string, string> = {
     draft: "in_progress",
@@ -758,7 +775,8 @@ export async function updateInvoiceMechanicStatus(
     updateData.completed_at = new Date().toISOString();
   }
 
-  const { error } = await supabase
+  // 3. Update using service role — bypasses RLS
+  const { error } = await admin
     .from("invoices")
     .update(updateData)
     .eq("id", invoiceId);

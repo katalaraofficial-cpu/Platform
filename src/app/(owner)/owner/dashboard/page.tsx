@@ -211,7 +211,7 @@ export default async function OwnerDashboard({
       .not("paid_at", "is", null),
     supabase
       .from("ledger")
-      .select("transaction_type, amount")
+      .select("transaction_type, amount, created_at")
       .eq("tenant_id", tenantId)
       .gte("created_at", firstOfMonth),
     supabase
@@ -260,9 +260,17 @@ export default async function OwnerDashboard({
   const monthRevenue = all
     .filter((i) => i.status === "paid")
     .reduce((s, i) => s + (i.grand_total ?? 0), 0);
-  const todayRevenue = all
-    .filter((i) => i.status === "paid" && i.paid_at && i.paid_at >= todayStart)
-    .reduce((s, i) => s + (i.grand_total ?? 0), 0);
+
+  // "Pendapatan Hari Ini" = all kas_masuk entries created today (includes
+  // auto-entries from invoice payments + manual entries from Kas module)
+  const todayRevenue = (ledgerMonth ?? [])
+    .filter(
+      (e) =>
+        e.transaction_type === "kas_masuk" &&
+        e.created_at != null &&
+        e.created_at >= todayStart
+    )
+    .reduce((s, e) => s + Number(e.amount), 0);
   const countByStatus = ["draft", "in_progress", "completed", "paid"].reduce<
     Record<string, number>
   >((acc, s) => {

@@ -10,6 +10,7 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import {
   addKasEntry,
   createKasTransfer,
@@ -17,6 +18,31 @@ import {
   deleteKasEntry,
 } from "@/lib/actions/kas";
 import type { AccountType } from "@/types/database";
+
+// ── Kategori presets ─────────────────────────────────────────
+const KATEGORI_MASUK = [
+  "Pembayaran Invoice",
+  "Pendapatan Jasa",
+  "Setoran Modal Pemilik",
+  "Penerimaan Piutang",
+  "Pendapatan Lain-lain",
+  "Bunga Bank",
+];
+
+const KATEGORI_KELUAR = [
+  "Pembelian Sparepart / Persediaan",
+  "Gaji & Tunjangan Karyawan",
+  "Kasbon Karyawan",
+  "Beban Sewa Tempat",
+  "Beban Listrik & Air",
+  "Beban Telepon & Internet",
+  "Beban Pemasaran & Promosi",
+  "Beban Administrasi & Umum",
+  "Pembayaran Hutang Usaha",
+  "Pembayaran Pajak",
+  "Pembelian Peralatan",
+  "Beban Lain-lain",
+];
 
 // ── Number formatting (id-ID locale: 1.000.000) ─────────────
 function fmtDisplay(raw: string): string {
@@ -181,6 +207,7 @@ function TambahModal({ onClose }: { onClose: () => void }) {
       if ("error" in res) {
         setErr(res.error);
       } else {
+        toast.success("Pemasukan berhasil disimpan");
         onClose();
       }
     });
@@ -199,9 +226,15 @@ function TambahModal({ onClose }: { onClose: () => void }) {
         <input
           name="category"
           className={inputCls}
+          list="kategori-masuk-list"
           placeholder="e.g. Pembayaran Invoice, Modal Usaha"
           required
         />
+        <datalist id="kategori-masuk-list">
+          {KATEGORI_MASUK.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
       </Field>
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
@@ -242,6 +275,7 @@ function KurangModal({ onClose }: { onClose: () => void }) {
       if ("error" in res) {
         setErr(res.error);
       } else {
+        toast.success("Pengeluaran berhasil disimpan");
         onClose();
       }
     });
@@ -260,9 +294,15 @@ function KurangModal({ onClose }: { onClose: () => void }) {
         <input
           name="category"
           className={inputCls}
+          list="kategori-keluar-list"
           placeholder="e.g. Beli Sparepart, Biaya Operasional"
           required
         />
+        <datalist id="kategori-keluar-list">
+          {KATEGORI_KELUAR.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
       </Field>
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
@@ -304,6 +344,7 @@ function TransferModal({ onClose }: { onClose: () => void }) {
       if ("error" in res) {
         setErr(res.error);
       } else {
+        toast.success("Transfer berhasil diproses");
         onClose();
       }
     });
@@ -383,6 +424,7 @@ function EditModal({
       if ("error" in res) {
         setErr(res.error);
       } else {
+        toast.success("Transaksi berhasil diperbarui");
         onClose();
       }
     });
@@ -499,6 +541,7 @@ export function KasRowActions({ entry }: { entry: RowEntry }) {
       if ("error" in res) {
         setErr(res.error);
       } else {
+        toast.success("Transaksi berhasil dihapus");
         setModal(null);
       }
     });

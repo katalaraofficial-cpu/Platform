@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import {
   ClipboardList,
@@ -9,13 +10,14 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { deleteDebtEntries, markDebtEntries } from "@/lib/actions/mechanics";
+import { deleteDebtEntries, markDebtEntries, restoreDebtEntries } from "@/lib/actions/mechanics";
 
 // ── Types ──────────────────────────────────────────────────────
 export type HistoryRow = {
   id: string;
   mechanic_id: string;
   transaction_type: string;
+  invoice_item_id: string | null;
   amount: number;
   notes: string | null;
   created_at: string;
@@ -79,6 +81,7 @@ export function DebtHistoryTable({
   initialRows: HistoryRow[];
   mechanicInfos: MechanicInfo[];
 }) {
+  const router = useRouter();
   const infoMap = new Map(mechanicInfos.map((m) => [m.id, m]));
 
   const [rows, setRows] = useState<HistoryRow[]>(initialRows);
@@ -86,12 +89,10 @@ export function DebtHistoryTable({
   const [perPage, setPerPage] = useState<(typeof PAGE_SIZE_OPTIONS)[number]>(10);
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
-  // Ref holds snapshot + pending timer for undo-delete
-  const pendingDelete = useRef<{
-    snapshot: HistoryRow[];
-    ids: string[];
-    timer: ReturnType<typeof setTimeout>;
-  } | null>(null);
+  // Sync rows when server data changes (e.g. after router.refresh())
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
 
   // ── Pagination ────────────────────────────────────────────────
   const totalPages = Math.max(1, Math.ceil(rows.length / perPage));
@@ -132,50 +133,54 @@ export function DebtHistoryTable({
     });
   }
 
-  // ── Delete with rollback (5-second undo window) ───────────────
-  const handleDelete = useCallback(() => {
+  // ── Delete: immediate server commit + 5s undo window ─────────
+  const handleDelete = useCallback(async () => {
     const ids = [...selected];
     if (ids.length === 0) return;
 
-    // Cancel any previous pending delete first
-    if (pendingDelete.current) {
-      clearTimeout(pendingDelete.current.timer);
-      // commit the previous delete immediately
-      deleteDebtEntries(pendingDelete.current.ids);
-      pendingDelete.current = null;
-    }
-
+    // Capture rows to delete before removing from state
+    const deletedRows = rows.filter((r) => ids.includes(r.id));
     const snapshot = rows;
+
+    // Optimistic removal
     setRows((r) => r.filter((row) => !ids.includes(row.id)));
     setSelected(new Set());
 
-    const timer = setTimeout(async () => {
-      pendingDelete.current = null;
-      const res = await deleteDebtEntries(ids);
-      if ("error" in res) {
-        setRows(snapshot);
-        toast.error("Gagal menghapus: " + res.error);
-      }
-    }, 5000);
+    // Commit to server IMMEDIATELY (so page refresh shows correct data)
+    const res = await deleteDebtEntries(ids);
+    if ("error" in res) {
+      setRows(snapshot);
+      setSelected(new Set(ids));
+      toast.error("Gagal menghapus: " + res.error);
+      return;
+    }
 
-    pendingDelete.current = { snapshot, ids, timer };
-
+    // Show undo toast — undo re-inserts the deleted rows
     toast(`${ids.length} entri dihapus`, {
       action: {
         label: "Undo",
-        onClick: () => {
-          if (pendingDelete.current) {
-            clearTimeout(pendingDelete.current.timer);
-            setRows(pendingDelete.current.snapshot);
-            setSelected(new Set(pendingDelete.current.ids));
-            pendingDelete.current = null;
-            toast.success("Penghapusan dibatalkan");
+        onClick: async () => {
+          const restoreRes = await restoreDebtEntries(
+            deletedRows.map((r) => ({
+              mechanic_id: r.mechanic_id,
+              transaction_type: r.transaction_type,
+              invoice_item_id: r.invoice_item_id,
+              amount: r.amount,
+              notes: r.notes,
+              is_paid: r.is_paid,
+            }))
+          );
+          if ("error" in restoreRes) {
+            toast.error("Gagal memulihkan: " + restoreRes.error);
+          } else {
+            router.refresh(); // re-fetch server data with restored rows
+            toast.success(`${ids.length} entri dipulihkan`);
           }
         },
       },
       duration: 5000,
     });
-  }, [selected, rows]);
+  }, [selected, rows, router]);
 
   // ── Mark as paid (optimistic) ─────────────────────────────────
   const handleMark = useCallback(async () => {

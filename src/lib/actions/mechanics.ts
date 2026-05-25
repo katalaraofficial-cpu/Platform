@@ -110,3 +110,44 @@ export async function markDebtEntries(
   revalidatePath("/mechanic/debts");
   return { success: true };
 }
+
+// ============================================================
+// RESTORE DEBT ENTRIES  — re-insert rows after undo-delete
+// ============================================================
+export async function restoreDebtEntries(
+  rows: {
+    mechanic_id: string;
+    transaction_type: string;
+    invoice_item_id: string | null;
+    amount: number;
+    notes: string | null;
+    is_paid: boolean;
+  }[]
+): Promise<{ success: true } | { error: string }> {
+  if (!rows.length) return { success: true };
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
+  if (!["owner", "admin"].includes(ctx.role)) return { error: "Akses ditolak" };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("mechanic_debt_ledger").insert(
+    rows.map((r) => ({
+      tenant_id: ctx.tenantId!,
+      mechanic_id: r.mechanic_id,
+      transaction_type: r.transaction_type as "advance" | "reimbursement",
+      invoice_item_id: r.invoice_item_id,
+      amount: r.amount,
+      notes: r.notes,
+      is_paid: r.is_paid,
+      created_by: ctx.id,
+    }))
+  );
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/owner/mechanics");
+  revalidatePath("/owner/dashboard");
+  revalidatePath("/admin/reimburse");
+  revalidatePath("/mechanic/debts");
+  return { success: true };
+}

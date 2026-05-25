@@ -15,13 +15,20 @@ export default async function PiutangSayaPage() {
   const supabase = await createClient();
   const ctx = await getUserContext();
 
-  // Fetch only advance entries (purchases by the mechanic)
-  const { data: ledger } = await supabase
-    .from("mechanic_debt_ledger")
-    .select("*, invoice_items(receipt_image_url)")
-    .eq("mechanic_id", ctx.id)
-    .eq("transaction_type", "advance")
-    .order("created_at", { ascending: false });
+  // Fetch advance entries + outstanding summary in parallel
+  const [{ data: ledger }, { data: summaryRaw }] = await Promise.all([
+    supabase
+      .from("mechanic_debt_ledger")
+      .select("*, invoice_items(receipt_image_url)")
+      .eq("mechanic_id", ctx.id)
+      .eq("transaction_type", "advance")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("v_mechanic_debt_summary")
+      .select("total_advanced, total_reimbursed, outstanding_balance")
+      .eq("mechanic_id", ctx.id)
+      .maybeSingle(),
+  ]);
 
   type EntryWithReceipt = MechanicDebtLedger & {
     invoice_items: { receipt_image_url: string | null } | null;
@@ -29,7 +36,28 @@ export default async function PiutangSayaPage() {
 
   const entries = (ledger ?? []) as unknown as EntryWithReceipt[];
 
-  // Collect invoice item IDs to look up invoice numbers
+  // ── FIFO paid status: oldest advance is settled first ─────────
+  // This auto-reflects any reimbursement changes without touching is_paid flags.
+  const totalReimbursed = Number(summaryRaw?.total_reimbursed ?? 0);
+  const outstandingBalance = Math.max(0, Number(summaryRaw?.outstanding_balance ?? 0));
+
+  // Sort oldest → newest for FIFO calculation
+  const sortedOldest = [...entries].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+  let remainingPaid = totalReimbursed;
+  const paidStatus = new Map<string, boolean>();
+  for (const e of sortedOldest) {
+    if (remainingPaid >= e.amount) {
+      paidStatus.set(e.id, true);
+      remainingPaid -= e.amount;
+    } else {
+      paidStatus.set(e.id, false);
+    }
+  }
+
+  const unpaidAmount = outstandingBalance;
+  const paidAmount = Number(summaryRaw?.total_advanced ?? 0) - outstandingBalance;
   const itemIds = entries
     .map((e) => e.invoice_item_id)
     .filter(Boolean) as string[];
@@ -60,12 +88,6 @@ export default async function PiutangSayaPage() {
       });
     }
   }
-
-  const totalAmount = entries.reduce((sum, e) => sum + e.amount, 0);
-  const paidAmount = entries
-    .filter((e) => e.is_paid)
-    .reduce((sum, e) => sum + e.amount, 0);
-  const unpaidAmount = totalAmount - paidAmount;
 
   return (
     <div className="space-y-4 pb-24">
@@ -113,7 +135,7 @@ export default async function PiutangSayaPage() {
               const invoiceNum = entry.invoice_item_id
                 ? invoiceMap.get(entry.invoice_item_id)
                 : null;
-              const isPaid = entry.is_paid;
+              const isPaid = paidStatus.get(entry.id) ?? false;
 
               return (
                 <li key={entry.id} className="px-4 py-3">
@@ -182,10 +204,10 @@ export default async function PiutangSayaPage() {
         </div>
       )}
 
-      {/* Info note about is_paid */}
-      {entries.some((e) => !(e.is_paid)) && (
+      {/* Info note */}
+      {unpaidAmount > 0 && (
         <p className="text-center text-xs text-gray-400">
-          Status lunas/belum dibayar ditentukan oleh admin bengkel.
+          Status lunas/belum dibayar dihitung otomatis berdasarkan total reimburse.
         </p>
       )}
     </div>

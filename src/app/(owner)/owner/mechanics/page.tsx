@@ -412,7 +412,7 @@ export default async function MechanicsPage({
                     {/* Lunasi button */}
                     {hasDebt && (
                       <div className="mt-3">
-                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} tenantId={tenantId} />
+                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} tenantId={tenantId} outstanding={outstanding} />
                       </div>
                     )}
                   </div>

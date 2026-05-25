@@ -62,17 +62,21 @@ function Modal({
 export function ReimburseModal({
   mechanics,
   defaultMechanicId,
+  defaultAmount,
   tenantId,
   onClose,
 }: {
   mechanics: MechanicOption[];
   defaultMechanicId?: string;
+  defaultAmount?: number;
   tenantId: string;
   onClose: () => void;
 }) {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState(
+    defaultAmount && defaultAmount > 0 ? fmtDisplay(String(defaultAmount)) : ""
+  );
   const [paymentMethod, setPaymentMethod] = useState<"kas_tunai" | "bank">("kas_tunai");
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -274,6 +278,11 @@ export function ReimburseModal({
         <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
           Jumlah Dibayarkan
         </label>
+        {defaultAmount && defaultAmount > 0 && (
+          <p className="text-xs text-emerald-600 font-medium">
+            Saldo outstanding: Rp {defaultAmount.toLocaleString("id-ID")}
+          </p>
+        )}
         <div className="relative">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">
             Rp
@@ -321,10 +330,12 @@ export function LunasiButton({
   mechanic,
   allMechanics,
   tenantId,
+  outstanding,
 }: {
   mechanic: MechanicOption;
   allMechanics: MechanicOption[];
   tenantId: string;
+  outstanding?: number;
 }) {
   const [open, setOpen] = useState(false);
   return (
@@ -343,6 +354,7 @@ export function LunasiButton({
         <ReimburseModal
           mechanics={allMechanics}
           defaultMechanicId={mechanic.id}
+          defaultAmount={outstanding}
           tenantId={tenantId}
           onClose={() => setOpen(false)}
         />

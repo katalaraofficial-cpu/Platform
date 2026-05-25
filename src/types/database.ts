@@ -9,6 +9,7 @@ export type ItemType = "service" | "part_internal" | "part_external";
 export type PaymentSource = "owner" | "mechanic" | "petty_cash";
 export type MechanicRoleInInvoice = "lead" | "helper";
 export type LedgerType = "kas_masuk" | "kas_keluar";
+export type AccountType = "kas_tunai" | "bank";
 export type PettyCashType = "top_up" | "expense";
 export type DebtTransactionType = "advance" | "reimbursement";
 
@@ -137,9 +138,11 @@ export interface Ledger {
   id: string;
   tenant_id: string;
   transaction_type: LedgerType;
+  account_type: AccountType;
   category: string;
   amount: number;
   reference_id: string | null;
+  transfer_ref: string | null;
   notes: string | null;
   created_by: string;
   created_at: string;

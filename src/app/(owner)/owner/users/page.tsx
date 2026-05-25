@@ -4,6 +4,11 @@ import { notFound } from "next/navigation";
 import { AddUserForm } from "@/components/super-admin/add-user-form";
 import { TenantUserTable } from "@/components/super-admin/tenant-user-table";
 
+const OWNER_ROLE_OPTIONS = [
+  { value: "admin", label: "Admin / Kasir" },
+  { value: "mechanic", label: "Engineer" },
+];
+
 export default async function OwnerUsersPage() {
   const ctx = await getUserContext();
   if (!ctx.tenantId) notFound();
@@ -12,7 +17,7 @@ export default async function OwnerUsersPage() {
 
   const { data: users } = await supabase
     .from("profiles")
-    .select("id, full_name, role, is_active, created_at")
+    .select("id, full_name, role, phone, is_active, created_at")
     .eq("tenant_id", ctx.tenantId)
     .neq("role", "super_admin")
     .order("created_at", { ascending: true });
@@ -21,6 +26,7 @@ export default async function OwnerUsersPage() {
     id: u.id,
     full_name: u.full_name ?? "(tanpa nama)",
     role: u.role,
+    phone: u.phone ?? "",
     is_active: u.is_active ?? true,
     created_at: u.created_at,
   }));
@@ -35,7 +41,7 @@ export default async function OwnerUsersPage() {
             Undang dan kelola pengguna di bengkel ini
           </p>
         </div>
-        <AddUserForm tenantId={ctx.tenantId} />
+        <AddUserForm tenantId={ctx.tenantId} roleOptions={OWNER_ROLE_OPTIONS} />
       </div>
 
       {/* User table */}

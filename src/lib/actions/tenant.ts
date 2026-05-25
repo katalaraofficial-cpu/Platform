@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { getUserContext } from "@/lib/get-user-context";
 import type { UserRole } from "@/types/database";
 
 export type ActionState = { error?: string; success?: string; invite_link?: string };
@@ -361,5 +362,44 @@ export async function removeUsersFromTenant(
 
   revalidatePath(`/super-admin/tenants/${tenantId}`);
   return { success: `${userIds.length} pengguna berhasil dihapus` };
+}
+
+// ── Update profil pengguna (nama + telepon) — owner/admin dalam tenant sendiri ──
+export async function updateUserProfile(
+  userId: string,
+  data: { full_name: string; phone: string }
+): Promise<ActionState> {
+  const ctx = await getUserContext();
+  if (!ctx.tenantId || !ctx.role) return { error: "Unauthorized" };
+  if (ctx.role !== "owner" && ctx.role !== "admin" && ctx.role !== "super_admin")
+    return { error: "Forbidden" };
+
+  const adminClient = createAdminClient();
+
+  // Verifikasi user target berada di tenant yang sama
+  const { data: target, error: fetchErr } = await adminClient
+    .from("profiles")
+    .select("tenant_id")
+    .eq("id", userId)
+    .single();
+
+  if (fetchErr || !target) return { error: "Pengguna tidak ditemukan" };
+  if (ctx.role !== "super_admin" && target.tenant_id !== ctx.tenantId)
+    return { error: "Forbidden" };
+
+  const { error } = await adminClient
+    .from("profiles")
+    .update({
+      full_name: data.full_name.trim() || null,
+      phone: data.phone.trim() || null,
+    })
+    .eq("id", userId);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/owner/users");
+  revalidatePath("/admin/users");
+  revalidatePath(`/super-admin/tenants/${target.tenant_id}`);
+  return { success: "Profil berhasil diperbarui" };
 }
 

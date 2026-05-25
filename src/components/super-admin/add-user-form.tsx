@@ -7,17 +7,18 @@ import { UserPlus, X, Copy, Check } from "lucide-react";
 
 interface Props {
   tenantId: string;
+  roleOptions?: Array<{ value: string; label: string }>;
 }
 
-const ROLE_OPTIONS = [
+const DEFAULT_ROLE_OPTIONS = [
   { value: "owner", label: "Owner (Pemilik)" },
   { value: "admin", label: "Admin / Kasir" },
-  { value: "mechanic", label: "Mekanik" },
+  { value: "mechanic", label: "Engineer" },
 ];
 
 // Sub-komponen yang di-mount hanya saat modal terbuka.
 // Saat modal ditutup → unmount → useActionState reset otomatis.
-function ModalContent({ tenantId, onClose }: { tenantId: string; onClose: () => void }) {
+function ModalContent({ tenantId, roleOptions, onClose }: { tenantId: string; roleOptions: Array<{ value: string; label: string }>; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
     addUserToTenant,
@@ -153,7 +154,7 @@ function ModalContent({ tenantId, onClose }: { tenantId: string; onClose: () => 
                                focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">-- Pilih role --</option>
-                    {ROLE_OPTIONS.map((r) => (
+                    {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
                         {r.label}
                       </option>
@@ -192,7 +193,7 @@ function ModalContent({ tenantId, onClose }: { tenantId: string; onClose: () => 
   );
 }
 
-export function AddUserForm({ tenantId }: Props) {
+export function AddUserForm({ tenantId, roleOptions = DEFAULT_ROLE_OPTIONS }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -207,7 +208,7 @@ export function AddUserForm({ tenantId }: Props) {
       </button>
 
       {/* Mount ModalContent hanya saat open=true → unmount saat ditutup → state reset */}
-      {open && <ModalContent tenantId={tenantId} onClose={() => setOpen(false)} />}
+      {open && <ModalContent tenantId={tenantId} roleOptions={roleOptions} onClose={() => setOpen(false)} />}
     </div>
   );
 }

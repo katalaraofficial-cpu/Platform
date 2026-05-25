@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { removeUsersFromTenant } from "@/lib/actions/tenant";
-import { Trash2, ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { removeUsersFromTenant, updateUserProfile } from "@/lib/actions/tenant";
+import { Trash2, ChevronLeft, ChevronRight, AlertTriangle, Pencil, X, Phone, User } from "lucide-react";
 
 interface UserRow {
   id: string;
   full_name: string;
   role: string;
+  phone: string;
   is_active: boolean;
   created_at: string;
 }
@@ -19,8 +20,14 @@ interface Props {
 
 const ROLE_LABELS: Record<string, string> = {
   owner: "Owner",
-  admin: "Admin",
-  mechanic: "Mekanik",
+  admin: "Admin / Kasir",
+  mechanic: "Engineer",
+};
+
+const ROLE_BADGE: Record<string, string> = {
+  owner: "bg-purple-100 text-purple-700",
+  admin: "bg-blue-100 text-blue-700",
+  mechanic: "bg-amber-100 text-amber-700",
 };
 
 const PAGE_SIZE = 10;
@@ -39,6 +46,10 @@ export function TenantUserTable({ users, tenantId }: Props) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editPending, startEditTransition] = useTransition();
 
   const totalPages = Math.ceil(users.length / PAGE_SIZE);
   const paginated = users.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -78,6 +89,28 @@ export function TenantUserTable({ users, tenantId }: Props) {
       } else {
         setMessage({ type: "success", text: result.success ?? "Pengguna berhasil dihapus" });
       }
+    });
+  }
+
+  function openEdit(u: UserRow) {
+    setEditUser(u);
+    setEditName(u.full_name === "(tanpa nama)" ? "" : u.full_name);
+    setEditPhone(u.phone ?? "");
+  }
+
+  function handleEditSave() {
+    if (!editUser) return;
+    startEditTransition(async () => {
+      const result = await updateUserProfile(editUser.id, {
+        full_name: editName,
+        phone: editPhone,
+      });
+      if (result.error) {
+        setMessage({ type: "error", text: result.error });
+      } else {
+        setMessage({ type: "success", text: result.success ?? "Profil diperbarui" });
+      }
+      setEditUser(null);
     });
   }
 
@@ -148,6 +181,9 @@ export function TenantUserTable({ users, tenantId }: Props) {
                 Nama
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                No. HP
+              </th>
+              <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Role
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -155,6 +191,9 @@ export function TenantUserTable({ users, tenantId }: Props) {
               </th>
               <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 Bergabung
+              </th>
+              <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
+                Aksi
               </th>
             </tr>
           </thead>
@@ -180,7 +219,12 @@ export function TenantUserTable({ users, tenantId }: Props) {
                   {u.full_name}
                 </td>
                 <td className="px-5 py-3 text-sm text-gray-500">
-                  {ROLE_LABELS[u.role] ?? u.role}
+                  {u.phone ? u.phone : <span className="text-gray-300">—</span>}
+                </td>
+                <td className="px-5 py-3">
+                  <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_BADGE[u.role] ?? "bg-gray-100 text-gray-600"}`}>
+                    {ROLE_LABELS[u.role] ?? u.role}
+                  </span>
                 </td>
                 <td className="px-5 py-3">
                   {u.is_active ? (
@@ -195,6 +239,16 @@ export function TenantUserTable({ users, tenantId }: Props) {
                 </td>
                 <td className="px-5 py-3 text-sm text-gray-500">
                   {formatDate(u.created_at)}
+                </td>
+                <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                  <button
+                    onClick={() => openEdit(u)}
+                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5
+                               text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    Edit
+                  </button>
                 </td>
               </tr>
             ))}
@@ -239,6 +293,76 @@ export function TenantUserTable({ users, tenantId }: Props) {
             >
               <ChevronRight className="h-4 w-4" />
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit modal */}
+      {editUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
+              <h3 className="font-semibold text-gray-900">Edit Pengguna</h3>
+              <button
+                onClick={() => setEditUser(null)}
+                className="rounded-lg p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="rounded-lg bg-gray-50 px-3 py-2 text-xs text-gray-500">
+                Role:{" "}
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${ROLE_BADGE[editUser.role] ?? "bg-gray-100 text-gray-600"}`}>
+                  {ROLE_LABELS[editUser.role] ?? editUser.role}
+                </span>
+                <span className="ml-2 text-gray-400">(tidak dapat diubah dari sini)</span>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <User className="inline h-3.5 w-3.5 mr-1 text-gray-400" />
+                  Nama Lengkap
+                </label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Nama lengkap"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  <Phone className="inline h-3.5 w-3.5 mr-1 text-gray-400" />
+                  No. HP / WhatsApp
+                </label>
+                <input
+                  type="tel"
+                  value={editPhone}
+                  onChange={(e) => setEditPhone(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm
+                             focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="08xxxxxxxxxx"
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setEditUser(null)}
+                  className="flex-1 rounded-lg border border-gray-300 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleEditSave}
+                  disabled={editPending || !editName.trim()}
+                  className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-medium text-white
+                             hover:bg-blue-500 disabled:opacity-50"
+                >
+                  {editPending ? "Menyimpan..." : "Simpan Perubahan"}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

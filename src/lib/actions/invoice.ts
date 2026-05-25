@@ -202,6 +202,11 @@ export async function updateInvoiceStatus(
   await supabase.from("invoices").update(update).eq("id", invoiceId);
   revalidatePath(`${basePath}/invoices`);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  // Notify other roles so they see the status update immediately
+  revalidatePath("/mechanic/dashboard");
+  revalidatePath("/owner/invoices");
+  revalidatePath("/admin/invoices");
+  revalidatePath("/owner/dashboard");
 }
 
 // ── Assign mechanic to invoice ───────────────────────────────
@@ -762,6 +767,10 @@ export async function updateInvoiceMechanicStatus(
 
   revalidatePath(`/mechanic/dashboard/${invoiceId}`);
   revalidatePath("/mechanic/dashboard");
+  revalidatePath(`/owner/invoices/${invoiceId}`);
+  revalidatePath("/owner/invoices");
+  revalidatePath(`/admin/invoices/${invoiceId}`);
+  revalidatePath("/admin/invoices");
   return {};
 }
 

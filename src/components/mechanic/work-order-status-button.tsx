@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { updateInvoiceMechanicStatus } from "@/lib/actions/invoice";
@@ -14,6 +15,7 @@ interface Props {
 export function WorkOrderStatusButton({ invoiceId, nextStatus, label }: Props) {
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState(false);
+  const router = useRouter();
 
   function handleClick() {
     if (!confirming) {
@@ -29,6 +31,7 @@ export function WorkOrderStatusButton({ invoiceId, nextStatus, label }: Props) {
         toast.success(
           nextStatus === "in_progress" ? "Pekerjaan dimulai" : "Pekerjaan selesai"
         );
+        router.refresh(); // re-render server component → button disappears, status badge updates
       }
     });
   }

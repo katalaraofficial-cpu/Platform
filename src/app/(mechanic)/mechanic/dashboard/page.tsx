@@ -39,11 +39,15 @@ export default async function MechanicDashboard({
   const ctx = await getUserContext();
 
   // 1. Fetch assignments for this mechanic
-  const { data: assignments } = await supabase
+  const { data: assignments, error: assignError } = await supabase
     .from("invoice_mechanics")
     .select("id, mechanic_role, invoice_id")
     .eq("mechanic_id", ctx.id)
     .order("assigned_at", { ascending: false });
+
+  if (assignError) {
+    console.error("[MechanicDashboard] invoice_mechanics query error:", assignError);
+  }
 
   let workOrders: WorkOrderRow[] = [];
 
@@ -163,6 +167,16 @@ export default async function MechanicDashboard({
               </>
             ) : (
               "Belum ada invoice yang ditugaskan ke kamu."
+            )}
+          </p>
+          {/* Diagnostic info — helps verify mechanic ID matches DB */}
+          <p className="mt-3 rounded bg-yellow-50 px-3 py-2 text-[10px] text-yellow-700 border border-yellow-200">
+            ID Mekanik: <span className="font-mono select-all">{ctx.id}</span>
+            {assignError && (
+              <span className="block mt-1 text-red-600">Error: {assignError.message}</span>
+            )}
+            {!assignError && (assignments === null || assignments?.length === 0) && (
+              <span className="block mt-1">Tidak ada data di tabel invoice_mechanics untuk ID ini.</span>
             )}
           </p>
         </div>

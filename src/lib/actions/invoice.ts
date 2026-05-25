@@ -541,9 +541,11 @@ export async function processPayment(
     await supabase.from("ledger").insert({
       tenant_id: ctx.tenantId,
       transaction_type: "kas_masuk",
+      account_type: method === "transfer" ? "bank" : "kas_tunai",
       category: "Pembayaran Invoice",
       amount,
       reference_id: invoiceId,
+      transfer_ref: null,
       notes: `Pembayaran invoice ${inv.invoice_number} via ${methodLabel[method] ?? method}`,
       created_by: ctx.id,
     });

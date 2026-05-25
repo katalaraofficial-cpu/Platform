@@ -536,7 +536,8 @@ export async function processPayment(
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId);
 
-  // Record kas masuk in ledger
+  // Record kas masuk in ledger (use admin client to bypass RLS — admin role
+  // is blocked from ledger by design, but invoice payment must always land here)
   const amount = Number(inv.grand_total);
   if (amount > 0) {
     const methodLabel: Record<string, string> = {
@@ -544,7 +545,8 @@ export async function processPayment(
       transfer: "Transfer Bank",
       other: "Lainnya",
     };
-    await supabase.from("ledger").insert({
+    const adminClient = createAdminClient();
+    await adminClient.from("ledger").insert({
       tenant_id: ctx.tenantId,
       transaction_type: "kas_masuk",
       account_type: method === "transfer" ? "bank" : "kas_tunai",
@@ -554,7 +556,7 @@ export async function processPayment(
       transfer_ref: null,
       notes: `Pembayaran invoice ${inv.invoice_number} via ${methodLabel[method] ?? method}`,
       created_by: ctx.id,
-    });
+    } as never);
   }
 
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
@@ -594,8 +596,9 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
   if (inv.status === "paid") {
     update.paid_at = null;
     update.payment_method = null;
-    // Reverse the ledger entry
-    await supabase.from("ledger").delete().eq("reference_id", invoiceId);
+    // Reverse the ledger entry (admin client — admin role is blocked from ledger by RLS)
+    const adminClient = createAdminClient();
+    await adminClient.from("ledger").delete().eq("reference_id", invoiceId);
   }
   if (inv.status === "completed") {
     update.completed_at = null;

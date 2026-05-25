@@ -28,18 +28,21 @@ function BarChart({ data }: { data: { label: string; value: number }[] }) {
   const max = Math.max(...data.map((d) => d.value), 1);
   return (
     <div className="flex h-28 items-end gap-1.5">
-      {data.map((d) => (
-        <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
-          <span className="text-[9px] font-medium text-gray-400">
-            {d.value > 0 ? fmtShort(d.value) : ""}
-          </span>
-          <div
-            className="w-full rounded-t bg-blue-500 transition-all"
-            style={{ height: `${Math.max((d.value / max) * 100, d.value > 0 ? 4 : 0)}%` }}
-          />
-          <span className="text-[9px] text-gray-500">{d.label}</span>
-        </div>
-      ))}
+      {data.map((d) => {
+        const barPx = Math.max((d.value / max) * 72, d.value > 0 ? 4 : 0);
+        return (
+          <div key={d.label} className="flex flex-1 flex-col items-center gap-1">
+            <span className="text-[9px] font-medium text-gray-400">
+              {d.value > 0 ? fmtShort(d.value) : ""}
+            </span>
+            <div
+              className="w-full rounded-t bg-blue-500 transition-all"
+              style={{ height: `${barPx}px` }}
+            />
+            <span className="text-[9px] text-gray-500">{d.label}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -173,7 +176,7 @@ export default async function OwnerDashboard({
 
   let itemsQuery = supabase
     .from("invoice_items")
-    .select("item_type, description")
+    .select("item_type, description, quantity")
     .eq("tenant_id", tenantId)
     .gte("created_at", donutStart);
   if (donutType === "jasa") itemsQuery = itemsQuery.eq("item_type", "service");
@@ -319,8 +322,9 @@ export default async function OwnerDashboard({
   if (donutType === "jasa" || donutType === "barang") {
     // Break down by individual item name (description)
     const nameCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
-      const name = (i as { description: string }).description || "(tidak ada nama)";
-      acc[name] = (acc[name] ?? 0) + 1;
+      const item = i as { description: string; quantity: number };
+      const name = item.description || "(tidak ada nama)";
+      acc[name] = (acc[name] ?? 0) + Number(item.quantity ?? 1);
       return acc;
     }, {});
     donutSegments = Object.entries(nameCounts)
@@ -333,7 +337,8 @@ export default async function OwnerDashboard({
   } else {
     // Semua: aggregate by type category
     const itemTypeCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
-      acc[i.item_type] = (acc[i.item_type] ?? 0) + 1;
+      const item = i as { item_type: string; quantity: number };
+      acc[item.item_type] = (acc[item.item_type] ?? 0) + Number(item.quantity ?? 1);
       return acc;
     }, {});
     donutSegments = [

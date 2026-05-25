@@ -62,7 +62,7 @@ export default async function AdminInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, created_at, customer_id",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, customer_id",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -189,7 +189,7 @@ export default async function AdminInvoicesPage({
                       {inv.invoice_number}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {fmtDate(inv.created_at)}
+                      {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-700">
                       {customerMap[inv.customer_id ?? ""] ?? "-"}

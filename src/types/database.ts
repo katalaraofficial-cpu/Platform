@@ -90,6 +90,7 @@ export interface Invoice {
   pph_amount: number;
   discount_amount: number;
   grand_total: number;
+  invoice_date: string;
   completed_at: string | null;
   paid_at: string | null;
   payment_method: string | null;
@@ -209,7 +210,7 @@ export interface Database {
       };
       invoices: {
         Row: Invoice & Record<string, unknown>;
-        Insert: Omit<Invoice, "id" | "created_at" | "updated_at" | "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method"> & Partial<Pick<Invoice, "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method">>;
+        Insert: Omit<Invoice, "id" | "created_at" | "updated_at" | "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method"> & Partial<Pick<Invoice, "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method" | "invoice_date">>;
         Update: Partial<Omit<Invoice, "id" | "created_at">>;
         Relationships: never[];
       };

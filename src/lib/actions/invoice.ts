@@ -284,6 +284,7 @@ export async function createInvoiceWithItems(payload: {
   items: InvoiceItemDraft[];
   notes: string;
   basePath: string;
+  invoiceDate?: string;
 }): Promise<{ error?: string; invoiceId?: string }> {
   const supabase = await createClient();
   const {
@@ -314,6 +315,7 @@ export async function createInvoiceWithItems(payload: {
       status: "draft" as InvoiceStatus,
       notes: combinedNotes,
       created_by: user.id,
+      invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
     })
     .select("id")
     .single();

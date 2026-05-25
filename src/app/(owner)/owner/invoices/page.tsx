@@ -63,7 +63,7 @@ export default async function OwnerInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, created_at, completed_at, notes, customer_id",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, completed_at, notes, customer_id",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -243,7 +243,7 @@ export default async function OwnerInvoicesPage({
                         </Link>
                       </td>
                       <td className={`${TD} whitespace-nowrap text-gray-500`}>
-                        {fmtDate(inv.created_at)}
+                        {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                       </td>
                       <td className={`${TD} text-gray-900 max-w-[140px] truncate`}>
                         {customer?.name ?? "-"}

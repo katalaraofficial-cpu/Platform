@@ -492,7 +492,7 @@ export default async function PrintInvoicePage({
   const commonProps = {
     tenantName,
     invoiceNumber: inv.invoice_number,
-    createdAt: inv.created_at,
+    createdAt: (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
     customerName,
     customerPhone,
     vehicleInfo,

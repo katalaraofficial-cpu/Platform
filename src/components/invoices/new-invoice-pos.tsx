@@ -542,6 +542,7 @@ export function NewInvoicePos({ basePath, mechanics }: NewInvoicePosProps) {
         ),
         notes,
         basePath,
+        invoiceDate: date,
       });
       if (result.error) {
         setError(result.error);

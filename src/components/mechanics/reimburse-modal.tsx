@@ -70,6 +70,7 @@ export function ReimburseModal({
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
   const [amount, setAmount] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"kas_tunai" | "bank">("kas_tunai");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -78,6 +79,141 @@ export function ReimburseModal({
     const mechanicId = fd.get("mechanic_id") as string;
     const amtVal = parseAmount(amount);
     if (!mechanicId) {
+      setErr("Pilih mekanik terlebih dahulu");
+      return;
+    }
+    if (!amtVal || amtVal <= 0) {
+      setErr("Jumlah harus lebih dari 0");
+      return;
+    }
+    startTransition(async () => {
+      const res = await reimburseDebt({
+        mechanicId,
+        amount: amtVal,
+        notes: (fd.get("notes") as string) || undefined,
+        paymentMethod,
+      });
+      if ("error" in res) {
+        setErr(res.error);
+      } else {
+        toast.success("Reimburse berhasil dicatat");
+        onClose();
+      }
+    });
+  }
+
+  const locked = !!defaultMechanicId;
+  const lockedName = mechanics.find((m) => m.id === defaultMechanicId)?.full_name;
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      {err && (
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-600">{err}</p>
+      )}
+
+      {/* Mechanic selector */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Mekanik
+        </label>
+        {locked ? (
+          <>
+            <input type="hidden" name="mechanic_id" value={defaultMechanicId} />
+            <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {lockedName?.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium text-gray-800">{lockedName}</span>
+            </div>
+          </>
+        ) : (
+          <div className="relative">
+            <select
+              name="mechanic_id"
+              className="w-full appearance-none rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              required
+            >
+              <option value="">— Pilih mekanik —</option>
+              {mechanics.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.full_name}
+                </option>
+              ))}
+            </select>
+            <ChevronsUpDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+          </div>
+        )}
+      </div>
+
+      {/* Payment method */}
+      <div className="flex flex-col gap-1.5">
+        <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Bayar Via
+        </label>
+        <div className="flex gap-2">
+          {(["kas_tunai", "bank"] as const).map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => setPaymentMethod(opt)}
+              className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                paymentMethod === opt
+                  ? opt === "kas_tunai"
+                    ? "border-emerald-500 bg-emerald-50 text-emerald-700"
+                    : "border-blue-500 bg-blue-50 text-blue-700"
+                  : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
+              }`}
+            >
+              {opt === "kas_tunai" ? "Kas Tunai" : "Transfer Bank"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Amount */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Jumlah Dibayarkan
+        </label>
+        <div className="relative">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">
+            Rp
+          </span>
+          <input
+            className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            type="text"
+            inputMode="numeric"
+            placeholder="0"
+            value={amount}
+            onChange={(e) => setAmount(fmtDisplay(e.target.value))}
+            required
+          />
+        </div>
+      </div>
+
+      {/* Notes */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Keterangan (opsional)
+        </label>
+        <input
+          name="notes"
+          className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          placeholder="e.g. Pembayaran advance bulan Mei"
+        />
+      </div>
+
+      <button
+        type="submit"
+        disabled={isPending}
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-2.5 text-sm font-semibold text-white disabled:opacity-60 hover:bg-primary/90 transition-colors"
+      >
+        {isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+        Simpan Reimbursement
+      </button>
+    </form>
+  );
+}
       setErr("Pilih mekanik terlebih dahulu");
       return;
     }

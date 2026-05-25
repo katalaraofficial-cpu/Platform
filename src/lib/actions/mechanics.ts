@@ -12,6 +12,7 @@ export async function reimburseDebt(data: {
   mechanicId: string;
   amount: number;
   notes?: string;
+  paymentMethod: "kas_tunai" | "bank";
 }): Promise<{ success: true } | { error: string }> {
   const ctx = await getUserContext();
   if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
@@ -19,7 +20,8 @@ export async function reimburseDebt(data: {
 
   const supabase = await createClient();
 
-  const { error } = await supabase.from("mechanic_debt_ledger").insert({
+  // 1. Record reimbursement in mechanic debt ledger
+  const { error: debtError } = await supabase.from("mechanic_debt_ledger").insert({
     tenant_id: ctx.tenantId,
     mechanic_id: data.mechanicId,
     transaction_type: "reimbursement",
@@ -30,9 +32,25 @@ export async function reimburseDebt(data: {
     created_by: ctx.id,
   });
 
-  if (error) return { error: error.message };
+  if (debtError) return { error: debtError.message };
+
+  // 2. Deduct from kas/bank ledger so balance reflects the payment
+  const { error: ledgerError } = await supabase.from("ledger").insert({
+    tenant_id: ctx.tenantId,
+    transaction_type: "kas_keluar",
+    account_type: data.paymentMethod,
+    category: "Reimburse Mekanik",
+    amount: data.amount,
+    notes: data.notes || null,
+    transfer_ref: null,
+    created_by: ctx.id,
+  });
+
+  if (ledgerError) return { error: ledgerError.message };
 
   revalidatePath("/owner/mechanics");
+  revalidatePath("/owner/kas");
+  revalidatePath("/owner/dashboard");
   revalidatePath("/admin/reimburse");
   return { success: true };
 }

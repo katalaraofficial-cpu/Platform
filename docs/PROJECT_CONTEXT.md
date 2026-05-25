@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 24 Mei 2026 — commit `17b1303`
+> **Last updated:** 25 Mei 2026 — commit `2a8ba78`
 
 ---
 
@@ -151,10 +151,19 @@ src/
 supabase/migrations/
 ├── 001_schema.sql                 ✅ Sudah dijalankan — Schema utama
 ├── 002_rls_policies.sql           ✅ Sudah dijalankan — RLS semua tabel
-├── 003_tenant_requests.sql        ❓ Cek — Tabel pendaftaran bengkel baru
-├── 004_invoice_tax.sql            ❓ Cek — Kolom PPN/PPh di invoices
-├── 005_invoice_discount.sql       ❓ Cek — Kolom discount_amount di invoices
-└── 006_invoice_payment.sql        ❓ Cek — Kolom payment_method di invoices
+├── 003_tenant_requests.sql        ✅ Sudah dijalankan — Tabel pendaftaran bengkel baru
+├── 004_invoice_tax.sql            ✅ Sudah dijalankan — Kolom PPN/PPh di invoices
+├── 005_invoice_discount.sql       ✅ Sudah dijalankan — Kolom discount_amount di invoices
+├── 006_invoice_payment.sql        ✅ Sudah dijalankan — Kolom payment_method di invoices
+├── 007_mechanic_status_update.sql ✅ Sudah dijalankan — RLS policy mekanik update invoice status
+├── 008_mechanic_debt_is_paid.sql  ✅ Sudah dijalankan — Kolom is_paid di mechanic_debt_ledger
+├── 009_fix_mechanic_rls.sql       ✅ Sudah dijalankan — Fix RLS mekanik baca invoice
+├── 010_fix_invoice_mechanic_policy.sql ✅ Sudah dijalankan — Fix RLS invoice_mechanics
+├── 011_mechanic_item_permissions.sql ⚠️ Belum dijalankan — Izin mekanik tambah item
+├── 012_storage_receipt_bucket.sql ⚠️ Belum dijalankan — Storage bucket struk mekanik
+├── 013_mechanic_debt_insert.sql   ⚠️ Belum dijalankan — RLS insert mechanic_debt_ledger
+├── 014_ledger_account_type.sql    ⚠️ Belum dijalankan — Kolom account_type di ledger
+└── 015_admin_reimburse_policy.sql ⚠️ Belum dijalankan — RLS admin reimburse mechanic debt
 ```
 
 ---
@@ -235,29 +244,36 @@ supabase/migrations/
 | Invite User | ✅ Jalan | Email + copy link fallback |
 | Pengaturan | ⚠️ Placeholder | Belum ada konten |
 
-### Owner ✅ Invoice Fungsional
+### Owner ✅ Sebagian Besar Fungsional
 | Halaman | Status | Catatan |
 |---------|--------|---------|
-| Dashboard | ⚠️ Placeholder | Belum ada summary data nyata |
-| Invoice — List | ✅ Jalan | Filter tab status |
+| Dashboard | ✅ Jalan | KPI: Omzet bulan ini, Outstanding, Piutang Mekanik; donut chart Jasa/Barang; bar chart 6 bulan |
+| Invoice — List | ✅ Jalan | Filter tab status + row actions (detail, cetak, rollback, hapus) |
 | Invoice — Buat Baru | ✅ Jalan | Pilih/buat customer, tanggal editable, simpan tanpa item |
-| Invoice — Detail/Edit | ✅ Jalan | Items (Part Ext/Int dengan H.Jual opsional), mekanik, status transitions |
+| Invoice — Detail/Edit | ✅ Jalan | Items, mekanik, status transitions, PPN/PPh, diskon, payment |
+| Invoice — Print | ✅ Jalan | Modal pilih ukuran (Thermal/A5/A4), QR + cetak |
+| Mekanik & Hutang | ✅ Jalan | Daftar mekanik, riwayat hutang, FIFO paid status, reimburse, hapus+undo |
 | Kas & Keuangan | ⚠️ Placeholder | Halaman ada, konten belum |
 | Pelanggan | ⚠️ Placeholder | |
-| Mekanik & Hutang | ⚠️ Placeholder | |
 | Kas Kecil | ⚠️ Placeholder | |
 | Pengaturan | ⚠️ Placeholder | |
 
-### Admin ✅ Invoice Fungsional
+### Admin ✅ Invoice + Dashboard Fungsional
 | Halaman | Status | Catatan |
 |---------|--------|---------|
-| Dashboard | ⚠️ Placeholder | |
-| Invoice — List | ✅ Jalan | Sama dengan Owner |
+| Dashboard | ✅ Jalan | KPI: Pemasukan Hari Ini, Perlu Dilunasi, Sedang Dikerjakan, Invoice Bulan Ini |
+| Invoice — List | ✅ Jalan | Sama dengan Owner, row actions lengkap |
 | Invoice — Buat Baru | ✅ Jalan | Shared via `InvoiceEditor` component |
-| Invoice — Detail/Edit | ✅ Jalan | Shared via `InvoiceEditor` component |
+| Invoice — Detail/Edit | ✅ Jalan | Shared via `InvoiceEditor`, termasuk konfirmasi pembayaran custom |
+| Engineer (Mekanik) | ✅ Jalan | Daftar mekanik yang ditugaskan ke invoice |
 
-### Mechanic ❌ Belum Ada Konten
-Layout ada, semua halaman placeholder.
+### Mechanic ✅ Sebagian Besar Fungsional
+| Halaman | Status | Catatan |
+|---------|--------|---------|
+| Dashboard | ✅ Jalan | Daftar work order aktif + history |
+| Work Order Detail | ✅ Jalan | Tombol Mulai / Selesai Dikerjakan, update status via admin client |
+| Hutang Saya | ✅ Jalan | Daftar hutang, FIFO paid status, upload struk |
+| Upload Struk | ✅ Jalan | Upload ke Supabase Storage bucket `receipts` |
 
 ---
 
@@ -333,37 +349,42 @@ Folder `(auth)`, `(owner)`, dll **tidak menambah prefix ke URL**.
 | "Simpan Invoice" tetap disabled setelah pilih customer | `disabled` prop masih cek `items.length === 0` | Hapus kondisi `items.length === 0` dari disabled |
 | Part Ext tidak bisa ditambah tanpa H.Jual | Validasi `itemSellPrice <= 0` berlaku untuk semua tipe | Validasi H.Jual hanya untuk `itemType === "service"` |
 | Inline edit part tidak simpan H.Jual ke DB | `saveEditRow` kirim `unitPrice` (buy), bukan sell price | Tambah parameter `sellPrice` opsional ke `updateInvoiceItem` |
+| Badge "Belum Dibayar" mekanik selalu salah | `is_paid` tidak pernah di-update saat reimburse | Hitung FIFO dari `v_mechanic_debt_summary.total_reimbursed` |
+| Delete hutang hilang setelah refresh | `setTimeout` 5 detik — component unmount saat refresh, timer dibatal | Immediate delete di server, "Undo" re-insert via `restoreDebtEntries` |
+| Dashboard Piutang Mekanik tidak akurat | Sum `is_paid = false` — flag tidak pernah di-set | Gunakan `v_mechanic_debt_summary.outstanding_balance` |
+| Donut chart Jasa/Barang tidak tampil breakdown | Hanya fetch `item_type`, tidak fetch nama item | Fetch `description` juga, group by nama saat filter jasa/barang |
+| Mekanik "Selesai Dikerjakan" tidak update status | RLS silently block UPDATE `invoices` untuk role mechanic | Gunakan admin client (service role) dengan manual security check |
+| Router cache setelah mark complete | `router.push()` serve cached page | Ganti ke `window.location.href` untuk hard navigation |
+| Native browser `confirm()` dialog | Pakai `window.confirm()` langsung | Ganti dengan komponen `ConfirmDialog` custom di semua 5 lokasi |
 
 ---
 
 ## 11. Hal yang Masih Perlu Dilakukan
 
-### Segera (Perlu Dicek)
-1. **Jalankan migration 003–006** di Supabase SQL Editor jika belum — semua pakai `IF NOT EXISTS`, aman:
-   ```
-   supabase/migrations/003_tenant_requests.sql
-   supabase/migrations/004_invoice_tax.sql
-   supabase/migrations/005_invoice_discount.sql
-   supabase/migrations/006_invoice_payment.sql
-   ```
-
-### Sprint 1 (Backlog Berikutnya)
-2. **Invoice list: search + pagination** — saat ini belum ada filter teks atau paging
-3. **Partial payment (migration 007)** — kolom `amount_paid NUMERIC DEFAULT 0` + tabel `invoice_payments`
-4. **Modul Kas (`/owner/kas`)** — ledger KPI + tabel transaksi kas utama
+### Segera — Jalankan Migrasi Pending di Supabase SQL Editor
+Migrasi 011–015 **belum dijalankan**. Jalankan secara berurutan:
+```
+supabase/migrations/011_mechanic_item_permissions.sql
+supabase/migrations/012_storage_receipt_bucket.sql
+supabase/migrations/013_mechanic_debt_insert.sql
+supabase/migrations/014_ledger_account_type.sql
+supabase/migrations/015_admin_reimburse_policy.sql
+```
 
 ### Prioritas Tinggi
-5. **Owner Dashboard** — summary data nyata: total invoice, pendapatan bulan ini, invoice aktif
-6. **Pelanggan** — CRUD data pelanggan per tenant
-7. **Kas & Keuangan** — ledger view untuk owner
+1. **Modul Kas Owner (`/owner/kas`)** — ledger transaksi kas utama: KPI pemasukan/pengeluaran, tabel transaksi, tambah manual
+2. **Pelanggan** — CRUD data pelanggan per tenant (`/owner/customers`, `/admin/customers`)
+3. **Invoice list: search + pagination** — saat ini hanya filter tab status, belum ada teks search atau paging
 
 ### Prioritas Sedang
-8. **Admin module** — dashboard kas kecil
-9. **Mechanic module** — work order detail, upload struk (Supabase Storage)
-10. **Cetak / export invoice PDF**
+4. **Admin: Kas Kecil (`/admin/petty-cash`)** — petty cash ledger khusus kasir
+5. **Owner: Pengaturan** — markup default, nama bengkel, logo, dll
+6. **Cetak invoice** — sudah ada modal print, perlu polishing layout thermal/A5/A4
+7. **Notifikasi / alert** — invoice overdue, hutang mekanik tinggi
 
-### Infrastruktur
-11. **Supabase Storage bucket `receipts`** — setup manual di Supabase dashboard, untuk upload struk mekanik
+### Prioritas Rendah
+8. **Owner: Laporan** — export PDF/Excel, ringkasan bulanan
+9. **Super Admin: Dashboard** — summary platform (total tenant aktif, revenue, dll)
 
 ---
 

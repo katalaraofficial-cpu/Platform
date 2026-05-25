@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 24 Mei 2026 — commit `17b1303`
+**Last updated:** 25 Mei 2026 — commit `2a8ba78`
 
 > Untuk konteks lengkap (AI agent briefing, keputusan teknis, status modul, known issues): lihat [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)
 
@@ -59,85 +59,83 @@ RESEND_API_KEY=<resend-api-key>
 ### ✅ Selesai
 
 **Infrastruktur & Auth**
-- [x] Database schema lengkap + RLS policies (`001_schema.sql`, `002_rls_policies.sql`)
-- [x] Supabase clients (browser, server, middleware, admin/service-role)
+- [x] Database schema + RLS policies (`001`–`010` sudah dijalankan, `011`–`015` pending)
+- [x] Supabase clients: browser, server, middleware, admin/service-role
 - [x] TypeScript types semua tabel (`src/types/database.ts`)
 - [x] Middleware RBAC — route protection + role-based redirect
 - [x] Login page + Error page
-- [x] Auth callback route (PKCE code, token_hash, hash fragment fallback)
-- [x] Auth exchange page — manual `setSession()` dari hash fragment invite link
+- [x] Auth callback (PKCE, token_hash, hash fragment fallback via `/auth/exchange`)
 - [x] Set-password page — invited user buat password pertama
-- [x] Deploy ke Vercel
+- [x] Deploy ke Vercel (auto-deploy dari `main`)
 
 **Super Admin**
-- [x] Super Admin dashboard
-- [x] Daftar semua tenant
-- [x] Detail tenant (info + daftar user)
-- [x] Buat tenant baru
-- [x] Edit tenant (nama, status aktif, feature toggles)
-- [x] Registrasi bengkel baru (form publik `/register`)
-- [x] Approval/reject pendaftaran tenant
-- [x] Invite user ke tenant via email (Resend API, `katalara.com`)
-- [x] Copy-link fallback jika email gagal
+- [x] Dashboard, daftar + detail + buat + edit tenant
+- [x] Registrasi bengkel baru (form publik `/register`) + approval/reject
+- [x] Invite user via email (Resend, `noreply@katalara.com`) + copy-link fallback
 - [x] User table dengan checkbox, bulk delete, pagination
 
-**Owner — Modul Invoice**
-- [x] Running Invoice — list halaman dengan filter tab status
-- [x] Buat invoice baru (draft) + pilih/buat customer baru langsung dari form
-- [x] Invoice detail / edit (unified InvoiceEditor component)
-- [x] Tambah item: service, part_internal, part_external
-- [x] Part Ext/Int dengan H.Jual = 0 (harga belum diketahui saat entry)
-- [x] Toggle margin profit % → auto-hitung H.Jual dari H.Beli
-- [x] Badge "Set Harga" di item tabel jika H.Jual belum diisi (klik untuk edit)
-- [x] Assign mekanik ke invoice (lead / helper, hapus assignment)
-- [x] Transisi status invoice (draft → in_progress → completed → paid / cancelled)
-- [x] Quick add customer dengan field nama, telepon, alamat
-- [x] Tanggal invoice editable saat buat baru
-- [x] Simpan draft invoice tanpa perlu ada item dulu
+**Owner — Invoice & Keuangan**
+- [x] Invoice list dengan filter tab status + row actions (detail, cetak, rollback, hapus)
+- [x] Buat invoice baru (draft) — pilih/buat customer langsung dari form
+- [x] Invoice editor: items (service/part), toggle margin %, PPN/PPh, diskon
+- [x] Assign mekanik (lead/helper), hapus assignment
+- [x] Transisi status: draft → in_progress → completed → paid / cancelled
+- [x] Rollback status dari row actions
+- [x] Konfirmasi pembayaran dengan modal custom (bukan native browser dialog)
+- [x] Print invoice — modal pilih ukuran Thermal / A5 / A4
+- [x] Mekanik & Hutang: daftar mekanik, riwayat hutang, FIFO paid status
+- [x] Reimburse hutang mekanik, delete hutang + undo 5 detik
+- [x] **Owner Dashboard**: KPI Omzet bulan ini, Outstanding, Piutang Mekanik
+- [x] Donut chart Jasa vs Barang (breakdown nama item per kategori)
+- [x] Bar chart pendapatan 6 bulan terakhir
 
-**Admin — Modul Invoice**
-- [x] Semua fitur invoice Owner (shared via `InvoiceEditor` component)
-- [x] Buat invoice baru
-- [x] Invoice detail / edit termasuk assign mekanik
+**Admin — Invoice & Dashboard**
+- [x] Semua fitur invoice Owner (shared via `InvoiceEditor`)
+- [x] **Admin Dashboard**: Pemasukan Hari Ini, Perlu Dilunasi, Sedang Dikerjakan, Invoice Bulan Ini
+- [x] Semua dialog konfirmasi custom (tidak ada native browser `confirm()`)
+
+**Mechanic**
+- [x] Dashboard: daftar work order aktif + history
+- [x] Work order detail: tombol Mulai & Selesai Dikerjakan
+- [x] Update status invoice via admin client (bypass RLS)
+- [x] Hutang Saya: daftar hutang dengan FIFO paid status
+- [x] Upload struk ke Supabase Storage bucket `receipts`
 
 **UI/UX**
 - [x] Sidebar collapsible (desktop)
 - [x] Mobile bottom nav (mekanik)
-- [x] Shared layout per role (sidebar + konten)
+- [x] Komponen `ConfirmDialog` reusable (5 dialog konfirmasi di seluruh app)
 
 ---
 
-### ⚠️ Perlu Tindakan Manual — Migrasi Database
-
-Jalankan secara berurutan di **Supabase SQL Editor** (semua pakai `IF NOT EXISTS`, aman dijalankan ulang):
+### ⚠️ Migrasi Pending — Jalankan di Supabase SQL Editor
 
 | File | Status | Isi |
 |------|--------|-----|
-| `001_schema.sql` | ✅ Sudah | Schema utama |
-| `002_rls_policies.sql` | ✅ Sudah | RLS semua tabel |
-| `003_tenant_requests.sql` | ❓ Cek | Tabel pendaftaran bengkel baru |
-| `004_invoice_tax.sql` | ❓ Cek | Kolom PPN/PPh di `invoices` |
-| `005_invoice_discount.sql` | ❓ Cek | Kolom `discount_amount` di `invoices` |
-| `006_invoice_payment.sql` | ❓ Cek | Kolom `payment_method` di `invoices` |
+| `001`–`010` | ✅ Sudah dijalankan | Schema, RLS, invoice columns, mechanic RLS fixes |
+| `011_mechanic_item_permissions.sql` | ❌ Belum | Izin mekanik tambah item ke invoice |
+| `012_storage_receipt_bucket.sql` | ❌ Belum | Storage bucket `receipts` |
+| `013_mechanic_debt_insert.sql` | ❌ Belum | RLS insert `mechanic_debt_ledger` |
+| `014_ledger_account_type.sql` | ❌ Belum | Kolom `account_type` di `ledger` |
+| `015_admin_reimburse_policy.sql` | ❌ Belum | RLS admin reimburse hutang mekanik |
 
 ---
 
-### 🔄 Diketahui Belum Berfungsi / Halaman Kosong
-- [ ] Owner: Pelanggan, Mekanik & Hutang, Kas Kecil, Pengaturan — halaman ada tapi konten placeholder
-- [ ] Owner: Dashboard — belum ada data summary nyata
-- [ ] Owner: Kas & Keuangan — halaman ada, konten belum
-- [ ] Admin: Dashboard — placeholder
-- [ ] Mechanic: semua halaman — layout ada, konten belum
+### ⬜ Backlog Berikutnya
 
-### ⬜ Sprint Berikutnya
+**Prioritas Tinggi**
+- [ ] Modul Kas Owner (`/owner/kas`) — ledger transaksi, KPI pemasukan/pengeluaran
+- [ ] Pelanggan — CRUD data pelanggan per tenant (`/owner/customers`, `/admin/customers`)
 - [ ] Invoice list: text search + pagination
-- [ ] Partial payment: migration 007 (`amount_paid`, tabel `invoice_payments`)
-- [ ] Modul Kas (`/owner/kas`): ledger KPI + tabel transaksi
-- [ ] Owner Dashboard: data summary nyata (pendapatan, invoice aktif, dll)
-- [ ] Pelanggan: CRUD data pelanggan
-- [ ] Cetak / export invoice PDF
-- [ ] Admin: Dashboard kas kecil
-- [ ] Mechanic: Work order detail, upload struk (Supabase Storage)
+
+**Prioritas Sedang**
+- [ ] Admin: Kas Kecil (`/admin/petty-cash`) — petty cash ledger kasir
+- [ ] Owner: Pengaturan — markup default, nama bengkel, logo
+- [ ] Notifikasi / alert — invoice overdue, hutang mekanik tinggi
+
+**Prioritas Rendah**
+- [ ] Owner: Laporan — export PDF/Excel, ringkasan bulanan
+- [ ] Super Admin: Dashboard summary platform
 
 ---
 
@@ -158,12 +156,24 @@ Jalankan secara berurutan di **Supabase SQL Editor** (semua pakai `IF NOT EXISTS
 Jalankan secara berurutan di Supabase SQL Editor:
 
 ```
-supabase/migrations/001_schema.sql          ← Sudah dijalankan
-supabase/migrations/002_rls_policies.sql    ← Sudah dijalankan
-supabase/migrations/003_tenant_requests.sql ← Jalankan jika belum
-supabase/migrations/004_invoice_tax.sql     ← Jalankan jika belum
-supabase/migrations/005_invoice_discount.sql← Jalankan jika belum
-supabase/migrations/006_invoice_payment.sql ← Jalankan jika belum
+# ✅ Sudah dijalankan
+supabase/migrations/001_schema.sql
+supabase/migrations/002_rls_policies.sql
+supabase/migrations/003_tenant_requests.sql
+supabase/migrations/004_invoice_tax.sql
+supabase/migrations/005_invoice_discount.sql
+supabase/migrations/006_invoice_payment.sql
+supabase/migrations/007_mechanic_status_update.sql
+supabase/migrations/008_mechanic_debt_is_paid.sql
+supabase/migrations/009_fix_mechanic_rls.sql
+supabase/migrations/010_fix_invoice_mechanic_policy.sql
+
+# ❌ Belum dijalankan — jalankan berurutan
+supabase/migrations/011_mechanic_item_permissions.sql
+supabase/migrations/012_storage_receipt_bucket.sql
+supabase/migrations/013_mechanic_debt_insert.sql
+supabase/migrations/014_ledger_account_type.sql
+supabase/migrations/015_admin_reimburse_policy.sql
 ```
 
 Semua migrasi menggunakan `IF NOT EXISTS` — aman dijalankan ulang tanpa efek samping.

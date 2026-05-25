@@ -185,7 +185,7 @@ export default async function OwnerDashboard({
     { data: recentRaw },
     { data: paidHistory },
     { data: ledgerMonth },
-    { data: debtUnpaid },
+    { data: debtSummary },
     { data: itemsRaw },
     { data: invoicesPeriod },
     { data: mechAssignmentsRaw },
@@ -215,10 +215,9 @@ export default async function OwnerDashboard({
       .eq("tenant_id", tenantId)
       .gte("created_at", firstOfMonth),
     supabase
-      .from("mechanic_debt_ledger")
-      .select("amount")
-      .eq("tenant_id", tenantId)
-      .eq("is_paid", false),
+      .from("v_mechanic_debt_summary")
+      .select("outstanding_balance")
+      .eq("tenant_id", tenantId),
     itemsQuery,
     supabase
       .from("invoices")
@@ -288,8 +287,11 @@ export default async function OwnerDashboard({
     { masuk: 0, keluar: 0 }
   );
 
-  // Mechanic debt
-  const totalDebt = (debtUnpaid ?? []).reduce((s, e) => s + e.amount, 0);
+  // Mechanic debt — sum outstanding_balance per mechanic (clamped to 0)
+  const totalDebt = (debtSummary ?? []).reduce(
+    (s, e) => s + Math.max(0, Number(e.outstanding_balance ?? 0)),
+    0
+  );
 
   // Bar chart data
   const chartMonths = Array.from({ length: barMonths }, (_, i) => {

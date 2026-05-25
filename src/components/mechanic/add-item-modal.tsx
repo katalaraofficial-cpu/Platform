@@ -1,26 +1,19 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, X, Wrench, Package } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { addMechanicItem } from "@/lib/actions/mechanic-item";
-
-type ItemType = "service" | "part_external";
-type PaySrc = "mechanic" | "owner";
 
 export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
   const [open, setOpen] = useState(false);
   const [description, setDescription] = useState("");
-  const [itemType, setItemType] = useState<ItemType>("service");
   const [qty, setQty] = useState(1);
-  const [paySrc, setPaySrc] = useState<PaySrc>("mechanic");
   const [error, setError] = useState("");
   const [isPending, startTransition] = useTransition();
 
   function reset() {
     setDescription("");
-    setItemType("service");
     setQty(1);
-    setPaySrc("mechanic");
     setError("");
   }
 
@@ -31,7 +24,7 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
 
   function handleSubmit() {
     if (!description.trim()) {
-      setError("Deskripsi wajib diisi");
+      setError("Nama item wajib diisi");
       return;
     }
     setError("");
@@ -39,9 +32,7 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
       const res = await addMechanicItem({
         invoiceId,
         description: description.trim(),
-        itemType,
         qty,
-        paymentSource: itemType === "part_external" ? paySrc : undefined,
       });
       if ("error" in res) {
         setError(res.error);
@@ -77,7 +68,7 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
 
             <div className="mb-5 flex items-center justify-between">
               <h2 className="text-base font-bold text-gray-900">
-                Tambah Item Pekerjaan
+                Catat Pengeluaran / Part
               </h2>
               <button
                 onClick={handleClose}
@@ -87,42 +78,15 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
               </button>
             </div>
 
-            {/* Type toggle */}
-            <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1">
-              {(
-                [
-                  { value: "service" as ItemType, label: "Jasa", Icon: Wrench },
-                  { value: "part_external" as ItemType, label: "Part", Icon: Package },
-                ] as const
-              ).map(({ value, label, Icon }) => (
-                <button
-                  key={value}
-                  onClick={() => setItemType(value)}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
-                    itemType === value
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500"
-                  }`}
-                >
-                  <Icon className="h-3.5 w-3.5" />
-                  {label}
-                </button>
-              ))}
-            </div>
-
             {/* Description */}
             <label className="mb-1 block text-xs font-semibold text-gray-500">
-              Deskripsi
+              Nama item / keterangan
             </label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={
-                itemType === "service"
-                  ? "cth. Ganti oli mesin, tune-up…"
-                  : "cth. Filter udara Honda, kampas rem…"
-              }
+              placeholder="cth. Bensin, filter udara Honda, kampas rem…"
               className="mb-4 w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-400 focus:outline-none"
               autoFocus
             />
@@ -150,35 +114,6 @@ export function AddMechanicItemButton({ invoiceId }: { invoiceId: string }) {
                 </button>
               </div>
             </div>
-
-            {/* Payment source — part_external only */}
-            {itemType === "part_external" && (
-              <div className="mb-4">
-                <label className="mb-1 block text-xs font-semibold text-gray-500">
-                  Dibayar oleh
-                </label>
-                <div className="flex gap-1 rounded-xl bg-gray-100 p-1">
-                  {(
-                    [
-                      { value: "mechanic" as PaySrc, label: "Saya (Piutang)" },
-                      { value: "owner" as PaySrc, label: "Perusahaan" },
-                    ] as const
-                  ).map(({ value, label }) => (
-                    <button
-                      key={value}
-                      onClick={() => setPaySrc(value)}
-                      className={`flex-1 rounded-lg py-2 text-sm font-semibold transition-colors ${
-                        paySrc === value
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-500"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
 
             {error && (
               <p className="mb-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">

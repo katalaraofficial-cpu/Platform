@@ -26,7 +26,7 @@ export default async function OwnerUsersPage() {
     id: u.id,
     full_name: u.full_name ?? "(tanpa nama)",
     role: u.role,
-    phone: u.phone ?? "",
+    phone: (u.phone as string | null) ?? "",
     is_active: u.is_active ?? true,
     created_at: u.created_at,
   }));

@@ -61,7 +61,7 @@ export default async function AdminReimbursePage() {
 
     supabase
       .from("mechanic_debt_ledger")
-      .select("id, mechanic_id, transaction_type, amount, notes, created_at")
+      .select("id, mechanic_id, transaction_type, amount, notes, created_at, invoice_items(receipt_image_url)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(100),
@@ -95,6 +95,7 @@ export default async function AdminReimbursePage() {
       amount: number;
       notes: string | null;
       created_at: string;
+      invoice_items: { receipt_image_url: string | null } | null;
     }[] | null
   ) ?? [];
 
@@ -187,18 +188,20 @@ export default async function AdminReimbursePage() {
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipe</th>
                 <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Jumlah</th>
                 <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Keterangan</th>
+                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Nota</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
               {debtHistory.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                  <td colSpan={6} className="px-5 py-12 text-center text-sm text-gray-400">
                     Belum ada riwayat kasbon atau reimburse
                   </td>
                 </tr>
               ) : (
                 debtHistory.map((row) => {
                   const isAdvance = row.transaction_type === "advance";
+                  const receiptUrl = row.invoice_items?.receipt_image_url ?? null;
                   return (
                     <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
@@ -224,8 +227,25 @@ export default async function AdminReimbursePage() {
                           {isAdvance ? "+" : "-"}{fmt(Number(row.amount))}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
+                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[180px] truncate">
                         {row.notes ?? "—"}
+                      </td>
+                      <td className="px-4 py-3">
+                        {receiptUrl ? (
+                          <a href={receiptUrl} target="_blank" rel="noopener noreferrer" className="group relative inline-block">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={receiptUrl}
+                              alt="Nota"
+                              className="h-10 w-10 rounded-lg object-cover border border-gray-200 group-hover:opacity-80 transition-opacity"
+                            />
+                            <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <span className="rounded bg-black/60 px-1 py-0.5 text-[9px] text-white">Buka</span>
+                            </span>
+                          </a>
+                        ) : (
+                          <span className="text-xs text-gray-300">—</span>
+                        )}
                       </td>
                     </tr>
                   );

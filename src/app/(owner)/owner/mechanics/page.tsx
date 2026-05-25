@@ -9,6 +9,9 @@ import {
   ArrowUp,
   ArrowDown,
   Wrench,
+  TrendingUp,
+  ClipboardList,
+  Star,
 } from "lucide-react";
 import {
   LunasiButton,
@@ -64,7 +67,7 @@ export default async function MechanicsPage({
   if (!ctx.tenantId || ctx.role !== "owner") redirect("/owner/dashboard");
 
   const sp = await searchParams;
-  const tab = sp.tab === "reimburse" ? "reimburse" : "mekanik";
+  const tab = sp.tab === "reimburse" ? "reimburse" : "performa";
 
   const supabase = await createClient();
   const tenantId = ctx.tenantId;
@@ -73,10 +76,9 @@ export default async function MechanicsPage({
   const [
     { data: mechanicsRaw },
     { data: debtSummaryRaw },
-    { data: activeInvoicesRaw },
+    { data: invoiceMechanicsRaw },
     { data: debtHistoryRaw },
   ] = await Promise.all([
-    // All mechanics for this tenant
     supabase
       .from("profiles")
       .select("id, full_name")
@@ -84,20 +86,17 @@ export default async function MechanicsPage({
       .eq("role", "mechanic")
       .order("full_name"),
 
-    // Debt summary view
     supabase
       .from("v_mechanic_debt_summary")
       .select("mechanic_id, total_advanced, total_reimbursed, outstanding_balance")
       .eq("tenant_id", tenantId),
 
-    // Active invoices per mechanic (in_progress or completed)
+    // All invoice assignments with invoice status + value for performance
     supabase
       .from("invoice_mechanics")
-      .select("mechanic_id, invoices!inner(status)")
-      .eq("tenant_id", tenantId)
-      .in("invoices.status" as never, ["in_progress", "completed"]),
+      .select("mechanic_id, mechanic_role, invoices(status, grand_total)")
+      .eq("tenant_id", tenantId),
 
-    // Full debt history (latest 100)
     supabase
       .from("mechanic_debt_ledger")
       .select("id, mechanic_id, transaction_type, amount, notes, created_at")
@@ -124,10 +123,31 @@ export default async function MechanicsPage({
     debtMap.set(row.mechanic_id, row);
   }
 
-  // Active invoice count per mechanic
-  const activeCountMap = new Map<string, number>();
-  for (const row of (activeInvoicesRaw as { mechanic_id: string }[] | null) ?? []) {
-    activeCountMap.set(row.mechanic_id, (activeCountMap.get(row.mechanic_id) ?? 0) + 1);
+  // Performance data per mechanic
+  type InvRow = { mechanic_id: string; mechanic_role: string; invoices: { status: string; grand_total: number } | null };
+  const allAssignments = (invoiceMechanicsRaw as InvRow[] | null) ?? [];
+
+  type PerfData = {
+    total: number;
+    inProgress: number;
+    completed: number;
+    paid: number;
+    leadCount: number;
+    totalRevenue: number; // sum grand_total of paid invoices
+  };
+  const perfMap = new Map<string, PerfData>();
+  for (const row of allAssignments) {
+    const inv = row.invoices;
+    if (!inv) continue;
+    const prev = perfMap.get(row.mechanic_id) ?? {
+      total: 0, inProgress: 0, completed: 0, paid: 0, leadCount: 0, totalRevenue: 0,
+    };
+    prev.total++;
+    if (inv.status === "in_progress") prev.inProgress++;
+    if (inv.status === "completed") prev.completed++;
+    if (inv.status === "paid") { prev.paid++; prev.totalRevenue += Number(inv.grand_total ?? 0); }
+    if (row.mechanic_role === "lead") prev.leadCount++;
+    perfMap.set(row.mechanic_id, prev);
   }
 
   // KPIs
@@ -138,6 +158,7 @@ export default async function MechanicsPage({
   const mechanicsWithDebt = [...debtMap.values()].filter(
     (r) => Number(r.outstanding_balance) > 0
   ).length;
+  const totalRevenueAll = [...perfMap.values()].reduce((s, p) => s + p.totalRevenue, 0);
 
   const debtHistory = (
     debtHistoryRaw as {
@@ -153,44 +174,44 @@ export default async function MechanicsPage({
   return (
     <div className="flex flex-col gap-6">
       {/* ── Header ────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Mekanik &amp; Hutang</h1>
-          <p className="text-sm text-gray-500">
-            Daftar mekanik &amp; pengelolaan reimburse sparepart
-          </p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900">Engineer</h1>
+        <p className="text-sm text-gray-500">
+          Performa kerja &amp; pengelolaan reimburse sparepart
+        </p>
       </div>
 
       {/* ── KPI row ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
             <Users className="h-4 w-4 text-gray-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Total Mekanik
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Engineer</span>
           </div>
           <p className="text-3xl font-bold text-gray-900">{mechanics.length}</p>
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-red-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Total Belum Dibayar
-            </span>
+            <TrendingUp className="h-4 w-4 text-violet-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Revenue</span>
           </div>
-          <p className="text-3xl font-bold text-red-600">{fmt(totalOutstanding)}</p>
+          <p className="text-2xl font-bold text-violet-600">{fmt(totalRevenueAll)}</p>
+          <p className="mt-1 text-xs text-gray-400">dari invoice lunas</p>
+        </div>
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="mb-2 flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-red-400" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Hutang Belum Bayar</span>
+          </div>
+          <p className="text-2xl font-bold text-red-600">{fmt(totalOutstanding)}</p>
         </div>
         <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Mekanik Belum Lunas
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Belum Lunas</span>
           </div>
           <p className="text-3xl font-bold text-amber-600">{mechanicsWithDebt}</p>
-          <p className="mt-1 text-xs text-gray-400">dari {mechanics.length} mekanik</p>
+          <p className="mt-1 text-xs text-gray-400">dari {mechanics.length} engineer</p>
         </div>
       </div>
 
@@ -198,7 +219,7 @@ export default async function MechanicsPage({
       <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {(
           [
-            ["mekanik", "Daftar Mekanik"],
+            ["performa", "Performa Mekanik"],
             ["reimburse", "Reimburse & Kasbon"],
           ] as const
         ).map(([val, label]) => (
@@ -216,26 +237,26 @@ export default async function MechanicsPage({
         ))}
       </div>
 
-      {/* ── TAB: Daftar Mekanik ───────────────────────────────── */}
-      {tab === "mekanik" && (
+      {/* ── TAB: Performa Mekanik ─────────────────────────────── */}
+      {tab === "performa" && (
         <div>
           {mechanics.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-center">
               <Wrench className="mb-3 h-10 w-10 text-gray-300" />
-              <p className="font-semibold text-gray-500">Belum ada mekanik</p>
+              <p className="font-semibold text-gray-500">Belum ada engineer</p>
               <p className="mt-1 text-sm text-gray-400">
-                Tambahkan mekanik melalui menu Kelola Pengguna
+                Tambahkan melalui menu Kelola Pengguna
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {mechanics.map((mechanic) => {
-                const debt = debtMap.get(mechanic.id);
-                const outstanding = Math.max(0, Number(debt?.outstanding_balance ?? 0));
-                const totalAdv = Number(debt?.total_advanced ?? 0);
-                const totalReimb = Number(debt?.total_reimbursed ?? 0);
-                const activeJobs = activeCountMap.get(mechanic.id) ?? 0;
-                const hasDebt = outstanding > 0;
+                const perf = perfMap.get(mechanic.id) ?? {
+                  total: 0, inProgress: 0, completed: 0, paid: 0, leadCount: 0, totalRevenue: 0,
+                };
+                const completionRate = perf.total > 0
+                  ? Math.round(((perf.completed + perf.paid) / perf.total) * 100)
+                  : 0;
 
                 return (
                   <div
@@ -244,80 +265,56 @@ export default async function MechanicsPage({
                   >
                     {/* Avatar + name */}
                     <div className="flex items-center gap-3">
-                      <div
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${avatarColor(mechanic.id)}`}
-                      >
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${avatarColor(mechanic.id)}`}>
                         {initials(mechanic.full_name)}
                       </div>
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold text-gray-900">
-                          {mechanic.full_name}
-                        </p>
-                        <p className="text-xs text-gray-400">Mekanik</p>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-gray-900">{mechanic.full_name}</p>
+                        <p className="text-xs text-gray-400">Engineer</p>
                       </div>
-                    </div>
-
-                    {/* Stats row */}
-                    <div className="mt-4 flex gap-3">
-                      <div className="flex-1 rounded-xl bg-gray-50 p-3">
-                        <p className="text-xs text-gray-400">Invoice Aktif</p>
-                        <p className="mt-0.5 text-lg font-bold text-gray-800">
-                          {activeJobs}
-                        </p>
-                      </div>
-                      <div
-                        className={`flex-1 rounded-xl p-3 ${
-                          hasDebt ? "bg-red-50" : "bg-emerald-50"
-                        }`}
-                      >
-                        <p className={`text-xs ${hasDebt ? "text-red-400" : "text-emerald-500"}`}>
-                          Outstanding
-                        </p>
-                        <p
-                          className={`mt-0.5 text-sm font-bold ${
-                            hasDebt ? "text-red-600" : "text-emerald-600"
-                          }`}
-                        >
-                          {hasDebt ? fmt(outstanding) : "Lunas"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Advance / reimbursed mini-row */}
-                    {(totalAdv > 0 || totalReimb > 0) && (
-                      <div className="mt-3 flex gap-4 rounded-xl bg-gray-50 px-3 py-2">
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <ArrowUp className="h-3 w-3 text-orange-400" />
-                          Advance: {fmt(totalAdv)}
-                        </span>
-                        <span className="flex items-center gap-1 text-xs text-gray-500">
-                          <ArrowDown className="h-3 w-3 text-emerald-400" />
-                          Bayar: {fmt(totalReimb)}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Status badge */}
-                    <div className="mt-3 flex items-center gap-2">
-                      {hasDebt ? (
-                        <span className="flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
-                          <AlertCircle className="h-3 w-3" />
-                          Perlu Reimburse
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                          <CheckCircle2 className="h-3 w-3" />
-                          Semua Lunas
+                      {perf.leadCount > 0 && (
+                        <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                          <Star className="h-3 w-3" />
+                          Lead ×{perf.leadCount}
                         </span>
                       )}
                     </div>
 
-                    {/* Lunasi button — only if has outstanding */}
-                    {hasDebt && (
-                      <div className="mt-3">
-                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} />
+                    {/* Revenue highlight */}
+                    <div className="mt-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 px-4 py-3">
+                      <p className="text-xs text-violet-500 font-medium">Total Revenue Invoice Lunas</p>
+                      <p className="mt-0.5 text-xl font-bold text-violet-700">{fmt(perf.totalRevenue)}</p>
+                    </div>
+
+                    {/* Job stats grid */}
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-blue-50 p-2.5 text-center">
+                        <p className="text-lg font-bold text-blue-700">{perf.inProgress}</p>
+                        <p className="text-[10px] text-blue-400 font-medium">Aktif</p>
                       </div>
-                    )}
+                      <div className="rounded-xl bg-emerald-50 p-2.5 text-center">
+                        <p className="text-lg font-bold text-emerald-700">{perf.completed + perf.paid}</p>
+                        <p className="text-[10px] text-emerald-400 font-medium">Selesai</p>
+                      </div>
+                      <div className="rounded-xl bg-gray-50 p-2.5 text-center">
+                        <p className="text-lg font-bold text-gray-700">{perf.total}</p>
+                        <p className="text-[10px] text-gray-400 font-medium">Total</p>
+                      </div>
+                    </div>
+
+                    {/* Completion rate bar */}
+                    <div className="mt-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-gray-400">Tingkat Penyelesaian</span>
+                        <span className="text-xs font-semibold text-gray-600">{completionRate}%</span>
+                      </div>
+                      <div className="h-1.5 w-full rounded-full bg-gray-100">
+                        <div
+                          className="h-1.5 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all"
+                          style={{ width: `${completionRate}%` }}
+                        />
+                      </div>
+                    </div>
                   </div>
                 );
               })}
@@ -328,95 +325,158 @@ export default async function MechanicsPage({
 
       {/* ── TAB: Reimburse & Kasbon ───────────────────────────── */}
       {tab === "reimburse" && (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6">
           {/* Action bar */}
           <div className="flex items-center justify-between">
             <p className="text-sm text-gray-500">
-              Riwayat advance sparepart &amp; pembayaran reimburse
+              Pencatatan hutang piutang sparepart &amp; kasbon per engineer
             </p>
             <QuickReimburseButton mechanics={mechanics} />
           </div>
 
-          {/* Table */}
-          <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
-                    <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Tanggal
-                    </th>
-                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Mekanik
-                    </th>
-                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Tipe
-                    </th>
-                    <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Jumlah
-                    </th>
-                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
-                      Keterangan
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-50">
-                  {debtHistory.length === 0 ? (
-                    <tr>
-                      <td
-                        colSpan={5}
-                        className="px-5 py-12 text-center text-sm text-gray-400"
-                      >
-                        Belum ada riwayat kasbon atau reimburse
-                      </td>
+          {/* Cards per mechanic */}
+          {mechanics.length === 0 ? (
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-center">
+              <Wrench className="mb-3 h-10 w-10 text-gray-300" />
+              <p className="font-semibold text-gray-500">Belum ada engineer</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {mechanics.map((mechanic) => {
+                const debt = debtMap.get(mechanic.id);
+                const outstanding = Math.max(0, Number(debt?.outstanding_balance ?? 0));
+                const totalAdv = Number(debt?.total_advanced ?? 0);
+                const totalReimb = Number(debt?.total_reimbursed ?? 0);
+                const hasDebt = outstanding > 0;
+
+                return (
+                  <div
+                    key={mechanic.id}
+                    className={`flex flex-col rounded-2xl border bg-white p-5 shadow-sm ${
+                      hasDebt ? "border-red-100" : "border-gray-100"
+                    }`}
+                  >
+                    {/* Avatar + name */}
+                    <div className="flex items-center gap-3">
+                      <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-sm font-bold text-white ${avatarColor(mechanic.id)}`}>
+                        {initials(mechanic.full_name)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-gray-900">{mechanic.full_name}</p>
+                        <p className="text-xs text-gray-400">Engineer</p>
+                      </div>
+                      {hasDebt ? (
+                        <span className="flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-medium text-red-600">
+                          <AlertCircle className="h-3 w-3" />
+                          Hutang
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-600">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Lunas
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Outstanding balance */}
+                    <div className={`mt-4 rounded-xl px-4 py-3 ${hasDebt ? "bg-red-50" : "bg-emerald-50"}`}>
+                      <p className={`text-xs font-medium ${hasDebt ? "text-red-400" : "text-emerald-500"}`}>
+                        Saldo Outstanding
+                      </p>
+                      <p className={`mt-0.5 text-xl font-bold ${hasDebt ? "text-red-600" : "text-emerald-600"}`}>
+                        {hasDebt ? fmt(outstanding) : "Lunas"}
+                      </p>
+                    </div>
+
+                    {/* Advance / reimbursed row */}
+                    <div className="mt-3 flex gap-3">
+                      <div className="flex-1 rounded-xl bg-gray-50 p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <ArrowUp className="h-3 w-3 text-orange-400" />
+                          <p className="text-xs text-gray-400">Total Advance</p>
+                        </div>
+                        <p className="text-sm font-bold text-orange-600">{fmt(totalAdv)}</p>
+                      </div>
+                      <div className="flex-1 rounded-xl bg-gray-50 p-3">
+                        <div className="flex items-center gap-1 mb-0.5">
+                          <ArrowDown className="h-3 w-3 text-emerald-400" />
+                          <p className="text-xs text-gray-400">Sudah Dibayar</p>
+                        </div>
+                        <p className="text-sm font-bold text-emerald-600">{fmt(totalReimb)}</p>
+                      </div>
+                    </div>
+
+                    {/* Lunasi button */}
+                    {hasDebt && (
+                      <div className="mt-3">
+                        <LunasiButton mechanic={mechanic} allMechanics={mechanics} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* History table */}
+          <div>
+            <div className="mb-3 flex items-center gap-2">
+              <ClipboardList className="h-4 w-4 text-gray-400" />
+              <p className="text-sm font-semibold text-gray-700">Riwayat Transaksi</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
+                      <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tanggal</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Engineer</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Tipe</th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-500">Jumlah</th>
+                      <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Keterangan</th>
                     </tr>
-                  ) : (
-                    debtHistory.map((row) => {
-                      const isAdvance = row.transaction_type === "advance";
-                      return (
-                        <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
-                          <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">
-                            {fmtDate(row.created_at)}
-                          </td>
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(row.mechanic_id)}`}
-                              >
-                                {initials(
-                                  mechanicNameMap.get(row.mechanic_id) ?? "?"
-                                )}
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {debtHistory.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-5 py-12 text-center text-sm text-gray-400">
+                          Belum ada riwayat kasbon atau reimburse
+                        </td>
+                      </tr>
+                    ) : (
+                      debtHistory.map((row) => {
+                        const isAdvance = row.transaction_type === "advance";
+                        return (
+                          <tr key={row.id} className="hover:bg-gray-50/60 transition-colors">
+                            <td className="px-5 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtDate(row.created_at)}</td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-bold text-white ${avatarColor(row.mechanic_id)}`}>
+                                  {initials(mechanicNameMap.get(row.mechanic_id) ?? "?")}
+                                </div>
+                                <span className="text-sm text-gray-800">{mechanicNameMap.get(row.mechanic_id) ?? "—"}</span>
                               </div>
-                              <span className="text-sm text-gray-800">
-                                {mechanicNameMap.get(row.mechanic_id) ?? "—"}
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${isAdvance ? "bg-orange-50 text-orange-700" : "bg-emerald-50 text-emerald-700"}`}>
+                                {isAdvance ? "Advance" : "Reimburse"}
                               </span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                                isAdvance
-                                  ? "bg-orange-50 text-orange-700"
-                                  : "bg-emerald-50 text-emerald-700"
-                              }`}
-                            >
-                              {isAdvance ? "Advance" : "Reimburse"}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right font-semibold">
-                            <span className={isAdvance ? "text-orange-600" : "text-emerald-600"}>
-                              {isAdvance ? "+" : "-"}{fmt(Number(row.amount))}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
-                            {row.notes ?? "—"}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+                            </td>
+                            <td className="px-4 py-3 text-right font-semibold">
+                              <span className={isAdvance ? "text-orange-600" : "text-emerald-600"}>
+                                {isAdvance ? "+" : "-"}{fmt(Number(row.amount))}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
+                              {row.notes ?? "—"}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>

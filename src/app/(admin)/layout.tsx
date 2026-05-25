@@ -30,7 +30,7 @@ export default async function AdminLayout({
 
     // Toggle: module_mechanic_portal — admin can process reimbursements
     ...(toggles?.module_mechanic_portal !== false
-      ? [{ label: "Reimburse Mekanik", href: "/admin/reimburse", icon: <Wrench className="h-4 w-4" /> }]
+      ? [{ label: "Engineer", href: "/admin/reimburse", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_customer_history

@@ -39,7 +39,7 @@ export default async function OwnerLayout({
 
     // Toggle: module_mechanic_portal — mechanic & debt management
     ...(toggles?.module_mechanic_portal !== false
-      ? [{ label: "Mekanik & Hutang", href: "/owner/mechanics", icon: <Wrench className="h-4 w-4" /> }]
+      ? [{ label: "Engineer", href: "/owner/mechanics", icon: <Wrench className="h-4 w-4" /> }]
       : []),
 
     // Toggle: module_petty_cash — owner can monitor petty cash

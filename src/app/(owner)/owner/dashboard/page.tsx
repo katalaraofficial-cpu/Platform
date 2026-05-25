@@ -173,7 +173,7 @@ export default async function OwnerDashboard({
 
   let itemsQuery = supabase
     .from("invoice_items")
-    .select("item_type")
+    .select("item_type, description")
     .eq("tenant_id", tenantId)
     .gte("created_at", donutStart);
   if (donutType === "jasa") itemsQuery = itemsQuery.eq("item_type", "service");
@@ -309,22 +309,33 @@ export default async function OwnerDashboard({
   }));
 
   // Donut segments: Jasa + Barang grouping
-  const itemTypeCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
-    acc[i.item_type] = (acc[i.item_type] ?? 0) + 1;
-    return acc;
-  }, {});
+  const DONUT_COLORS = [
+    "#3B82F6", "#10B981", "#F59E0B", "#EF4444",
+    "#8B5CF6", "#06B6D4", "#F97316", "#14B8A6",
+    "#EC4899", "#84CC16",
+  ];
 
   let donutSegments: { label: string; value: number; color: string }[];
-  if (donutType === "jasa") {
-    donutSegments = [
-      { label: "Jasa", value: itemTypeCounts["service"] ?? 0, color: "#3B82F6" },
-    ];
-  } else if (donutType === "barang") {
-    donutSegments = [
-      { label: "Part Internal", value: itemTypeCounts["part_internal"] ?? 0, color: "#10B981" },
-      { label: "Part External", value: itemTypeCounts["part_external"] ?? 0, color: "#F59E0B" },
-    ];
+  if (donutType === "jasa" || donutType === "barang") {
+    // Break down by individual item name (description)
+    const nameCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
+      const name = (i as { description: string }).description || "(tidak ada nama)";
+      acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {});
+    donutSegments = Object.entries(nameCounts)
+      .sort((a, b) => b[1] - a[1])
+      .map(([label, value], idx) => ({
+        label,
+        value,
+        color: DONUT_COLORS[idx % DONUT_COLORS.length],
+      }));
   } else {
+    // Semua: aggregate by type category
+    const itemTypeCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
+      acc[i.item_type] = (acc[i.item_type] ?? 0) + 1;
+      return acc;
+    }, {});
     donutSegments = [
       { label: "Jasa", value: itemTypeCounts["service"] ?? 0, color: "#3B82F6" },
       {

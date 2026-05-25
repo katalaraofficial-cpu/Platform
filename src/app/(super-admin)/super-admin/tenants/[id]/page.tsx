@@ -37,7 +37,7 @@ export default async function TenantDetailPage({
         .single(),
       supabase
         .from("profiles")
-        .select("id, full_name, role, is_active, created_at")
+        .select("id, full_name, role, phone, is_active, created_at")
         .eq("tenant_id", id)
         .order("role"),
     ]);
@@ -94,7 +94,10 @@ export default async function TenantDetailPage({
           </h2>
           <AddUserForm tenantId={tenant.id} />
         </div>
-        <TenantUserTable users={users ?? []} tenantId={tenant.id} />
+        <TenantUserTable
+          users={(users ?? []).map((u) => ({ ...u, phone: (u.phone as string | null) ?? "" }))}
+          tenantId={tenant.id}
+        />
       </div>
     </div>
   );

@@ -168,6 +168,7 @@ export async function addInvoiceItem(
     unit_price: unitPrice,
     markup_pct: markupPct,
     final_price: finalPrice,
+    unit_label: null,
     payment_source: paymentSource,
     submitted_by: user.id,
   });

@@ -250,14 +250,14 @@ function NotaTemplate({
 
       {/* Customer info */}
       {notaCustomerLayout === "split" ? (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginBottom: "8px", fontSize: "10px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", marginBottom: "8px", fontSize: "10px" }}>
           <div><span style={{ color: "#666" }}>Nama  : </span>{customerName}</div>
           {customerPhone && <div><span style={{ color: "#666" }}>HP    : </span>{customerPhone}</div>}
           {plate && <div><span style={{ color: "#666" }}>Plat  : </span>{plate}</div>}
           {vehicle && <div><span style={{ color: "#666" }}>Kend. : </span>{vehicle}</div>}
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "8px", fontSize: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "3px", marginBottom: "8px", fontSize: "10px" }}>
           <div><span style={{ color: "#666" }}>Nama  : </span>{customerName}</div>
           {customerPhone && <div><span style={{ color: "#666" }}>HP    : </span>{customerPhone}</div>}
           {plate && <div><span style={{ color: "#666" }}>Plat  : </span>{plate}</div>}
@@ -266,7 +266,7 @@ function NotaTemplate({
       )}
 
       {/* Items table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px", borderTop: "1.5px solid #111", borderBottom: "1px solid #d1d5db" }}>
         <thead>
           <tr style={{ background: "#f0f0f0", borderBottom: "1px solid #999" }}>
             <th style={{ padding: "4px", textAlign: "left", width: "24px" }}>No</th>
@@ -279,18 +279,27 @@ function NotaTemplate({
         <tbody>
           {items.map((item, i) => (
             <tr key={item.id} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "3px 4px" }}>{i + 1}</td>
-              <td style={{ padding: "3px 4px" }}>{item.description}</td>
-              <td style={{ padding: "3px 4px", textAlign: "center" }}>{item.quantity}</td>
-              <td style={{ padding: "3px 4px", textAlign: "right" }}>{fmt(item.final_price)}</td>
-              <td style={{ padding: "3px 4px", textAlign: "right" }}>{fmt(item.final_price * item.quantity)}</td>
+              <td style={{ padding: "5px 4px" }}>{i + 1}</td>
+              <td style={{ padding: "5px 4px" }}>{item.description}</td>
+              <td style={{ padding: "5px 4px", textAlign: "center" }}>{item.quantity}</td>
+              <td style={{ padding: "5px 4px", textAlign: "right" }}>{fmt(item.final_price)}</td>
+              <td style={{ padding: "5px 4px", textAlign: "right" }}>{fmt(item.final_price * item.quantity)}</td>
+            </tr>
+          ))}
+          {Array.from({ length: Math.max(0, 3 - items.length) }).map((_, i) => (
+            <tr key={`nota-empty-${i}`} style={{ borderBottom: "1px solid #eee" }}>
+              <td style={{ padding: "10px 4px" }}>&nbsp;</td>
+              <td />
+              <td />
+              <td />
+              <td />
             </tr>
           ))}
         </tbody>
       </table>
 
       {/* Totals */}
-      <div style={{ marginLeft: "auto", width: "140px", fontSize: "10px" }}>
+      <div style={{ marginLeft: "auto", width: "148px", fontSize: "10px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", padding: "2px 0" }}>
           <span>Subtotal</span><span>{fmt(subtotal)}</span>
         </div>
@@ -333,7 +342,7 @@ function NotaTemplate({
             : <div style={{ height: "40px" }} />
           }
           {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "32px", margin: "0 auto 4px", display: "block", objectFit: "contain" }} />}
-          <div style={{ borderTop: "1px solid #000", width: "170px", margin: "0 auto", paddingTop: "3px" }}>{tenantName}</div>
+          <div style={{ borderTop: "1px solid #000", width: "138px", margin: "0 auto", paddingTop: "3px" }}>{tenantName}</div>
         </div>
       ) : (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px", fontSize: "10px" }}>
@@ -344,12 +353,12 @@ function NotaTemplate({
               : <div style={{ height: "40px" }} />
             }
             {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "32px", margin: "0 auto 4px", display: "block", objectFit: "contain" }} />}
-            <div style={{ borderTop: "1px solid #000", width: "170px", margin: "0 auto", paddingTop: "3px" }}>{tenantName}</div>
+            <div style={{ borderTop: "1px solid #000", width: "138px", margin: "0 auto", paddingTop: "3px" }}>{tenantName}</div>
           </div>
           <div style={{ textAlign: "center" }}>
             <div>Penerima,</div>
             <div style={{ height: "40px" }} />
-            <div style={{ borderTop: "1px solid #000", width: "170px", margin: "0 auto", paddingTop: "3px" }}>{customerName}</div>
+            <div style={{ borderTop: "1px solid #000", width: "138px", margin: "0 auto", paddingTop: "3px" }}>{customerName}</div>
           </div>
         </div>
       )}
@@ -481,12 +490,12 @@ function InvoiceTemplate({
 
       {/* ── Two boxes: customer left, company info right ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
-        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "72px" }}>
+        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "92px" }}>
           <div style={{ fontWeight: "bold", fontSize: "12px" }}>{customerName}</div>
           {customerPhone && <div style={{ marginTop: "3px" }}>{customerPhone}</div>}
           {plate && <div style={{ marginTop: "2px" }}>{plate}{vehicle ? ` - ${vehicle}` : ""}</div>}
         </div>
-        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "72px" }}>
+        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "92px" }}>
           <div style={{ fontWeight: "bold" }}>{tenantName}</div>
           {storeAddress && <div style={{ marginTop: "3px", color: "#444" }}>{storeAddress}</div>}
           {storePhone && <div style={{ color: "#444" }}>{storePhone}</div>}
@@ -529,9 +538,9 @@ function InvoiceTemplate({
               </tr>
             );
           })}
-          {Array.from({ length: Math.max(0, 5 - items.length) }).map((_, i) => (
+          {Array.from({ length: Math.max(0, 7 - items.length) }).map((_, i) => (
             <tr key={`empty-${i}`}>
-              <td style={{ border: "1px solid #b3b3b3", padding: "16px 6px" }}>&nbsp;</td>
+              <td style={{ border: "1px solid #b3b3b3", padding: "20px 6px" }}>&nbsp;</td>
               <td style={{ border: "1px solid #b3b3b3" }} />
               <td style={{ border: "1px solid #b3b3b3" }} />
               <td style={{ border: "1px solid #b3b3b3" }} />
@@ -545,7 +554,7 @@ function InvoiceTemplate({
       </table>
 
       {/* ── Terbilang (left) + Totals (right) — same row ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 210px", border: "1px solid #999", borderTop: "none" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 230px", border: "1px solid #999", borderTop: "none" }}>
         <div style={{ padding: "8px 10px", fontSize: "10px", borderRight: "1px solid #999" }}>
           <div style={{ fontWeight: "bold", marginBottom: "3px" }}>Terbilang:</div>
           <div style={{ color: "#d97706", fontStyle: "italic" }}>{terbilangRupiah(grandTotal)}</div>
@@ -611,7 +620,7 @@ function InvoiceTemplate({
             : <div style={{ height: "48px" }} />
           }
           {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", position: "absolute", opacity: 0.8, objectFit: "contain" }} />}
-          <div style={{ borderTop: "1px solid #000", width: "180px", margin: "0 auto", paddingTop: "4px" }}>{tenantName}</div>
+          <div style={{ borderTop: "1px solid #000", width: "156px", margin: "0 auto", paddingTop: "4px" }}>{tenantName}</div>
           <div style={{ color: "#888" }}>{notaJabatan || "Jabatan"}</div>
         </div>
       </div>

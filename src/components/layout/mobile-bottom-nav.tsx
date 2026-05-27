@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "./types";
 
@@ -11,6 +11,7 @@ interface MobileBottomNavProps {
 
 export function MobileBottomNav({ navItems }: MobileBottomNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-white">
@@ -23,6 +24,9 @@ export function MobileBottomNav({ navItems }: MobileBottomNavProps) {
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
+                prefetch
+                onMouseEnter={() => router.prefetch(item.href)}
+                onFocus={() => router.prefetch(item.href)}
                 className={cn(
                   "flex flex-col items-center gap-1 py-2 text-xs font-medium transition-colors",
                   isActive ? "text-primary" : "text-gray-400 hover:text-gray-600"

@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { signOut } from "@/lib/actions/auth";
 import { LogOut, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import type { NavItem } from "./types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface SidebarProps {
   navItems: NavItem[];
@@ -34,7 +34,22 @@ export function Sidebar({
   className,
 }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    const prefetchAll = () => {
+      navItems.forEach((item) => router.prefetch(item.href));
+    };
+
+    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
+      const id = window.requestIdleCallback(prefetchAll, { timeout: 1200 });
+      return () => window.cancelIdleCallback(id);
+    }
+
+    const timeoutId = window.setTimeout(prefetchAll, 250);
+    return () => window.clearTimeout(timeoutId);
+  }, [navItems, router]);
 
   return (
     <aside
@@ -89,6 +104,9 @@ export function Sidebar({
               <li key={item.href}>
                 <Link
                   href={item.href}
+                  prefetch
+                  onMouseEnter={() => router.prefetch(item.href)}
+                  onFocus={() => router.prefetch(item.href)}
                   title={collapsed ? item.label : undefined}
                   className={cn(
                     "group flex items-center gap-3 rounded-lg px-2 py-2 text-sm font-medium transition-colors",

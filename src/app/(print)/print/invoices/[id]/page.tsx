@@ -172,6 +172,7 @@ function StrukTemplate({
 function NotaTemplate({
   tenantName,
   notaTitle,
+  notaTitleSize,
   notaSubtitle,
   notaCustomerLayout,
   notaSignatureLayout,
@@ -198,6 +199,7 @@ function NotaTemplate({
 }: {
   tenantName: string;
   notaTitle?: string;
+  notaTitleSize?: number;
   notaSubtitle?: string;
   notaCustomerLayout?: "stacked" | "split";
   notaSignatureLayout?: "double" | "single";
@@ -242,7 +244,7 @@ function NotaTemplate({
           {notaSubtitle && <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>{notaSubtitle}</div>}
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: "bold" }}>{notaTitle || "NOTA KONTAN"}</div>
+          <div style={{ fontWeight: "bold", fontSize: `${Math.max(14, Math.min(34, notaTitleSize ?? 18))}px` }}>{notaTitle || "NOTA KONTAN"}</div>
           <div>{invoiceNumber}</div>
           <div>{fmtDate(createdAt)}</div>
         </div>
@@ -394,6 +396,7 @@ function terbilangRupiah(n: number): string {
 function InvoiceTemplate({
   tenantName,
   notaTitle,
+  notaTitleSize,
   notaJabatan,
   showWatermark,
   invoiceNumber,
@@ -426,6 +429,7 @@ function InvoiceTemplate({
 }: {
   tenantName: string;
   notaTitle?: string;
+  notaTitleSize?: number;
   notaJabatan?: string;
   showWatermark?: boolean;
   invoiceNumber: string;
@@ -463,10 +467,8 @@ function InvoiceTemplate({
   const A4_NO_COL = "8mm";
   const A4_QTY_COL = "16mm";
   const A4_UNIT_COL = "12mm";
-  const A4_DISC_COL = "10mm";
-  const A4_TAX_COL = "10mm";
-  const A4_PRICE_COL = "20mm";
-  const A4_TOTAL_COL = "22mm";
+  const A4_PRICE_COL = "24mm";
+  const A4_TOTAL_COL = "26mm";
   const A4_ROW_HEIGHT = "8.2mm";
 
   return (
@@ -482,18 +484,15 @@ function InvoiceTemplate({
           }
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "900", fontSize: "28px", letterSpacing: "8px" }}>{(notaTitle || "INVOICE").toUpperCase()}</div>
+          <div style={{ fontWeight: "900", fontSize: `${Math.max(18, Math.min(42, notaTitleSize ?? 28))}px`, letterSpacing: "8px" }}>{(notaTitle || "INVOICE").toUpperCase()}</div>
           <div style={{ fontSize: "11px", marginTop: "3px" }}>Nomor : {invoiceNumber}</div>
         </div>
       </div>
 
       {/* ── Tanggal / Jatuh Tempo ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: "10px", marginBottom: "12px" }}>
-        <div />
-        <div style={{ fontSize: "10px" }}>
-          <div>Tanggal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {fmtDate(createdAt)}</div>
+      <div style={{ marginBottom: "8px", fontSize: "10px" }}>
+        <div>Tanggal : {fmtDate(createdAt)}</div>
           {dueDate && <div>Tgl. Jatuh Tempo : {fmtDate(dueDate)}</div>}
-        </div>
       </div>
 
       {/* ── Labels ── */}
@@ -521,12 +520,10 @@ function InvoiceTemplate({
       <table style={{ width: "100%", borderCollapse: "collapse", border: "1.5px solid #222", tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_NO_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>No.</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 8px", textAlign: "left", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Deskripsi</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_QTY_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Kuantitas</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_UNIT_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Satuan</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_DISC_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Diskon</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_TAX_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Pajak</th>
+            <th style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_NO_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>No.</th>
+            <th style={{ border: "1px solid #222", padding: "6px 8px", textAlign: "left", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Deskripsi</th>
+            <th style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_QTY_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Kuantitas</th>
+            <th style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_UNIT_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Satuan</th>
             <th colSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", fontSize: "10px", fontWeight: 700 }}>Harga</th>
           </tr>
           <tr>
@@ -539,29 +536,25 @@ function InvoiceTemplate({
             const unitPrice = item.quantity > 0 ? item.final_price / item.quantity : item.final_price;
             return (
               <tr key={item.id}>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{i + 1}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 8px", fontSize: "10px", height: A4_ROW_HEIGHT }}>
+                <td style={{ border: "none", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{i + 1}</td>
+                <td style={{ border: "none", padding: "8px 8px", fontSize: "10px", height: A4_ROW_HEIGHT }}>
                   <div style={{ fontWeight: "500" }}>{item.description}</div>
                 </td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.quantity}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.unit_label || "Unit"}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>0%</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{ppnPct > 0 ? `${ppnPct}%` : ""}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{unitPrice.toLocaleString("id-ID")}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.final_price.toLocaleString("id-ID")}</td>
+                <td style={{ border: "none", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.quantity}</td>
+                <td style={{ border: "none", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.unit_label || "Unit"}</td>
+                <td style={{ border: "none", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{unitPrice.toLocaleString("id-ID")}</td>
+                <td style={{ border: "none", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.final_price.toLocaleString("id-ID")}</td>
               </tr>
             );
           })}
           {Array.from({ length: Math.max(0, 7 - items.length) }).map((_, i) => (
             <tr key={`empty-${i}`}>
-              <td style={{ border: "1px solid #b3b3b3", padding: "18px 6px", height: A4_ROW_HEIGHT }}>&nbsp;</td>
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
-              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "none", padding: "18px 6px", height: A4_ROW_HEIGHT }}>&nbsp;</td>
+              <td style={{ border: "none", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "none", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "none", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "none", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "none", height: A4_ROW_HEIGHT }} />
             </tr>
           ))}
         </tbody>
@@ -629,12 +622,17 @@ function InvoiceTemplate({
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ marginBottom: "4px" }}>Dengan Hormat,</div>
-          {signatureUrl
-            ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "48px", marginBottom: "4px", objectFit: "contain" }} />
-            : <div style={{ height: "48px" }} />
-          }
-          {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", position: "absolute", opacity: 0.8, objectFit: "contain" }} />}
-          <div style={{ borderTop: "1px solid #000", width: "156px", margin: "0 auto", paddingTop: "4px" }}>{tenantName}</div>
+          <div style={{ height: "30mm", width: "62mm", margin: "0 auto 2mm", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {signatureUrl
+              ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "16mm", maxWidth: "56mm", objectFit: "contain", zIndex: 2 }} />
+              : null
+            }
+            {stampUrl
+              ? <img src={stampUrl} alt="Stempel" style={{ height: "17mm", maxWidth: "24mm", position: "absolute", right: "8mm", top: "7mm", opacity: 0.78, objectFit: "contain", zIndex: 1 }} />
+              : null
+            }
+          </div>
+          <div style={{ borderTop: "1px solid #000", width: "58mm", margin: "0 auto", paddingTop: "4px" }}>{tenantName}</div>
           <div style={{ color: "#888" }}>{notaJabatan || "Jabatan"}</div>
         </div>
       </div>
@@ -672,7 +670,7 @@ export default async function PrintInvoicePage({
     supabase.from("invoice_items").select("*").eq("invoice_id", id).order("created_at", { ascending: true }),
     supabase
       .from("settings")
-      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format")
+      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_title_size, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format")
       .eq("tenant_id", ctx.tenantId)
       .single(),
   ]);
@@ -685,6 +683,8 @@ export default async function PrintInvoicePage({
   const legacyHeader = extractNotaConfig((settings as { nota_header?: string } | null)?.nota_header ?? "");
   const legacyConfig = legacyHeader.config ?? {};
   const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? (legacyConfig.nota_title as string | undefined) ?? "";
+  const notaTitleSizeRaw = (settings as { nota_title_size?: number } | null)?.nota_title_size ?? (legacyConfig.nota_title_size as number | undefined) ?? 28;
+  const notaTitleSize = Number.isFinite(Number(notaTitleSizeRaw)) ? Number(notaTitleSizeRaw) : 28;
   const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? (legacyConfig.nota_subtitle as string | undefined) ?? "";
   const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? (legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked";
   const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? (legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double";
@@ -706,6 +706,7 @@ export default async function PrintInvoicePage({
   const commonProps = {
     tenantName,
     notaTitle,
+    notaTitleSize,
     notaSubtitle,
     notaCustomerLayout,
     notaSignatureLayout,

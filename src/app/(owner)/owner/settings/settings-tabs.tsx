@@ -527,6 +527,8 @@ function FormatFieldPanel({
   storeEmail,
   notaTitle,
   setNotaTitle,
+  notaTitleSize,
+  setNotaTitleSize,
   notaSubtitle,
   setNotaSubtitle,
   notaCustomerLayout,
@@ -554,6 +556,8 @@ function FormatFieldPanel({
   storeEmail: string;
   notaTitle: string;
   setNotaTitle: (v: string) => void;
+  notaTitleSize: number;
+  setNotaTitleSize: (v: number) => void;
   notaSubtitle: string;
   setNotaSubtitle: (v: string) => void;
   notaCustomerLayout: "stacked" | "split";
@@ -587,6 +591,16 @@ function FormatFieldPanel({
                 value={notaTitle}
                 onChange={(e) => setNotaTitle(e.target.value)}
                 placeholder={format === "A5" ? "NOTA KONTAN" : "INVOICE"}
+              />
+            </Field>
+            <Field label="Ukuran Judul (px)">
+              <Input
+                type="number"
+                min={16}
+                max={42}
+                step={1}
+                value={String(notaTitleSize)}
+                onChange={(e) => setNotaTitleSize(Math.max(16, Math.min(42, Number(e.target.value) || 28)))}
               />
             </Field>
             <Field label="Subjudul / Jenis Nota">
@@ -737,6 +751,8 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const legacyNotaHeader = extractNotaConfig(s?.nota_header);
   const legacyConfig = legacyNotaHeader.config ?? {};
   const [notaTitle, setNotaTitle] = useState((s?.nota_title ?? legacyConfig.nota_title as string | null | undefined) ?? "");
+  const initialTitleSize = Number((s?.nota_title_size ?? legacyConfig.nota_title_size as number | undefined) ?? 28);
+  const [notaTitleSize, setNotaTitleSize] = useState<number>(Number.isFinite(initialTitleSize) ? initialTitleSize : 28);
   const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "");
   const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
   const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
@@ -754,6 +770,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
     startTransition(async () => {
       const res = await saveNotaSettings({
         notaTitle,
+        notaTitleSize,
         notaSubtitle,
         notaCustomerLayout,
         notaSignatureLayout,
@@ -787,6 +804,8 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         storeEmail={s?.store_email ?? ""}
         notaTitle={notaTitle}
         setNotaTitle={setNotaTitle}
+        notaTitleSize={notaTitleSize}
+        setNotaTitleSize={setNotaTitleSize}
         notaSubtitle={notaSubtitle}
         setNotaSubtitle={setNotaSubtitle}
         notaCustomerLayout={notaCustomerLayout}

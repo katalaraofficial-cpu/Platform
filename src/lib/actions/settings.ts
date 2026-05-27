@@ -81,6 +81,7 @@ export async function savePlatformSettings(data: {
 // ── Tab 3: Nota & Printer ───────────────────────────────────
 export async function saveNotaSettings(data: {
   notaTitle: string;
+  notaTitleSize: number;
   notaSubtitle: string;
   notaCustomerLayout: "stacked" | "split";
   notaSignatureLayout: "double" | "single";
@@ -102,6 +103,7 @@ export async function saveNotaSettings(data: {
       .from("settings")
       .update({
         nota_title: data.notaTitle.trim() || null,
+        nota_title_size: Math.max(16, Math.min(42, Math.round(data.notaTitleSize || 28))),
         nota_subtitle: data.notaSubtitle.trim() || null,
         nota_customer_layout: data.notaCustomerLayout,
         nota_signature_layout: data.notaSignatureLayout,
@@ -116,12 +118,13 @@ export async function saveNotaSettings(data: {
       .eq("tenant_id", ctx.tenantId);
     if (error) {
       const message = error.message.toLowerCase();
-      if (message.includes("schema cache") || message.includes("nota_customer_layout") || message.includes("nota_signature_layout")) {
+      if (message.includes("schema cache") || message.includes("nota_customer_layout") || message.includes("nota_signature_layout") || message.includes("nota_title_size")) {
         const legacyUpdate = await supabase
           .from("settings")
           .update({
             nota_header: encodeNotaHeader(data.notaHeader, {
               nota_title: data.notaTitle.trim() || null,
+              nota_title_size: Math.max(16, Math.min(42, Math.round(data.notaTitleSize || 28))),
               nota_subtitle: data.notaSubtitle.trim() || null,
               nota_customer_layout: data.notaCustomerLayout,
               nota_signature_layout: data.notaSignatureLayout,

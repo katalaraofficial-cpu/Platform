@@ -435,6 +435,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Print size (create mode) ──────────────────────────────────────────
   const [printSize, setPrintSize] = useState<"thermal" | "a5" | "a4">("a4");
+  const [showCostDetailsMobile, setShowCostDetailsMobile] = useState(false);
 
   // ── Payment state (edit + completed) ──────────────────────────────────
   const [payMethod, setPayMethod] = useState("cash");
@@ -874,7 +875,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
       {/* ── Field Strip ─────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-gray-700 bg-gray-800 px-4 py-2.5">
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
 
           {/* Date */}
           <div className="flex items-center gap-1.5">
@@ -919,9 +920,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </span>
             ) : (
-              <div className="relative flex items-center gap-1">
+              <div className="relative flex min-w-0 items-center gap-1">
                 <input
-                  className="w-40 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                  className="w-full min-w-0 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none sm:w-40"
                   placeholder="Cari pelanggan…"
                   value={customerSearch}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
@@ -1017,7 +1018,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           <div className="hidden h-4 w-px bg-gray-600 sm:block" />
 
           {/* Notes / Catatan */}
-          <div className="flex min-w-[160px] flex-1 items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Catatan</span>
             <input
               className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
@@ -1042,7 +1043,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
 
       {/* ── Main Body ───────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
 
         {/* ── Left: Add-item strip + Items table ────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -1050,9 +1051,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           {/* Add Item Strip */}
           {canEdit && (
             <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2.5">
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
                 {/* Type toggle */}
-                <div className="flex shrink-0 overflow-hidden rounded border border-gray-200">
+                <div className="col-span-2 flex shrink-0 overflow-hidden rounded border border-gray-200 md:col-span-1">
                   {(["service", "part_internal"] as const).map((t, i) => (
                     <button
                       key={t}
@@ -1072,7 +1073,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 </div>
 
                 {/* Description with autocomplete */}
-                <div className="relative min-w-[160px] flex-1">
+                <div className="relative col-span-2 min-w-0 md:min-w-[160px] md:flex-1">
                   <input
                     className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
                     placeholder="Nama item / jasa…"
@@ -1105,45 +1106,45 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 </div>
 
                 {/* Qty */}
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex min-w-0 items-center gap-1">
                   <span className="text-xs text-gray-500">Qty</span>
                   <input
                     type="number" min="0.01" step="any"
                     value={itemQty}
                     onChange={(e) => setItemQty(Number(e.target.value))}
-                    className="w-14 rounded border border-gray-300 px-2 py-1.5 text-center text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-center text-sm focus:border-blue-500 focus:outline-none md:w-14"
                   />
                 </div>
 
                 {/* Satuan */}
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex min-w-0 items-center gap-1">
                   <span className="text-xs text-gray-500">Satuan</span>
                   <input
                     type="text"
                     value={itemUnitLabel}
                     onChange={(e) => setItemUnitLabel(e.target.value)}
                     placeholder="pcs, unit…"
-                    className="w-16 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                    className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none md:w-16"
                   />
                 </div>
 
                 {/* Buy price (parts only) */}
                 {itemType !== "service" && (
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="col-span-2 flex min-w-0 items-center gap-1 md:col-span-1">
                     <span className="text-xs text-gray-500">H.Beli</span>
                     <input
                       type="number" min="0" step="any"
                       value={itemBuyPrice || ""}
                       onChange={(e) => setItemBuyPrice(Number(e.target.value))}
                       placeholder="0"
-                      className="w-24 rounded border border-gray-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none"
+                      className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none md:w-24"
                     />
                   </div>
                 )}
 
                 {/* Margin toggle (parts only) */}
                 {itemType !== "service" && (
-                  <div className="flex shrink-0 items-center gap-1.5">
+                  <div className="col-span-2 flex min-w-0 items-center gap-1.5 md:col-span-1">
                     <label className="flex cursor-pointer items-center gap-1 text-xs text-gray-500 select-none">
                       <input
                         type="checkbox"
@@ -1159,7 +1160,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           type="number" min="0" max="999" step="1"
                           value={marginPct}
                           onChange={(e) => setMarginPct(Number(e.target.value))}
-                          className="w-14 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-right text-sm focus:outline-none"
+                          className="w-full min-w-0 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-right text-sm focus:outline-none md:w-14"
                         />
                         <span className="text-xs text-amber-600">%</span>
                       </>
@@ -1168,7 +1169,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
 
                 {/* Sell price */}
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="col-span-2 flex min-w-0 items-center gap-1 md:col-span-1">
                   <span className="text-xs text-gray-500">H.Jual</span>
                   <input
                     type="number" min="0" step="any"
@@ -1178,7 +1179,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                       if (marginEnabled) setMarginEnabled(false); // manual override disables margin
                     }}
                     placeholder={itemType === "service" ? "wajib" : "opsional"}
-                    className={`w-28 rounded border px-2 py-1.5 text-right text-sm focus:outline-none ${
+                    className={`w-full min-w-0 rounded border px-2 py-1.5 text-right text-sm focus:outline-none md:w-28 ${
                       itemType !== "service" && itemSellPrice === 0
                         ? "border-amber-300 bg-amber-50 placeholder-amber-400 focus:border-amber-500"
                         : "border-gray-300 focus:border-blue-500"
@@ -1192,12 +1193,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   type="button"
                   onClick={handleAddItem}
                   disabled={isPending}
-                  className="flex shrink-0 items-center gap-1 rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                  className="col-span-2 flex items-center justify-center gap-1 rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50 md:col-span-1 md:shrink-0 md:justify-start md:py-1.5"
                 >
                   <Plus size={14} /> Tambah
                 </button>
 
-                {addItemError && <span className="text-xs text-red-600">{addItemError}</span>}
+                {addItemError && <span className="col-span-2 text-xs text-red-600">{addItemError}</span>}
               </div>
             </div>
           )}
@@ -1209,7 +1210,113 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 Belum ada item. Tambahkan item di atas.
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <>
+                <div className="space-y-2 p-3 md:hidden">
+                  {items.map((item, idx) =>
+                    editRowId === item.id ? (
+                      <div key={item.id} className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                        <div className="grid grid-cols-1 gap-2">
+                          <input
+                            className="w-full rounded border border-blue-400 px-2 py-1.5 text-sm focus:outline-none"
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              className="w-full rounded border border-blue-300 px-2 py-1.5 text-xs focus:outline-none"
+                              value={editUnitLabel}
+                              onChange={(e) => setEditUnitLabel(e.target.value)}
+                              placeholder="Satuan"
+                            />
+                            <input
+                              type="number" min="0.01" step="any"
+                              className="w-full rounded border border-blue-400 px-2 py-1.5 text-right text-sm focus:outline-none"
+                              value={editQty}
+                              onChange={(e) => setEditQty(Number(e.target.value))}
+                            />
+                          </div>
+                          {item.itemType !== "service" && (
+                            <input
+                              type="number" min="0" step="any"
+                              className="w-full rounded border border-blue-300 px-2 py-1.5 text-right text-xs focus:outline-none"
+                              value={editBuyPrice || ""}
+                              onChange={(e) => setEditBuyPrice(Number(e.target.value))}
+                              placeholder="H.Beli"
+                            />
+                          )}
+                          <input
+                            type="number" min="0" step="any"
+                            className="w-full rounded border border-blue-400 px-2 py-1.5 text-right text-sm focus:outline-none"
+                            value={editSellPrice || ""}
+                            onChange={(e) => setEditSellPrice(Number(e.target.value))}
+                            placeholder="H.Jual"
+                          />
+                          <div className="text-right font-mono text-xs text-gray-600">
+                            {fmt(editSellPrice * editQty)}
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => saveEditRow(item)}
+                              disabled={isPending}
+                              className="flex-1 rounded bg-green-600 px-2 py-2 text-xs text-white hover:bg-green-500 disabled:opacity-50"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setEditRowId(null)}
+                              className="flex-1 rounded border border-gray-300 px-2 py-2 text-xs text-gray-600 hover:bg-gray-100"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div key={item.id} className="rounded-lg border border-gray-200 bg-white p-3 shadow-sm">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs text-gray-400">#{idx + 1}</p>
+                            <p className="truncate text-sm font-semibold text-gray-900">{item.description}</p>
+                            <p className="mt-0.5 text-xs text-gray-500">
+                              {item.itemType === "service" ? "Jasa" : item.itemType === "part_internal" ? "Barang" : "Part Ext."}
+                            </p>
+                          </div>
+                          {canEdit && (
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startEditRow(item)}
+                                className="text-xs text-blue-600"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(item.id)}
+                                disabled={isPending}
+                                className="text-xs text-red-600 disabled:opacity-40"
+                              >
+                                Hapus
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                        <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-xs text-gray-600">
+                          <span>Qty: {item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)}</span>
+                          <span className="text-right">Satuan: {item.unitLabel || "-"}</span>
+                          <span>Harga: {item.sellPrice === 0 && item.itemType !== "service" ? "Belum diisi" : fmt(item.sellPrice)}</span>
+                          <span className="text-right font-mono font-semibold text-gray-900">
+                            {item.sellPrice === 0 && item.itemType !== "service" ? "-" : fmt(item.sellPrice * item.qty)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              <table className="hidden w-full text-sm md:table">
                 <thead className="sticky top-0 z-10 bg-gray-900">
                   <tr>
                     <th className="w-8 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">#</th>
@@ -1357,19 +1464,32 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   )}
                 </tbody>
               </table>
+              </>
             )}
           </div>
         </div>
 
         {/* ── Right Sidebar ──────────────────────────────────────────────── */}
-        <div className="flex w-64 shrink-0 flex-col overflow-y-auto border-l border-gray-200 bg-white">
+        <div className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-gray-200 bg-white md:w-64 md:border-l md:border-t-0">
 
           {/* Totals */}
-          <div className="border-b border-gray-100 p-4 space-y-2.5">
+          <div className="space-y-2.5 border-b border-gray-100 p-4">
             <div className="flex items-center justify-between text-sm text-gray-500">
               <span>Subtotal</span>
               <span className="font-mono">{fmt(preTax)}</span>
             </div>
+
+            <div className="md:hidden">
+              <button
+                type="button"
+                onClick={() => setShowCostDetailsMobile((prev) => !prev)}
+                className="w-full rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600"
+              >
+                {showCostDetailsMobile ? "Sembunyikan rincian biaya" : "Tampilkan rincian biaya"}
+              </button>
+            </div>
+
+            <div className={`${showCostDetailsMobile ? "space-y-2.5" : "hidden"} md:block md:space-y-2.5`}>
 
             {/* PPN */}
             <div className="flex items-center justify-between text-sm">
@@ -1492,6 +1612,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 <span className="font-mono">+{fmt(shippingCost)}</span>
               </div>
             ) : null}
+
+            </div>
 
             <div className="flex items-center justify-between border-t border-gray-200 pt-2.5">
               <span className="font-semibold text-gray-900">Grand Total</span>
@@ -1632,10 +1754,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           )}
 
           {/* Bottom CTA */}
-          <div className="mt-auto p-4 space-y-2">
+          <div className="mt-auto space-y-2 p-4 pb-28 md:pb-4">
             {saveError && <p className="text-xs text-red-600">{saveError}</p>}
             {!isEdit && (
-              <>
+              <div className="hidden md:block space-y-2">
                 <button
                   type="button"
                   onClick={handleSave}
@@ -1654,11 +1776,43 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 >
                   Reset
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
       </div>
+
+      {!isEdit && (
+        <div className="fixed inset-x-0 bottom-20 z-40 px-3 md:hidden">
+          <div className="rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+            {saveError && <p className="mb-2 text-xs text-red-600">{saveError}</p>}
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Grand Total</span>
+              <span className="font-mono text-sm font-bold text-gray-900">{fmt(grandTotal)}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setItems([]); setCustomer(null); setCustomerSearch("");
+                  setNotes(""); setAssignedMechanics([]); setSaveError("");
+                }}
+                className="rounded-lg border border-gray-200 py-2 text-sm text-gray-600"
+              >
+                Reset
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isPending || !customer}
+                className="rounded-lg bg-blue-600 py-2 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {isPending ? "Menyimpan..." : "Simpan"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

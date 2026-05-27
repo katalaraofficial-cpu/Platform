@@ -325,7 +325,7 @@ export async function createInvoiceWithItems(payload: {
       invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
       due_date: payload.dueDate ?? null,
       shipping_cost: payload.shippingCost ?? 0,
-    })
+    } as any)
     .select("id")
     .single();
   if (invErr || !invoice)

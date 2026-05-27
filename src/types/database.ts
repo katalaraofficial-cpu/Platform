@@ -114,6 +114,8 @@ export interface Invoice {
   discount_amount: number;
   grand_total: number;
   invoice_date: string;
+  due_date: string | null;
+  shipping_cost: number;
   completed_at: string | null;
   paid_at: string | null;
   payment_method: string | null;
@@ -258,13 +260,13 @@ export interface Database {
       };
       invoices: {
         Row: Invoice & Record<string, unknown>;
-        Insert: Omit<Invoice, "id" | "created_at" | "updated_at" | "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method"> & Partial<Pick<Invoice, "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method" | "invoice_date">>;
+        Insert: Omit<Invoice, "id" | "created_at" | "updated_at" | "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method" | "due_date" | "shipping_cost"> & Partial<Pick<Invoice, "subtotal" | "total_markup" | "ppn_pct" | "ppn_amount" | "pph_pct" | "pph_amount" | "discount_amount" | "grand_total" | "completed_at" | "paid_at" | "payment_method" | "invoice_date" | "due_date" | "shipping_cost">>;
         Update: Partial<Omit<Invoice, "id" | "created_at">>;
         Relationships: never[];
       };
       invoice_items: {
         Row: InvoiceItem & Record<string, unknown>;
-        Insert: Omit<InvoiceItem, "id" | "created_at" | "receipt_image_url" | "submitted_by"> & Partial<Pick<InvoiceItem, "receipt_image_url" | "submitted_by">>;
+        Insert: Omit<InvoiceItem, "id" | "created_at" | "receipt_image_url" | "submitted_by" | "unit_label"> & Partial<Pick<InvoiceItem, "receipt_image_url" | "submitted_by" | "unit_label">>;
         Update: Partial<Omit<InvoiceItem, "id" | "created_at">>;
         Relationships: never[];
       };

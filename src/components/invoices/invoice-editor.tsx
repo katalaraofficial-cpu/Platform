@@ -686,13 +686,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   }
 
   // ── Tax save ──────────────────────────────────────────────────────────
-  function handleSaveTax() {
+  function handleSaveTax(nextPpnEnabled = ppnEnabled, nextPpnPct = ppnPct, nextPphEnabled = pphEnabled, nextPphPct = pphPct) {
     if (!isEdit) return;
     startTransition(async () => {
       await updateInvoiceTax(
         editInvoice!.id,
-        ppnEnabled ? ppnPct : 0,
-        pphEnabled ? pphPct : 0,
+        nextPpnEnabled ? nextPpnPct : 0,
+        nextPphEnabled ? nextPphPct : 0,
         props.basePath
       );
     });
@@ -1379,8 +1379,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   checked={ppnEnabled}
                   disabled={!canEdit}
                   onChange={(e) => {
-                    setPpnEnabled(e.target.checked);
-                    if (isEdit) setTimeout(handleSaveTax, 0);
+                    const nextEnabled = e.target.checked;
+                    setPpnEnabled(nextEnabled);
+                    if (isEdit) handleSaveTax(nextEnabled, ppnPct, pphEnabled, pphPct);
                   }}
                   className="rounded"
                 />
@@ -1409,8 +1410,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   checked={pphEnabled}
                   disabled={!canEdit}
                   onChange={(e) => {
-                    setPphEnabled(e.target.checked);
-                    if (isEdit) setTimeout(handleSaveTax, 0);
+                    const nextEnabled = e.target.checked;
+                    setPphEnabled(nextEnabled);
+                    if (isEdit) handleSaveTax(ppnEnabled, ppnPct, nextEnabled, pphPct);
                   }}
                   className="rounded"
                 />

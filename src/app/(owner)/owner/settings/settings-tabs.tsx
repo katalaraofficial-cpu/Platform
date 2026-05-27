@@ -593,7 +593,7 @@ function FormatFieldPanel({
               <Input
                 value={notaSubtitle}
                 onChange={(e) => setNotaSubtitle(e.target.value)}
-                placeholder={format === "A5" ? "NOTA SERVIS KENDARAAN" : ""}
+                placeholder={format === "A5" ? "Opsional (kosongkan jika tidak dipakai)" : ""}
               />
             </Field>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -737,7 +737,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const legacyNotaHeader = extractNotaConfig(s?.nota_header);
   const legacyConfig = legacyNotaHeader.config ?? {};
   const [notaTitle, setNotaTitle] = useState((s?.nota_title ?? legacyConfig.nota_title as string | null | undefined) ?? "");
-  const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "NOTA SERVIS KENDARAAN");
+  const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "");
   const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
   const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
   const [notaJabatan, setNotaJabatan] = useState((s?.nota_jabatan ?? legacyConfig.nota_jabatan as string | undefined) ?? "");

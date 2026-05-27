@@ -51,8 +51,9 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
   const pphPct = Number(d?.pph_pct ?? 0);
   const discountAmount = Number(d?.discount_amount ?? 0);
   const shippingCost = Number(d?.shipping_cost ?? 0);
-  const ppnAmount = preTax * ppnPct / 100;
-  const pphAmount = preTax * pphPct / 100;
+  const taxableBase = Math.max(0, preTax - discountAmount);
+  const ppnAmount = taxableBase * ppnPct / 100;
+  const pphAmount = taxableBase * pphPct / 100;
   await supabase
     .from("invoices")
     .update({
@@ -60,7 +61,7 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
       total_markup: totalMarkup,
       ppn_amount: ppnAmount,
       pph_amount: pphAmount,
-      grand_total: preTax - discountAmount + ppnAmount + pphAmount + shippingCost,
+      grand_total: taxableBase + ppnAmount - pphAmount + shippingCost,
     })
     .eq("id", invoiceId);
 }
@@ -383,7 +384,7 @@ export async function updateInvoiceTax(
 
   const { data: inv } = await supabase
     .from("invoices")
-    .select("subtotal, total_markup, discount_amount")
+    .select("subtotal, total_markup, discount_amount, shipping_cost")
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId)
     .single();
@@ -391,8 +392,10 @@ export async function updateInvoiceTax(
 
   const preTax = Number(inv.subtotal) + Number(inv.total_markup);
   const discountAmount = Number(inv.discount_amount ?? 0);
-  const ppnAmount = preTax * ppnPct / 100;
-  const pphAmount = preTax * pphPct / 100;
+  const shippingCost = Number(inv.shipping_cost ?? 0);
+  const taxableBase = Math.max(0, preTax - discountAmount);
+  const ppnAmount = taxableBase * ppnPct / 100;
+  const pphAmount = taxableBase * pphPct / 100;
 
   await supabase
     .from("invoices")
@@ -401,7 +404,7 @@ export async function updateInvoiceTax(
       ppn_amount: ppnAmount,
       pph_pct: pphPct,
       pph_amount: pphAmount,
-      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
+      grand_total: taxableBase + ppnAmount - pphAmount + shippingCost,
     })
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId);
@@ -492,7 +495,7 @@ export async function updateInvoiceDiscount(
 
   const { data: inv } = await supabase
     .from("invoices")
-    .select("subtotal, total_markup, ppn_pct, pph_pct")
+    .select("subtotal, total_markup, ppn_pct, pph_pct, shipping_cost")
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId)
     .single();
@@ -501,14 +504,18 @@ export async function updateInvoiceDiscount(
   const preTax = Number(inv.subtotal) + Number(inv.total_markup);
   const ppnPct = Number(inv.ppn_pct ?? 0);
   const pphPct = Number(inv.pph_pct ?? 0);
-  const ppnAmount = preTax * ppnPct / 100;
-  const pphAmount = preTax * pphPct / 100;
+  const shippingCost = Number(inv.shipping_cost ?? 0);
+  const taxableBase = Math.max(0, preTax - discountAmount);
+  const ppnAmount = taxableBase * ppnPct / 100;
+  const pphAmount = taxableBase * pphPct / 100;
 
   await supabase
     .from("invoices")
     .update({
       discount_amount: discountAmount,
-      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
+      ppn_amount: ppnAmount,
+      pph_amount: pphAmount,
+      grand_total: taxableBase + ppnAmount - pphAmount + shippingCost,
     })
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId);

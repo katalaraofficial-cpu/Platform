@@ -140,12 +140,12 @@ export async function saveNotaSettings(data: {
         }
 
         revalidatePath("/owner/settings");
-        return { success: "Pengaturan nota disimpan (mode kompatibilitas)" };
+        return { success: "Pengaturan nota berhasil disimpan." };
       }
       return { error: error.message };
     }
     revalidatePath("/owner/settings");
-    return { success: "Pengaturan nota disimpan" };
+    return { success: "Pengaturan nota berhasil disimpan." };
   } catch (e) {
     return { error: (e as Error).message };
   }

@@ -42,13 +42,19 @@ export function Sidebar({
       navItems.forEach((item) => router.prefetch(item.href));
     };
 
-    if (typeof window !== "undefined" && "requestIdleCallback" in window) {
-      const id = window.requestIdleCallback(prefetchAll, { timeout: 1200 });
-      return () => window.cancelIdleCallback(id);
+    const win = globalThis as Window & typeof globalThis;
+
+    if (typeof win.requestIdleCallback === "function") {
+      const id = win.requestIdleCallback(prefetchAll, { timeout: 1200 });
+      return () => {
+        if (typeof win.cancelIdleCallback === "function") {
+          win.cancelIdleCallback(id);
+        }
+      };
     }
 
-    const timeoutId = window.setTimeout(prefetchAll, 250);
-    return () => window.clearTimeout(timeoutId);
+    const timeoutId = setTimeout(prefetchAll, 250);
+    return () => clearTimeout(timeoutId);
   }, [navItems, router]);
 
   return (

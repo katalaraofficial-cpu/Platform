@@ -272,104 +272,104 @@ export default async function OwnerInvoicesPage({
             </div>
 
             <div className="hidden overflow-x-auto md:block">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className={TH}>No. Nota</th>
-                  <th className={TH}>Tanggal</th>
-                  <th className={TH}>Pelanggan</th>
-                  <th className={TH}>Status</th>
-                  <th className={`${TH} text-right`}>Total</th>
-                  <th className={`${TH} text-right`}>Bayar</th>
-                  <th className={`${TH} text-right`}>Kurang</th>
-                  <th className={TH}>Mekanik</th>
-                  <th className={TH}>Tgl Selesai</th>
-                  <th className={TH}>Catatan</th>
-                  <th className="px-3 py-3 w-10" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {invoices.map((inv) => {
-                  const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
-                  const mechanics = invMechanicsMap[inv.id] ?? [];
-                  const invTotal = Number(inv.grand_total);
-                  const isPaid = inv.status === "paid";
-                  return (
-                    <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
-                      <td className={`${TD} font-mono font-medium text-gray-900 whitespace-nowrap`}>
-                        <Link
-                          href={`${BASE_PATH}/invoices/${inv.id}`}
-                          className="hover:text-blue-600 hover:underline"
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className={TH}>No. Nota</th>
+                    <th className={TH}>Tanggal</th>
+                    <th className={TH}>Pelanggan</th>
+                    <th className={TH}>Status</th>
+                    <th className={`${TH} text-right`}>Total</th>
+                    <th className={`${TH} text-right`}>Bayar</th>
+                    <th className={`${TH} text-right`}>Kurang</th>
+                    <th className={TH}>Mekanik</th>
+                    <th className={TH}>Tgl Selesai</th>
+                    <th className={TH}>Catatan</th>
+                    <th className="w-10 px-3 py-3" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {invoices.map((inv) => {
+                    const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
+                    const mechanics = invMechanicsMap[inv.id] ?? [];
+                    const invTotal = Number(inv.grand_total);
+                    const isPaid = inv.status === "paid";
+                    return (
+                      <tr key={inv.id} className="transition-colors hover:bg-gray-50">
+                        <td className={`${TD} whitespace-nowrap font-mono font-medium text-gray-900`}>
+                          <Link
+                            href={`${BASE_PATH}/invoices/${inv.id}`}
+                            className="hover:text-blue-600 hover:underline"
+                          >
+                            {inv.invoice_number}
+                          </Link>
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-gray-500`}>
+                          {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
+                        </td>
+                        <td className={`${TD} max-w-[140px] truncate text-gray-900`}>
+                          {customer?.name ?? "-"}
+                        </td>
+                        <td className={TD}>
+                          <StatusBadge status={inv.status as InvoiceStatus} />
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-right font-medium text-gray-900`}>
+                          {fmt(invTotal)}
+                        </td>
+                        <td
+                          className={`${TD} whitespace-nowrap text-right ${
+                            isPaid ? "font-medium text-green-600" : "text-gray-400"
+                          }`}
                         >
-                          {inv.invoice_number}
-                        </Link>
-                      </td>
-                      <td className={`${TD} whitespace-nowrap text-gray-500`}>
-                        {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
-                      </td>
-                      <td className={`${TD} text-gray-900 max-w-[140px] truncate`}>
-                        {customer?.name ?? "-"}
-                      </td>
-                      <td className={TD}>
-                        <StatusBadge status={inv.status as InvoiceStatus} />
-                      </td>
-                      <td className={`${TD} text-right font-medium text-gray-900 whitespace-nowrap`}>
-                        {fmt(invTotal)}
-                      </td>
-                      <td
-                        className={`${TD} text-right whitespace-nowrap ${
-                          isPaid ? "text-green-600 font-medium" : "text-gray-400"
-                        }`}
-                      >
-                        {fmt(isPaid ? invTotal : 0)}
-                      </td>
-                      <td
-                        className={`${TD} text-right whitespace-nowrap ${
-                          !isPaid ? "text-red-500 font-medium" : "text-gray-400"
-                        }`}
-                      >
-                        {fmt(isPaid ? 0 : invTotal)}
-                      </td>
-                      <td className={`${TD} text-gray-600 max-w-[120px]`}>
-                        {mechanics.length > 0 ? (
-                          <span className="truncate block" title={mechanics.join(", ")}>
-                            {mechanics.slice(0, 2).join(", ")}
-                            {mechanics.length > 2 && (
-                              <span className="text-gray-400"> +{mechanics.length - 2}</span>
-                            )}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                    </div>
-                      </td>
-                      <td className={`${TD} whitespace-nowrap text-gray-500`}>
-                        {fmtDate(inv.completed_at)}
-                      </td>
-                <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        {inv.notes ? (
-                          <span className="truncate block" title={inv.notes}>
-                            {inv.notes}
-                          </span>
-                        ) : (
-                          <span className="text-gray-300">-</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-3">
-                        <InvoiceRowActions
-                          invoiceId={inv.id}
-                          invoiceNumber={inv.invoice_number}
-                          status={inv.status}
-                          basePath={BASE_PATH}
-                          isOwner={true}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                          {fmt(isPaid ? invTotal : 0)}
+                        </td>
+                        <td
+                          className={`${TD} whitespace-nowrap text-right ${
+                            !isPaid ? "font-medium text-red-500" : "text-gray-400"
+                          }`}
+                        >
+                          {fmt(isPaid ? 0 : invTotal)}
+                        </td>
+                        <td className={`${TD} max-w-[120px] text-gray-600`}>
+                          {mechanics.length > 0 ? (
+                            <span className="block truncate" title={mechanics.join(", ")}>
+                              {mechanics.slice(0, 2).join(", ")}
+                              {mechanics.length > 2 && (
+                                <span className="text-gray-400"> +{mechanics.length - 2}</span>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-gray-500`}>
+                          {fmtDate(inv.completed_at)}
+                        </td>
+                        <td className={`${TD} max-w-[140px] text-gray-500`}>
+                          {inv.notes ? (
+                            <span className="block truncate" title={inv.notes}>
+                              {inv.notes}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          <InvoiceRowActions
+                            invoiceId={inv.id}
+                            invoiceNumber={inv.invoice_number}
+                            status={inv.status}
+                            basePath={BASE_PATH}
+                            isOwner={true}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Footer: count + pagination */}

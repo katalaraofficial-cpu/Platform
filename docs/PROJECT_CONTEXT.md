@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 27 Mei 2026 — commit `bd1cfe1`
+> **Last updated:** 27 Mei 2026 — commit `0df5fad`
 
 ---
 
@@ -29,6 +29,17 @@
 - Migration terbaru terkait fitur ini:
    - `023_invoice_new_fields.sql`
    - `024_settings_nota_config.sql`
+   - `025_settings_nota_title_size.sql`
+- Update stabilisasi terbaru:
+   - perbaikan save pajak (toggle PPh/PPN) agar tidak kembali ke state lama
+   - sinkronisasi state form Nota & Printer setelah save + refresh
+   - fallback metadata nota diprioritaskan bila kolom modern belum sinkron
+- Update performa navigasi owner:
+   - query payload owner dipangkas pada dashboard/settings/kas
+   - query KPI + tabel di halaman kas diparalelkan
+   - prefetch route owner dari sidebar dan mobile bottom nav
+- Update stabilitas build:
+   - fix TypeScript narrowing issue pada prefetch fallback di sidebar (Vercel build)
 
 ---
 

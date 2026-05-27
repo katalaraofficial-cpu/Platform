@@ -1,6 +1,6 @@
 # AI Agent Framework - Katalara POS
 
-Last updated: 27 Mei 2026 (commit `bd1cfe1`)
+Last updated: 27 Mei 2026 (commit `0df5fad`)
 
 ## Tujuan Dokumen
 
@@ -31,6 +31,13 @@ Dokumen ini menjadi kerangka cepat bagi AI agent agar perubahan kode konsisten d
    - setting save action (`src/lib/actions/settings.ts`) jika field dari pengaturan.
 4. Jangan hardcode format print jika sudah ada `nota_active_format`.
 5. Selalu cek type/lint error setelah edit file inti.
+6. Untuk optimasi performa route owner, prioritaskan:
+   - pengurangan payload query (`select` kolom spesifik)
+   - paralelisasi query independen
+   - prefetch route navigasi (aman untuk SSR auth)
+7. Untuk perbaikan settings nota, pertahankan kompatibilitas dua sumber data:
+   - kolom modern `settings.*`
+   - fallback metadata pada `nota_header`
 
 ## 3) Alur Perubahan Fitur Settings -> Output Print
 
@@ -58,3 +65,22 @@ Simpan ringkasan build di `docs/DEVELOPMENT_PROGRESS.md` dan update ringkasan di
 - Perbedaan nilai harga item (`unit_price` vs `final_price`) di template print.
 - Props tambahan di `commonProps` yang tidak dipakai template tertentu.
 - Status paid + watermark toggle (harus konsisten lintas format).
+- Type narrowing browser API (`window.requestIdleCallback`/`setTimeout`) yang bisa lolos lokal tapi gagal di build Vercel.
+
+## 6) Baseline Performa (Mei 2026)
+
+Perubahan baseline performa yang sudah aktif:
+
+- `getUserContext` dicache per-request untuk mengurangi hit auth/profile berulang.
+- Payload query owner dipangkas pada route utama (`dashboard`, `settings`, `kas`).
+- Halaman kas menjalankan query KPI dan query tabel secara paralel.
+- Navigasi owner melakukan prefetch route saat idle dan hover/focus.
+
+Saat melakukan perubahan baru, jangan regress baseline di atas tanpa justifikasi.
+
+## 7) Log Build Terbaru (Ringkas)
+
+- `3f12dd7`: prefetch owner routes from navigation
+- `2efa3ac`: parallelize kas KPI and table queries
+- `6792240`: trim owner route query payloads
+- `0df5fad`: fix window narrowing issue in sidebar prefetch fallback

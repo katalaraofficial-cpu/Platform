@@ -1,6 +1,6 @@
 # Development Progress Log
 
-Last updated: 27 Mei 2026 (commit `bd1cfe1`)
+Last updated: 27 Mei 2026 (commit `0df5fad`)
 
 ## Ringkasan Status Saat Ini
 
@@ -13,12 +13,15 @@ Last updated: 27 Mei 2026 (commit `bd1cfe1`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
-| `bd1cfe1` | feat | Tab Nota & Printer detail fields + sinkron output cetak dari settings |
-| `87d6e70` | feat | Watermark LUNAS, redesign invoice (gambar referensi 5), perbaikan A5 |
-| `d4871a0` | fix | Cetak dari list buka tab baru + koreksi harga/unit + redesign invoice |
-| `3db1002` | fix | Perbaikan lint/type error (`as any`) pada insert invoice |
-| `f0a718d` | fix | Perbaikan type Insert untuk `due_date`, `shipping_cost`, `unit_label` |
-| `d15fd1f` | feat | Penambahan due date, satuan item, biaya kirim + redesign template |
+| `0df5fad` | fix | Perbaikan build Vercel: hindari narrowing `window` di fallback prefetch sidebar |
+| `3f12dd7` | perf | Prefetch route owner dari sidebar + mobile bottom nav |
+| `2efa3ac` | perf | Paralelisasi query KPI + tabel halaman Kas |
+| `6792240` | perf | Pangkas payload query owner (`dashboard`, `settings`, `kas`) |
+| `8524ad8` | fix | Prioritas baca fallback metadata nota saat kolom modern belum sinkron |
+| `4c1ba01` | fix | Sinkron state form Nota & Printer setelah save (`router.refresh`) |
+| `ab99944` | fix | Simpan toggle pajak dengan next-state eksplisit (hindari stale state) |
+| `6ee3c32` | fix | Rapikan struktur kolom tabel invoice + separator vertikal |
+| `9558dfd` | fix | Konfigurasi ukuran judul nota + refinemen layout invoice |
 
 ## Status Migrasi Penting (Invoice & Settings)
 
@@ -27,6 +30,7 @@ Last updated: 27 Mei 2026 (commit `bd1cfe1`)
 - `022_settings_assets_bucket.sql` -> pending eksekusi Supabase (jika belum dijalankan di production)
 - `023_invoice_new_fields.sql` -> wajib untuk due_date, shipping_cost, unit_label
 - `024_settings_nota_config.sql` -> wajib untuk nota_title, nota_jabatan, nota_show_watermark
+- `025_settings_nota_title_size.sql` -> wajib untuk kontrol ukuran judul nota/invoice
 
 ## Checklist Verifikasi Setelah Deploy
 
@@ -35,3 +39,7 @@ Last updated: 27 Mei 2026 (commit `bd1cfe1`)
 3. A4/A5/thermal masing-masing menampilkan layout dan data sesuai konfigurasi.
 4. Watermark LUNAS hanya muncul jika status paid dan toggle watermark aktif.
 5. Signature + stamp tampil sesuai file upload terbaru di settings-assets.
+6. Toggle PPh/PPN tidak kembali ke nilai lama setelah pindah halaman.
+7. Nilai form Nota & Printer tetap konsisten setelah save dan reload.
+8. Navigasi owner terasa lebih cepat pada perpindahan via sidebar/bottom nav.
+9. Build Vercel lolos tanpa error TypeScript pada `sidebar.tsx`.

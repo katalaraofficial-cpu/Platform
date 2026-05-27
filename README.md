@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 27 Mei 2026 — commit `bd1cfe1`
+**Last updated:** 27 Mei 2026 — commit `0df5fad`
 
 > Untuk konteks lengkap (AI agent briefing, keputusan teknis, status modul, known issues): lihat [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)
 
@@ -20,14 +20,23 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
-| `bd1cfe1` | feat | Tab Nota & Printer detail fields + sinkron output cetak dari settings |
-| `87d6e70` | feat | Watermark LUNAS, redesign invoice sesuai referensi, perbaikan A5 |
-| `d4871a0` | fix | Cetak dari list buka tab baru + koreksi harga per unit |
-| `3db1002` | fix | Perbaikan lint/type error invoice insert |
-| `f0a718d` | fix | Perbaikan type Insert due_date/shipping_cost/unit_label |
-| `d15fd1f` | feat | Due date + satuan + biaya kirim + redesign template invoice |
+| `0df5fad` | fix | Stabilkan build Vercel: perbaikan narrowing `window` pada prefetch sidebar |
+| `3f12dd7` | perf | Prefetch route owner dari navigasi sidebar dan bottom nav |
+| `2efa3ac` | perf | Paralelisasi query KPI + tabel pada halaman Kas |
+| `6792240` | perf | Pangkas payload query owner (settings/kas/dashboard) |
+| `8524ad8` | fix | Prioritaskan fallback metadata nota agar field settings tidak reset |
+| `4c1ba01` | fix | Sinkronisasi state form Nota & Printer setelah save |
+| `ab99944` | fix | Perbaikan save toggle pajak agar tidak menyimpan state stale |
+| `9558dfd` | fix | Tambah konfigurasi ukuran judul nota + refinemen layout invoice |
 
 Catatan: untuk histori detail dan checklist verifikasi per build, gunakan [`docs/DEVELOPMENT_PROGRESS.md`](docs/DEVELOPMENT_PROGRESS.md).
+
+### Dampak Optimasi Navigasi (Point 1-3)
+
+- Navigasi owner lebih responsif karena route diprefetch saat idle dan saat hover/focus.
+- Beban query owner berkurang karena pengurangan kolom `select` yang tidak terpakai.
+- Halaman Kas membaik karena query KPI dan query tabel kini berjalan paralel.
+- Build Vercel lebih stabil setelah perbaikan TypeScript pada fallback prefetch sidebar.
 
 ---
 
@@ -128,6 +137,15 @@ RESEND_API_KEY=<resend-api-key>
 ---
 
 ### ⚠️ Migrasi Pending — Jalankan di Supabase SQL Editor
+
+Status di bawah adalah baseline historis. Untuk build terbaru, pastikan migration tambahan berikut juga sudah dieksekusi di environment target:
+
+- `020_employee_points.sql`
+- `021_settings_extended.sql`
+- `022_settings_assets_bucket.sql`
+- `023_invoice_new_fields.sql`
+- `024_settings_nota_config.sql`
+- `025_settings_nota_title_size.sql`
 
 | File | Status | Isi |
 |------|--------|-----|

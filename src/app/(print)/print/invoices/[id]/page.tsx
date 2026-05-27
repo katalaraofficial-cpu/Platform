@@ -165,6 +165,10 @@ function NotaTemplate({
   grandTotal,
   notes,
   status,
+  storeAddress,
+  storePhone,
+  signatureUrl,
+  stampUrl,
 }: {
   tenantName: string;
   invoiceNumber: string;
@@ -180,6 +184,10 @@ function NotaTemplate({
   grandTotal: number;
   notes: string | null;
   status: string;
+  storeAddress?: string;
+  storePhone?: string;
+  signatureUrl?: string | null;
+  stampUrl?: string | null;
 }) {
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model].filter(Boolean).join(" ");

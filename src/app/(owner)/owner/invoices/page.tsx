@@ -154,7 +154,7 @@ export default async function OwnerInvoicesPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Invoice</h1>
           <p className="mt-1 text-sm text-gray-500">Kelola semua transaksi jasa &amp; barang</p>
@@ -168,7 +168,7 @@ export default async function OwnerInvoicesPage({
       </div>
 
       {/* KPI Boxes */}
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {KPI_STATUSES.map((k) => {
           const count = k.value === "" ? kpiTotal : (kpiCounts[k.value] ?? 0);
           const isActive = status === k.value;
@@ -192,7 +192,7 @@ export default async function OwnerInvoicesPage({
       </div>
 
       {/* Table Card */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {/* Date Filter */}
         <div className="border-b border-gray-100 px-4 py-3">
           <Suspense fallback={null}>
@@ -209,7 +209,69 @@ export default async function OwnerInvoicesPage({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <>
+            <div className="divide-y divide-gray-100 md:hidden">
+              {invoices.map((inv) => {
+                const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
+                const mechanics = invMechanicsMap[inv.id] ?? [];
+                const invTotal = Number(inv.grand_total);
+                const isPaid = inv.status === "paid";
+                return (
+                  <div key={inv.id} className="space-y-3 p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <Link
+                          href={`${BASE_PATH}/invoices/${inv.id}`}
+                          className="font-mono text-sm font-semibold text-gray-900 hover:text-blue-600"
+                        >
+                          {inv.invoice_number}
+                        </Link>
+                        <p className="mt-1 text-xs text-gray-500">
+                          {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
+                        </p>
+                      </div>
+                      <StatusBadge status={inv.status as InvoiceStatus} />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p className="text-gray-400">Pelanggan</p>
+                        <p className="truncate font-medium text-gray-700">{customer?.name ?? "-"}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Mekanik</p>
+                        <p className="truncate font-medium text-gray-700">
+                          {mechanics.length > 0 ? mechanics.join(", ") : "-"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Total</p>
+                        <p className="font-semibold text-gray-900">{fmt(invTotal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Sisa</p>
+                        <p className={`font-semibold ${isPaid ? "text-gray-400" : "text-red-500"}`}>
+                          {fmt(isPaid ? 0 : invTotal)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center justify-between">
+                      <p className="max-w-[75%] truncate text-xs text-gray-500">{inv.notes || "-"}</p>
+                      <InvoiceRowActions
+                        invoiceId={inv.id}
+                        invoiceNumber={inv.invoice_number}
+                        status={inv.status}
+                        basePath={BASE_PATH}
+                        isOwner={true}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
@@ -279,11 +341,12 @@ export default async function OwnerInvoicesPage({
                         ) : (
                           <span className="text-gray-300">-</span>
                         )}
+                    </div>
                       </td>
                       <td className={`${TD} whitespace-nowrap text-gray-500`}>
                         {fmtDate(inv.completed_at)}
                       </td>
-                      <td className={`${TD} text-gray-500 max-w-[140px]`}>
+                <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                         {inv.notes ? (
                           <span className="truncate block" title={inv.notes}>
                             {inv.notes}

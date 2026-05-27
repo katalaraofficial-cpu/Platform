@@ -115,7 +115,7 @@ export default async function AdminInvoicesPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Invoice</h1>
           <p className="mt-1 text-sm text-gray-500">Kelola semua transaksi jasa &amp; barang</p>
@@ -129,7 +129,7 @@ export default async function AdminInvoicesPage({
       </div>
 
       {/* KPI Boxes */}
-      <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {KPI_STATUSES.map((k) => {
           const count = k.value === "" ? kpiTotal : (kpiCounts[k.value] ?? 0);
           const isActive = status === k.value;
@@ -153,7 +153,7 @@ export default async function AdminInvoicesPage({
       </div>
 
       {/* Table Card */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         {/* Date Filter */}
         <div className="border-b border-gray-100 px-4 py-3">
           <Suspense fallback={null}>
@@ -170,53 +170,89 @@ export default async function AdminInvoicesPage({
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
-                  <th className="px-4 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {invoices.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50">
-                    <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">
-                      {inv.invoice_number}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
-                      {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-700">
-                      {customerMap[inv.customer_id ?? ""] ?? "-"}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={inv.status as InvoiceStatus} />
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
-                      {fmt(Number(inv.grand_total))}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
-                      <Link
-                        href={`${BASE_PATH}/invoices/${inv.id}`}
-                        className="font-medium text-blue-600 hover:text-blue-500"
-                      >
-                        Lihat
-                      </Link>
-                    </td>
+          <>
+            <div className="divide-y divide-gray-100 md:hidden">
+              {invoices.map((inv) => (
+                <div key={inv.id} className="space-y-3 p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-mono text-sm font-semibold text-gray-900">{inv.invoice_number}</p>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
+                      </p>
+                    </div>
+                    <StatusBadge status={inv.status as InvoiceStatus} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p className="text-gray-400">Pelanggan</p>
+                      <p className="truncate font-medium text-gray-700">{customerMap[inv.customer_id ?? ""] ?? "-"}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray-400">Total</p>
+                      <p className="font-semibold text-gray-900">{fmt(Number(inv.grand_total))}</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Link
+                      href={`${BASE_PATH}/invoices/${inv.id}`}
+                      className="text-sm font-medium text-blue-600 hover:text-blue-500"
+                    >
+                      Lihat
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto md:block">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
+                    <th className="px-4 py-3" />
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white">
+                  {invoices.map((inv) => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">
+                        {inv.invoice_number}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                        {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700">
+                        {customerMap[inv.customer_id ?? ""] ?? "-"}
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={inv.status as InvoiceStatus} />
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
+                        {fmt(Number(inv.grand_total))}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
+                        <Link
+                          href={`${BASE_PATH}/invoices/${inv.id}`}
+                          className="font-medium text-blue-600 hover:text-blue-500"
+                        >
+                          Lihat
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Footer: count + pagination */}
-        <div className="flex items-center justify-between border-t border-gray-100 px-4 py-3">
+        <div className="flex flex-col gap-2 border-t border-gray-100 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-gray-400">
             {total === 0
               ? "Tidak ada invoice"

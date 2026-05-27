@@ -66,6 +66,8 @@ export async function redeemEmployeePoints(
     profile_id: profileId,
     transaction_type: "redeem",
     points: -points,
+    reference_id: null,
+    expires_at: null,
     notes: notes || `Redeem ${points} point → Rp ${bonusAmount.toLocaleString("id-ID")}`,
   });
 

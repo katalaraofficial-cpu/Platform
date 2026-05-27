@@ -7,6 +7,12 @@ import { revalidatePath } from "next/cache";
 
 export type SettingsActionState = { error?: string; success?: string };
 
+const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+
+function encodeNotaHeader(header: string, config: Record<string, unknown>) {
+  return `${header.trim()}${NOTA_CONFIG_MARKER}${JSON.stringify(config)}`;
+}
+
 // ── Helper: ensure caller is owner ──────────────────────────
 async function ownerGuard(): Promise<{ tenantId: string; id: string; role: string | null }> {
   const ctx = await getUserContext();
@@ -107,7 +113,36 @@ export async function saveNotaSettings(data: {
         nota_active_format: data.notaActiveFormat,
       })
       .eq("tenant_id", ctx.tenantId);
-    if (error) return { error: error.message };
+    if (error) {
+      const message = error.message.toLowerCase();
+      if (message.includes("schema cache") || message.includes("nota_customer_layout") || message.includes("nota_signature_layout")) {
+        const legacyUpdate = await supabase
+          .from("settings")
+          .update({
+            nota_header: encodeNotaHeader(data.notaHeader, {
+              nota_title: data.notaTitle.trim() || null,
+              nota_subtitle: data.notaSubtitle.trim() || null,
+              nota_customer_layout: data.notaCustomerLayout,
+              nota_signature_layout: data.notaSignatureLayout,
+              nota_jabatan: data.notaJabatan.trim() || null,
+              nota_show_watermark: data.notaShowWatermark,
+            }),
+            nota_footer: data.notaFooter.trim(),
+            nota_signature_url: data.notaSignatureUrl.trim(),
+            nota_stamp_url: data.notaStampUrl.trim(),
+            nota_active_format: data.notaActiveFormat,
+          })
+          .eq("tenant_id", ctx.tenantId);
+
+        if (legacyUpdate.error) {
+          return { error: "Database belum sinkron dengan konfigurasi Nota & Printer. Jalankan migration 024_settings_nota_config.sql di Supabase, lalu simpan ulang." };
+        }
+
+        revalidatePath("/owner/settings");
+        return { success: "Pengaturan nota disimpan (mode kompatibilitas)" };
+      }
+      return { error: error.message };
+    }
     revalidatePath("/owner/settings");
     return { success: "Pengaturan nota disimpan" };
   } catch (e) {

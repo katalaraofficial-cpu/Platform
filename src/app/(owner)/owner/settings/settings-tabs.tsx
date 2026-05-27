@@ -25,6 +25,21 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
+const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+
+function extractNotaConfig(value: string | null | undefined) {
+  if (!value) return { visibleText: "", config: null as Record<string, unknown> | null };
+  const markerIndex = value.indexOf(NOTA_CONFIG_MARKER);
+  if (markerIndex === -1) return { visibleText: value, config: null as Record<string, unknown> | null };
+  const visibleText = value.slice(0, markerIndex);
+  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length);
+  try {
+    return { visibleText, config: JSON.parse(rawConfig) as Record<string, unknown> };
+  } catch {
+    return { visibleText, config: null as Record<string, unknown> | null };
+  }
+}
+
 // ── shared helpers ───────────────────────────────────────────
 function Field({
   label,
@@ -97,7 +112,7 @@ export function SettingsTabs({
   return (
     <div className="flex flex-col gap-5">
       {/* Tab bar */}
-      <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+      <div className="flex w-full flex-wrap gap-1 rounded-xl bg-gray-100 p-1 sm:w-fit">
         {TABS.map(({ id, label, icon: Icon }) => (
           <Link
             key={id}
@@ -148,7 +163,7 @@ function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-lg">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-lg flex-col gap-5">
       <h2 className="font-bold text-gray-900 text-lg">Informasi Toko</h2>
       <Field label="Nama Toko">
         <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Bengkel Jaya Abadi" />
@@ -199,7 +214,7 @@ function TabPlatform({ s }: { s: Settings | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-lg">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-lg flex-col gap-5">
       <h2 className="font-bold text-gray-900 text-lg">Pengaturan Platform</h2>
       <Field label="Default Markup Sparepart Eksternal (%)">
         <Input type="number" min={0} max={100} step={0.1} value={markupPct} onChange={(e) => setMarkupPct(e.target.value)} />
@@ -220,7 +235,7 @@ function TabPlatform({ s }: { s: Settings | null }) {
       </Field>
       <div>
         <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Label Tier Harga</p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {(["HET", "HG1", "HG2", "HG3"] as const).map((key) => (
             <Field key={key} label={`Tier ${key}`}>
               <Input
@@ -285,18 +300,18 @@ function ImageUploadField({
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 w-full max-w-sm">
       <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
         {label}
       </label>
       {currentUrl ? (
-        <div className="relative inline-flex items-start gap-3">
+          <div className="relative inline-flex w-full max-w-full items-start gap-3">
           <Image
             src={currentUrl}
             alt={label}
             width={120}
             height={80}
-            className="rounded-xl border border-gray-200 object-contain bg-gray-50"
+              className="h-auto max-w-[120px] rounded-xl border border-gray-200 object-contain bg-gray-50"
           />
           <button
             type="button"
@@ -307,7 +322,7 @@ function ImageUploadField({
           </button>
         </div>
       ) : (
-        <div className="flex h-20 w-48 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-xs text-gray-400">
+        <div className="flex h-20 w-full max-w-[12rem] items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-xs text-gray-400">
           Belum ada gambar
         </div>
       )}
@@ -322,7 +337,7 @@ function ImageUploadField({
         type="button"
         disabled={uploading}
         onClick={() => inputRef.current?.click()}
-        className="flex w-fit items-center gap-2 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+        className="flex w-full max-w-fit items-center gap-2 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
       >
         <Upload className="h-3.5 w-3.5" />
         {uploading ? "Mengupload..." : currentUrl ? "Ganti Gambar" : "Upload Gambar"}
@@ -494,9 +509,9 @@ function SectionBar({ label, sublabel }: { label: string; sublabel?: string }) {
 
 function InfoRef({ rowLabel, value }: { rowLabel: string; value: string }) {
   return (
-    <div className="flex items-start gap-3">
-      <span className="text-xs text-gray-400 shrink-0 w-36">{rowLabel}</span>
-      <span className="text-sm text-gray-800 font-medium">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-3">
+      <span className="text-xs text-gray-400 shrink-0 sm:w-36">{rowLabel}</span>
+      <span className="text-sm text-gray-800 font-medium break-words">
         {value || <span className="text-gray-300 italic text-xs">belum diisi</span>}
       </span>
     </div>
@@ -660,7 +675,7 @@ function FormatFieldPanel({
       <div className="p-4 flex flex-col gap-4">
         {format !== "thermal" && (
           <>
-            <label className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2">
+            <label className="flex items-center justify-between gap-3 rounded-xl border border-gray-200 px-3 py-2">
               <span className="text-sm font-medium text-gray-700">Aktifkan Watermark LUNAS</span>
               <input
                 type="checkbox"
@@ -718,13 +733,15 @@ function FormatFieldPanel({
 
 // ── Tab 3: Nota & Printer ────────────────────────────────────
 function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
-  const [notaTitle, setNotaTitle] = useState(s?.nota_title ?? "");
-  const [notaSubtitle, setNotaSubtitle] = useState(s?.nota_subtitle ?? "NOTA SERVIS KENDARAAN");
-  const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">(s?.nota_customer_layout ?? "stacked");
-  const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">(s?.nota_signature_layout ?? "double");
+  const legacyNotaHeader = extractNotaConfig(s?.nota_header);
+  const legacyConfig = legacyNotaHeader.config ?? {};
+  const [notaTitle, setNotaTitle] = useState((s?.nota_title ?? legacyConfig.nota_title as string | null | undefined) ?? "");
+  const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "NOTA SERVIS KENDARAAN");
+  const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
+  const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
   const [notaJabatan, setNotaJabatan] = useState(s?.nota_jabatan ?? "");
   const [showWatermark, setShowWatermark] = useState(s?.nota_show_watermark ?? true);
-  const [header, setHeader] = useState(s?.nota_header ?? "");
+  const [header, setHeader] = useState(legacyNotaHeader.visibleText);
   const [footer, setFooter] = useState(s?.nota_footer ?? "");
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");
   const [stampUrl, setStampUrl] = useState(s?.nota_stamp_url ?? "");
@@ -747,12 +764,16 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         notaStampUrl: stampUrl,
         notaActiveFormat: format,
       });
-      if (res.error) toast.error(res.error); else toast.success(res.success);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(res.success);
+      }
     });
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-xl">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-xl flex-col gap-5">
       <h2 className="font-bold text-gray-900 text-lg">Nota &amp; Printer</h2>
       <Field label="Format Nota Aktif">
         <FormatPicker value={format} onChange={setFormat} />
@@ -820,7 +841,7 @@ function TabReward({ s }: { s: Settings | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-lg">
+    <form onSubmit={handleSubmit} className="flex w-full max-w-lg flex-col gap-5">
       <h2 className="font-bold text-gray-900 text-lg">Program Reward Mekanik</h2>
       <Field label="Status Program">
         <label className="flex items-center gap-3 cursor-pointer">

@@ -15,6 +15,7 @@ interface SidebarProps {
   userRole: string;
   /** Accent colour class for the active nav item background */
   accentClass?: string;
+  className?: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ export function Sidebar({
   userFullName,
   userRole,
   accentClass = "bg-primary/10 text-primary",
+  className,
 }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
@@ -38,6 +40,7 @@ export function Sidebar({
     <aside
       className={cn(
         "flex h-full flex-col border-r bg-white transition-all duration-200",
+        className,
         collapsed ? "w-14" : "w-60"
       )}
     >

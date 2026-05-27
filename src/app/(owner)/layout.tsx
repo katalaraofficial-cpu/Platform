@@ -55,7 +55,7 @@ export default async function OwnerLayout({
   ];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Sidebar */}
       <Sidebar
         navItems={navItems}
@@ -63,11 +63,15 @@ export default async function OwnerLayout({
         userFullName={ctx.fullName}
         userRole={ctx.role}
         accentClass="bg-primary/10 text-primary font-semibold"
+        className="hidden lg:flex"
       />
 
       {/* Main content */}
-      <main className="flex flex-1 flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-6">{children}</div>
+      <main className="flex min-w-0 flex-1 flex-col">
+        <div className="border-b bg-white px-4 py-3 text-sm text-gray-500 lg:hidden">
+          {ctx.tenantName} · {ctx.fullName}
+        </div>
+        <div className="flex-1 overflow-y-auto px-4 py-4 lg:p-6">{children}</div>
       </main>
     </div>
   );

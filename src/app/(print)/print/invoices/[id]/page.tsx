@@ -6,6 +6,21 @@ import type { InvoiceItem, VehicleInfo } from "@/types/database";
 
 type Format = "struk" | "nota" | "invoice";
 
+const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+
+function extractNotaConfig(value: string | null | undefined) {
+  if (!value) return { visibleText: "", config: null as Record<string, unknown> | null };
+  const markerIndex = value.indexOf(NOTA_CONFIG_MARKER);
+  if (markerIndex === -1) return { visibleText: value, config: null as Record<string, unknown> | null };
+  const visibleText = value.slice(0, markerIndex);
+  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length);
+  try {
+    return { visibleText, config: JSON.parse(rawConfig) as Record<string, unknown> };
+  } catch {
+    return { visibleText, config: null as Record<string, unknown> | null };
+  }
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -643,10 +658,12 @@ export default async function PrintInvoicePage({
   const storePhone = (settings as { store_phone?: string } | null)?.store_phone ?? "";
   const storeEmail = (settings as { store_email?: string } | null)?.store_email ?? "";
   const storeLogoUrl = (settings as { store_logo_url?: string } | null)?.store_logo_url ?? null;
-  const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? "";
-  const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? "NOTA SERVIS KENDARAAN";
-  const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? "stacked";
-  const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? "double";
+  const legacyHeader = extractNotaConfig((settings as { nota_header?: string } | null)?.nota_header ?? "");
+  const legacyConfig = legacyHeader.config ?? {};
+  const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? (legacyConfig.nota_title as string | undefined) ?? "";
+  const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? (legacyConfig.nota_subtitle as string | undefined) ?? "NOTA SERVIS KENDARAAN";
+  const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? (legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked";
+  const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? (legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double";
   const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? "";
   const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? true;
   const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";

@@ -74,6 +74,9 @@ export async function savePlatformSettings(data: {
 // ── Tab 3: Nota & Printer ───────────────────────────────────
 export async function saveNotaSettings(data: {
   notaTitle: string;
+  notaSubtitle: string;
+  notaCustomerLayout: "stacked" | "split";
+  notaSignatureLayout: "double" | "single";
   notaJabatan: string;
   notaShowWatermark: boolean;
   notaHeader: string;
@@ -92,6 +95,9 @@ export async function saveNotaSettings(data: {
       .from("settings")
       .update({
         nota_title: data.notaTitle.trim() || null,
+        nota_subtitle: data.notaSubtitle.trim() || null,
+        nota_customer_layout: data.notaCustomerLayout,
+        nota_signature_layout: data.notaSignatureLayout,
         nota_jabatan: data.notaJabatan.trim() || null,
         nota_show_watermark: data.notaShowWatermark,
         nota_header: data.notaHeader.trim(),

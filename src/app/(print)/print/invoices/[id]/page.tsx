@@ -26,7 +26,6 @@ function fmtDate(iso: string) {
 function StrukTemplate({
   tenantName,
   notaTitle,
-  showWatermark,
   invoiceNumber,
   createdAt,
   customerName,
@@ -47,7 +46,6 @@ function StrukTemplate({
 }: {
   tenantName: string;
   notaTitle?: string;
-  showWatermark?: boolean;
   invoiceNumber: string;
   createdAt: string;
   customerName: string;
@@ -72,7 +70,6 @@ function StrukTemplate({
 
   return (
     <div style={{ fontFamily: "monospace", fontSize: "12px", width: "72mm", margin: "0 auto", padding: "4mm", lineHeight: "1.4", position: "relative" }}>
-      {showWatermark && status === "paid" && <div className="watermark">LUNAS</div>}
       <div style={{ textAlign: "center", borderBottom: "1px dashed #000", paddingBottom: "6px", marginBottom: "6px" }}>
         <div style={{ fontWeight: "bold", fontSize: "14px" }}>{tenantName}</div>
         {storeAddress && <div style={{ fontSize: "10px", marginTop: "1px" }}>{storeAddress}</div>}
@@ -159,6 +156,9 @@ function StrukTemplate({
 function NotaTemplate({
   tenantName,
   notaTitle,
+  notaSubtitle,
+  notaCustomerLayout,
+  notaSignatureLayout,
   showWatermark,
   invoiceNumber,
   createdAt,
@@ -182,6 +182,9 @@ function NotaTemplate({
 }: {
   tenantName: string;
   notaTitle?: string;
+  notaSubtitle?: string;
+  notaCustomerLayout?: "stacked" | "split";
+  notaSignatureLayout?: "double" | "single";
   showWatermark?: boolean;
   invoiceNumber: string;
   createdAt: string;
@@ -215,7 +218,7 @@ function NotaTemplate({
           <div style={{ fontWeight: "bold", fontSize: "16px" }}>{tenantName}</div>
           {storeAddress && <div style={{ fontSize: "9px", color: "#555", marginTop: "1px" }}>{storeAddress}</div>}
           {storePhone && <div style={{ fontSize: "9px", color: "#555" }}>{storePhone}</div>}
-          <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>NOTA SERVIS KENDARAAN</div>
+          {notaSubtitle && <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>{notaSubtitle}</div>}
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: "bold" }}>{notaTitle || "NOTA KONTAN"}</div>
@@ -230,12 +233,21 @@ function NotaTemplate({
       )}
 
       {/* Customer info */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginBottom: "8px", fontSize: "10px" }}>
-        <div><span style={{ color: "#666" }}>Nama  : </span>{customerName}</div>
-        {customerPhone && <div><span style={{ color: "#666" }}>HP    : </span>{customerPhone}</div>}
-        {plate && <div><span style={{ color: "#666" }}>Plat  : </span>{plate}</div>}
-        {vehicle && <div><span style={{ color: "#666" }}>Kend. : </span>{vehicle}</div>}
-      </div>
+      {notaCustomerLayout === "split" ? (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginBottom: "8px", fontSize: "10px" }}>
+          <div><span style={{ color: "#666" }}>Nama  : </span>{customerName}</div>
+          {customerPhone && <div><span style={{ color: "#666" }}>HP    : </span>{customerPhone}</div>}
+          {plate && <div><span style={{ color: "#666" }}>Plat  : </span>{plate}</div>}
+          {vehicle && <div><span style={{ color: "#666" }}>Kend. : </span>{vehicle}</div>}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: "2px", marginBottom: "8px", fontSize: "10px" }}>
+          <div><span style={{ color: "#666" }}>Nama  : </span>{customerName}</div>
+          {customerPhone && <div><span style={{ color: "#666" }}>HP    : </span>{customerPhone}</div>}
+          {plate && <div><span style={{ color: "#666" }}>Plat  : </span>{plate}</div>}
+          {vehicle && <div><span style={{ color: "#666" }}>Kend. : </span>{vehicle}</div>}
+        </div>
+      )}
 
       {/* Items table */}
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px" }}>
@@ -297,8 +309,8 @@ function NotaTemplate({
       )}
 
       {/* Signatures */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px", fontSize: "10px" }}>
-        <div style={{ textAlign: "center" }}>
+      {notaSignatureLayout === "single" ? (
+        <div style={{ marginTop: "16px", fontSize: "10px", textAlign: "center" }}>
           <div>Hormat Kami,</div>
           {signatureUrl
             ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "40px", margin: "4px auto", display: "block", objectFit: "contain" }} />
@@ -307,12 +319,24 @@ function NotaTemplate({
           {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "32px", margin: "0 auto 4px", display: "block", objectFit: "contain" }} />}
           <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{tenantName}</div>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <div>Penerima,</div>
-          <div style={{ height: "40px" }} />
-          <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{customerName}</div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px", fontSize: "10px" }}>
+          <div style={{ textAlign: "center" }}>
+            <div>Hormat Kami,</div>
+            {signatureUrl
+              ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "40px", margin: "4px auto", display: "block", objectFit: "contain" }} />
+              : <div style={{ height: "40px" }} />
+            }
+            {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "32px", margin: "0 auto 4px", display: "block", objectFit: "contain" }} />}
+            <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{tenantName}</div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div>Penerima,</div>
+            <div style={{ height: "40px" }} />
+            <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{customerName}</div>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -620,6 +644,9 @@ export default async function PrintInvoicePage({
   const storeEmail = (settings as { store_email?: string } | null)?.store_email ?? "";
   const storeLogoUrl = (settings as { store_logo_url?: string } | null)?.store_logo_url ?? null;
   const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? "";
+  const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? "NOTA SERVIS KENDARAAN";
+  const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? "stacked";
+  const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? "double";
   const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? "";
   const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? true;
   const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";
@@ -638,8 +665,11 @@ export default async function PrintInvoicePage({
   const commonProps = {
     tenantName,
     notaTitle,
+    notaSubtitle,
+    notaCustomerLayout,
+    notaSignatureLayout,
     notaJabatan,
-    showWatermark: notaShowWatermark,
+    showWatermark: format === "struk" ? false : notaShowWatermark,
     invoiceNumber: inv.invoice_number,
     createdAt: (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
     dueDate: (inv as { due_date?: string }).due_date ?? null,

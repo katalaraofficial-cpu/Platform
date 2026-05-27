@@ -511,6 +511,12 @@ function FormatFieldPanel({
   storeEmail,
   notaTitle,
   setNotaTitle,
+  notaSubtitle,
+  setNotaSubtitle,
+  notaCustomerLayout,
+  setNotaCustomerLayout,
+  notaSignatureLayout,
+  setNotaSignatureLayout,
   notaJabatan,
   setNotaJabatan,
   showWatermark,
@@ -532,6 +538,12 @@ function FormatFieldPanel({
   storeEmail: string;
   notaTitle: string;
   setNotaTitle: (v: string) => void;
+  notaSubtitle: string;
+  setNotaSubtitle: (v: string) => void;
+  notaCustomerLayout: "stacked" | "split";
+  setNotaCustomerLayout: (v: "stacked" | "split") => void;
+  notaSignatureLayout: "double" | "single";
+  setNotaSignatureLayout: (v: "double" | "single") => void;
   notaJabatan: string;
   setNotaJabatan: (v: string) => void;
   showWatermark: boolean;
@@ -561,6 +573,35 @@ function FormatFieldPanel({
                 placeholder={format === "A5" ? "NOTA KONTAN" : "INVOICE"}
               />
             </Field>
+            <Field label="Subjudul / Jenis Nota">
+              <Input
+                value={notaSubtitle}
+                onChange={(e) => setNotaSubtitle(e.target.value)}
+                placeholder={format === "A5" ? "NOTA SERVIS KENDARAAN" : ""}
+              />
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Susunan Data Pelanggan">
+                <select
+                  value={notaCustomerLayout}
+                  onChange={(e) => setNotaCustomerLayout(e.target.value as "stacked" | "split")}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none"
+                >
+                  <option value="stacked">Bertumpuk / Vertikal</option>
+                  <option value="split">Bersebelahan / 2 Kolom</option>
+                </select>
+              </Field>
+              <Field label="Susunan Tanda Tangan">
+                <select
+                  value={notaSignatureLayout}
+                  onChange={(e) => setNotaSignatureLayout(e.target.value as "double" | "single")}
+                  className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-violet-400 focus:outline-none"
+                >
+                  <option value="double">Owner + Penerima</option>
+                  <option value="single">Owner saja</option>
+                </select>
+              </Field>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <Field label="Label Nomor Dokumen">
                 <Input value="Nomor" disabled />
@@ -678,6 +719,9 @@ function FormatFieldPanel({
 // ── Tab 3: Nota & Printer ────────────────────────────────────
 function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [notaTitle, setNotaTitle] = useState(s?.nota_title ?? "");
+  const [notaSubtitle, setNotaSubtitle] = useState(s?.nota_subtitle ?? "NOTA SERVIS KENDARAAN");
+  const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">(s?.nota_customer_layout ?? "stacked");
+  const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">(s?.nota_signature_layout ?? "double");
   const [notaJabatan, setNotaJabatan] = useState(s?.nota_jabatan ?? "");
   const [showWatermark, setShowWatermark] = useState(s?.nota_show_watermark ?? true);
   const [header, setHeader] = useState(s?.nota_header ?? "");
@@ -692,6 +736,9 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
     startTransition(async () => {
       const res = await saveNotaSettings({
         notaTitle,
+        notaSubtitle,
+        notaCustomerLayout,
+        notaSignatureLayout,
         notaJabatan,
         notaShowWatermark: showWatermark,
         notaHeader: header,
@@ -718,6 +765,12 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         storeEmail={s?.store_email ?? ""}
         notaTitle={notaTitle}
         setNotaTitle={setNotaTitle}
+        notaSubtitle={notaSubtitle}
+        setNotaSubtitle={setNotaSubtitle}
+        notaCustomerLayout={notaCustomerLayout}
+        setNotaCustomerLayout={setNotaCustomerLayout}
+        notaSignatureLayout={notaSignatureLayout}
+        setNotaSignatureLayout={setNotaSignatureLayout}
         notaJabatan={notaJabatan}
         setNotaJabatan={setNotaJabatan}
         showWatermark={showWatermark}

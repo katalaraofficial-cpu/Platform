@@ -71,6 +71,9 @@ export interface Settings {
   store_logo_url: string | null;
   // Nota & Printer
   nota_title: string | null;
+  nota_subtitle: string | null;
+  nota_customer_layout: "stacked" | "split";
+  nota_signature_layout: "double" | "single";
   nota_jabatan: string | null;
   nota_show_watermark: boolean;
   nota_header: string | null;

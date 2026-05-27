@@ -73,6 +73,9 @@ export async function savePlatformSettings(data: {
 
 // ── Tab 3: Nota & Printer ───────────────────────────────────
 export async function saveNotaSettings(data: {
+  notaTitle: string;
+  notaJabatan: string;
+  notaShowWatermark: boolean;
   notaHeader: string;
   notaFooter: string;
   notaSignatureUrl: string;
@@ -88,6 +91,9 @@ export async function saveNotaSettings(data: {
     const { error } = await supabase
       .from("settings")
       .update({
+        nota_title: data.notaTitle.trim() || null,
+        nota_jabatan: data.notaJabatan.trim() || null,
+        nota_show_watermark: data.notaShowWatermark,
         nota_header: data.notaHeader.trim(),
         nota_footer: data.notaFooter.trim(),
         nota_signature_url: data.notaSignatureUrl.trim(),

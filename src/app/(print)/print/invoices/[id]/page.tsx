@@ -25,6 +25,8 @@ function fmtDate(iso: string) {
 // ── Struk (thermal receipt ~80mm) ───────────────────────────
 function StrukTemplate({
   tenantName,
+  notaTitle,
+  showWatermark,
   invoiceNumber,
   createdAt,
   customerName,
@@ -44,6 +46,8 @@ function StrukTemplate({
   notaFooter,
 }: {
   tenantName: string;
+  notaTitle?: string;
+  showWatermark?: boolean;
   invoiceNumber: string;
   createdAt: string;
   customerName: string;
@@ -68,11 +72,12 @@ function StrukTemplate({
 
   return (
     <div style={{ fontFamily: "monospace", fontSize: "12px", width: "72mm", margin: "0 auto", padding: "4mm", lineHeight: "1.4", position: "relative" }}>
-      {status === "paid" && <div className="watermark">LUNAS</div>}
+      {showWatermark && status === "paid" && <div className="watermark">LUNAS</div>}
       <div style={{ textAlign: "center", borderBottom: "1px dashed #000", paddingBottom: "6px", marginBottom: "6px" }}>
         <div style={{ fontWeight: "bold", fontSize: "14px" }}>{tenantName}</div>
         {storeAddress && <div style={{ fontSize: "10px", marginTop: "1px" }}>{storeAddress}</div>}
         {storePhone && <div style={{ fontSize: "10px" }}>{storePhone}</div>}
+        {notaTitle && <div style={{ fontSize: "10px", marginTop: "2px", fontWeight: "bold" }}>{notaTitle}</div>}
         {notaHeader && <div style={{ fontSize: "10px", marginTop: "3px", borderTop: "1px dashed #ccc", paddingTop: "3px" }}>{notaHeader}</div>}
       </div>
 
@@ -153,6 +158,8 @@ function StrukTemplate({
 // ── Nota Kontan (A5) ─────────────────────────────────────────
 function NotaTemplate({
   tenantName,
+  notaTitle,
+  showWatermark,
   invoiceNumber,
   createdAt,
   customerName,
@@ -174,6 +181,8 @@ function NotaTemplate({
   notaFooter,
 }: {
   tenantName: string;
+  notaTitle?: string;
+  showWatermark?: boolean;
   invoiceNumber: string;
   createdAt: string;
   customerName: string;
@@ -199,7 +208,7 @@ function NotaTemplate({
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", width: "148mm", margin: "0 auto", padding: "6mm", position: "relative" }}>
-      {status === "paid" && <div className="watermark">LUNAS</div>}
+      {showWatermark && status === "paid" && <div className="watermark">LUNAS</div>}
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #000", paddingBottom: "6px", marginBottom: "8px" }}>
         <div>
@@ -209,7 +218,7 @@ function NotaTemplate({
           <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>NOTA SERVIS KENDARAAN</div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: "bold" }}>NOTA KONTAN</div>
+          <div style={{ fontWeight: "bold" }}>{notaTitle || "NOTA KONTAN"}</div>
           <div>{invoiceNumber}</div>
           <div>{fmtDate(createdAt)}</div>
         </div>
@@ -330,6 +339,9 @@ function terbilangRupiah(n: number): string {
 // ── Invoice Profesional (A4) ─────────────────────────────────
 function InvoiceTemplate({
   tenantName,
+  notaTitle,
+  notaJabatan,
+  showWatermark,
   invoiceNumber,
   createdAt,
   dueDate,
@@ -359,6 +371,9 @@ function InvoiceTemplate({
   notaFooter,
 }: {
   tenantName: string;
+  notaTitle?: string;
+  notaJabatan?: string;
+  showWatermark?: boolean;
   invoiceNumber: string;
   createdAt: string;
   dueDate?: string | null;
@@ -393,7 +408,7 @@ function InvoiceTemplate({
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "190mm", margin: "0 auto", padding: "10mm 12mm", color: "#1a1a1a", position: "relative" }}>
-      {status === "paid" && <div className="watermark">LUNAS</div>}
+      {showWatermark && status === "paid" && <div className="watermark">LUNAS</div>}
 
       {/* ── TOP: Logo left + INVOICE title center ── */}
       <div style={{ display: "grid", gridTemplateColumns: "90px 1fr", gap: "10px", alignItems: "center", marginBottom: "4px" }}>
@@ -404,7 +419,7 @@ function InvoiceTemplate({
           }
         </div>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "900", fontSize: "28px", letterSpacing: "8px" }}>INVOICE</div>
+          <div style={{ fontWeight: "900", fontSize: "28px", letterSpacing: "8px" }}>{(notaTitle || "INVOICE").toUpperCase()}</div>
           <div style={{ fontSize: "11px", marginTop: "3px" }}>Nomor : {invoiceNumber}</div>
         </div>
       </div>
@@ -557,7 +572,7 @@ function InvoiceTemplate({
           }
           {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", position: "absolute", opacity: 0.8, objectFit: "contain" }} />}
           <div style={{ borderTop: "1px solid #000", paddingTop: "4px" }}>{tenantName}</div>
-          <div style={{ color: "#888" }}>Jabatan</div>
+          <div style={{ color: "#888" }}>{notaJabatan || "Jabatan"}</div>
         </div>
       </div>
     </div>
@@ -594,7 +609,7 @@ export default async function PrintInvoicePage({
     supabase.from("invoice_items").select("*").eq("invoice_id", id).order("created_at", { ascending: true }),
     supabase
       .from("settings")
-      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format")
+      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format")
       .eq("tenant_id", ctx.tenantId)
       .single(),
   ]);
@@ -604,6 +619,9 @@ export default async function PrintInvoicePage({
   const storePhone = (settings as { store_phone?: string } | null)?.store_phone ?? "";
   const storeEmail = (settings as { store_email?: string } | null)?.store_email ?? "";
   const storeLogoUrl = (settings as { store_logo_url?: string } | null)?.store_logo_url ?? null;
+  const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? "";
+  const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? "";
+  const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? true;
   const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";
   const notaFooter = (settings as { nota_footer?: string } | null)?.nota_footer ?? "";
   const signatureUrl = (settings as { nota_signature_url?: string } | null)?.nota_signature_url ?? null;
@@ -619,6 +637,9 @@ export default async function PrintInvoicePage({
 
   const commonProps = {
     tenantName,
+    notaTitle,
+    notaJabatan,
+    showWatermark: notaShowWatermark,
     invoiceNumber: inv.invoice_number,
     createdAt: (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
     dueDate: (inv as { due_date?: string }).due_date ?? null,

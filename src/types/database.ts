@@ -70,6 +70,9 @@ export interface Settings {
   store_email: string | null;
   store_logo_url: string | null;
   // Nota & Printer
+  nota_title: string | null;
+  nota_jabatan: string | null;
+  nota_show_watermark: boolean;
   nota_header: string | null;
   nota_footer: string | null;
   nota_signature_url: string | null;

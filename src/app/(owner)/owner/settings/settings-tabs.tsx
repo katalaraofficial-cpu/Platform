@@ -508,6 +508,13 @@ function FormatFieldPanel({
   storeName,
   storeAddress,
   storePhone,
+  storeEmail,
+  notaTitle,
+  setNotaTitle,
+  notaJabatan,
+  setNotaJabatan,
+  showWatermark,
+  setShowWatermark,
   header,
   setHeader,
   footer,
@@ -522,6 +529,13 @@ function FormatFieldPanel({
   storeName: string;
   storeAddress: string;
   storePhone: string;
+  storeEmail: string;
+  notaTitle: string;
+  setNotaTitle: (v: string) => void;
+  notaJabatan: string;
+  setNotaJabatan: (v: string) => void;
+  showWatermark: boolean;
+  setShowWatermark: (v: boolean) => void;
   header: string;
   setHeader: (v: string) => void;
   footer: string;
@@ -538,6 +552,25 @@ function FormatFieldPanel({
       {/* ── HEADER SECTION ─────────────────────────── */}
       <SectionBar label={format === "thermal" ? "Header Struk" : format === "A5" ? "Header Nota" : "Header Invoice"} />
       <div className="p-4 flex flex-col gap-3">
+        {format !== "thermal" && (
+          <>
+            <Field label="Judul Nota / Invoice">
+              <Input
+                value={notaTitle}
+                onChange={(e) => setNotaTitle(e.target.value)}
+                placeholder={format === "A5" ? "NOTA KONTAN" : "INVOICE"}
+              />
+            </Field>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Field label="Label Nomor Dokumen">
+                <Input value="Nomor" disabled />
+              </Field>
+              <Field label="Label Tanggal">
+                <Input value="Tanggal" disabled />
+              </Field>
+            </div>
+          </>
+        )}
         {format === "thermal" ? (
           <>
             <InfoRef rowLabel="Baris 1 — Nama Toko" value={storeName} />
@@ -549,6 +582,7 @@ function FormatFieldPanel({
             <InfoRef rowLabel="Nama Toko" value={storeName} />
             <InfoRef rowLabel="Alamat" value={storeAddress} />
             <InfoRef rowLabel="Telepon" value={storePhone} />
+            <InfoRef rowLabel="Email" value={storeEmail} />
           </>
         )}
         <Link
@@ -570,9 +604,12 @@ function FormatFieldPanel({
 
       {/* ── AUTO SECTIONS ──────────────────────────── */}
       {(format === "A4" || format === "A5") && (
-        <SectionBar label="Info Pelanggan" sublabel="diisi otomatis dari faktur" />
+        <SectionBar label="Info Pelanggan" sublabel="nama, hp, kendaraan dari faktur" />
       )}
-      <SectionBar label="Baris Item" sublabel="diisi otomatis dari faktur" />
+      {format === "A4" && (
+        <SectionBar label="Kolom Header Tabel" sublabel="struktur sesuai template invoice" />
+      )}
+      <SectionBar label="Baris Item" sublabel="deskripsi, qty, satuan, harga dari faktur" />
       {format !== "thermal" && (
         <SectionBar label="Ringkasan Total" sublabel="diisi otomatis dari faktur" />
       )}
@@ -580,6 +617,26 @@ function FormatFieldPanel({
       {/* ── FOOTER SECTION ─────────────────────────── */}
       <SectionBar label={format === "thermal" ? "Footer Struk" : "Bagian Penutup / TTD"} />
       <div className="p-4 flex flex-col gap-4">
+        {format !== "thermal" && (
+          <>
+            <label className="flex items-center justify-between rounded-xl border border-gray-200 px-3 py-2">
+              <span className="text-sm font-medium text-gray-700">Aktifkan Watermark LUNAS</span>
+              <input
+                type="checkbox"
+                className="h-4 w-4"
+                checked={showWatermark}
+                onChange={(e) => setShowWatermark(e.target.checked)}
+              />
+            </label>
+            <Field label="Jabatan (Nama Terang)">
+              <Input
+                value={notaJabatan}
+                onChange={(e) => setNotaJabatan(e.target.value)}
+                placeholder="Direktur / Manager / Owner"
+              />
+            </Field>
+          </>
+        )}
         {format === "thermal" ? (
           <Field label="Teks Penutup (opsional)">
             <Textarea
@@ -620,6 +677,9 @@ function FormatFieldPanel({
 
 // ── Tab 3: Nota & Printer ────────────────────────────────────
 function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
+  const [notaTitle, setNotaTitle] = useState(s?.nota_title ?? "");
+  const [notaJabatan, setNotaJabatan] = useState(s?.nota_jabatan ?? "");
+  const [showWatermark, setShowWatermark] = useState(s?.nota_show_watermark ?? true);
   const [header, setHeader] = useState(s?.nota_header ?? "");
   const [footer, setFooter] = useState(s?.nota_footer ?? "");
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");
@@ -630,7 +690,16 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     startTransition(async () => {
-      const res = await saveNotaSettings({ notaHeader: header, notaFooter: footer, notaSignatureUrl: signUrl, notaStampUrl: stampUrl, notaActiveFormat: format });
+      const res = await saveNotaSettings({
+        notaTitle,
+        notaJabatan,
+        notaShowWatermark: showWatermark,
+        notaHeader: header,
+        notaFooter: footer,
+        notaSignatureUrl: signUrl,
+        notaStampUrl: stampUrl,
+        notaActiveFormat: format,
+      });
       if (res.error) toast.error(res.error); else toast.success(res.success);
     });
   }
@@ -646,6 +715,13 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         storeName={s?.store_name ?? ""}
         storeAddress={s?.store_address ?? ""}
         storePhone={s?.store_phone ?? ""}
+        storeEmail={s?.store_email ?? ""}
+        notaTitle={notaTitle}
+        setNotaTitle={setNotaTitle}
+        notaJabatan={notaJabatan}
+        setNotaJabatan={setNotaJabatan}
+        showWatermark={showWatermark}
+        setShowWatermark={setShowWatermark}
         header={header}
         setHeader={setHeader}
         footer={footer}

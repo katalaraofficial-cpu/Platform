@@ -25,16 +25,17 @@ import {
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
-const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
 function extractNotaConfig(value: string | null | undefined) {
   if (!value) return { visibleText: "", config: null as Record<string, unknown> | null };
   const markerIndex = value.indexOf(NOTA_CONFIG_MARKER);
   if (markerIndex === -1) return { visibleText: value, config: null as Record<string, unknown> | null };
-  const visibleText = value.slice(0, markerIndex);
-  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length);
+  const visibleText = value.slice(0, markerIndex).trimEnd();
+  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length).trim();
+  const normalizedConfig = rawConfig.startsWith("{") ? rawConfig : rawConfig.replace(/^_+/, "");
   try {
-    return { visibleText, config: JSON.parse(rawConfig) as Record<string, unknown> };
+    return { visibleText, config: JSON.parse(normalizedConfig) as Record<string, unknown> };
   } catch {
     return { visibleText, config: null as Record<string, unknown> | null };
   }
@@ -739,8 +740,8 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "NOTA SERVIS KENDARAAN");
   const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
   const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
-  const [notaJabatan, setNotaJabatan] = useState(s?.nota_jabatan ?? "");
-  const [showWatermark, setShowWatermark] = useState(s?.nota_show_watermark ?? true);
+  const [notaJabatan, setNotaJabatan] = useState((s?.nota_jabatan ?? legacyConfig.nota_jabatan as string | undefined) ?? "");
+  const [showWatermark, setShowWatermark] = useState((s?.nota_show_watermark ?? legacyConfig.nota_show_watermark as boolean | undefined) ?? true);
   const [header, setHeader] = useState(legacyNotaHeader.visibleText);
   const [footer, setFooter] = useState(s?.nota_footer ?? "");
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");

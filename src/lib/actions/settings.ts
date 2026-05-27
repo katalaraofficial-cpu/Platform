@@ -7,10 +7,11 @@ import { revalidatePath } from "next/cache";
 
 export type SettingsActionState = { error?: string; success?: string };
 
-const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
 function encodeNotaHeader(header: string, config: Record<string, unknown>) {
-  return `${header.trim()}${NOTA_CONFIG_MARKER}${JSON.stringify(config)}`;
+  const cleanHeader = header.trim();
+  return cleanHeader ? `${cleanHeader}\n${NOTA_CONFIG_MARKER}${JSON.stringify(config)}` : `${NOTA_CONFIG_MARKER}${JSON.stringify(config)}`;
 }
 
 // ── Helper: ensure caller is owner ──────────────────────────

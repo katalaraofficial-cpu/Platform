@@ -6,16 +6,17 @@ import type { InvoiceItem, VehicleInfo } from "@/types/database";
 
 type Format = "struk" | "nota" | "invoice";
 
-const NOTA_CONFIG_MARKER = "\n__KATALARA_NOTA_CONFIG__";
+const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
 function extractNotaConfig(value: string | null | undefined) {
   if (!value) return { visibleText: "", config: null as Record<string, unknown> | null };
   const markerIndex = value.indexOf(NOTA_CONFIG_MARKER);
   if (markerIndex === -1) return { visibleText: value, config: null as Record<string, unknown> | null };
-  const visibleText = value.slice(0, markerIndex);
-  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length);
+  const visibleText = value.slice(0, markerIndex).trimEnd();
+  const rawConfig = value.slice(markerIndex + NOTA_CONFIG_MARKER.length).trim();
+  const normalizedConfig = rawConfig.startsWith("{") ? rawConfig : rawConfig.replace(/^_+/, "");
   try {
-    return { visibleText, config: JSON.parse(rawConfig) as Record<string, unknown> };
+    return { visibleText, config: JSON.parse(normalizedConfig) as Record<string, unknown> };
   } catch {
     return { visibleText, config: null as Record<string, unknown> | null };
   }
@@ -664,9 +665,9 @@ export default async function PrintInvoicePage({
   const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? (legacyConfig.nota_subtitle as string | undefined) ?? "NOTA SERVIS KENDARAAN";
   const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? (legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked";
   const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? (legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double";
-  const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? "";
-  const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? true;
-  const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";
+  const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? (legacyConfig.nota_jabatan as string | undefined) ?? "";
+  const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? (legacyConfig.nota_show_watermark as boolean | undefined) ?? true;
+  const notaHeader = legacyHeader.visibleText;
   const notaFooter = (settings as { nota_footer?: string } | null)?.nota_footer ?? "";
   const signatureUrl = (settings as { nota_signature_url?: string } | null)?.nota_signature_url ?? null;
   const stampUrl = (settings as { nota_stamp_url?: string } | null)?.nota_stamp_url ?? null;

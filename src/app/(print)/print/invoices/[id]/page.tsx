@@ -311,6 +311,25 @@ function NotaTemplate({
   );
 }
 
+// ── Terbilang (Indonesian amount in words) ───────────────────
+const SATUAN_KATA = ["", "Satu", "Dua", "Tiga", "Empat", "Lima", "Enam", "Tujuh", "Delapan", "Sembilan"];
+const BELASAN_KATA = ["Sepuluh", "Sebelas", "Dua Belas", "Tiga Belas", "Empat Belas", "Lima Belas", "Enam Belas", "Tujuh Belas", "Delapan Belas", "Sembilan Belas"];
+function bilangan(n: number): string {
+  if (n === 0) return "";
+  if (n < 10) return SATUAN_KATA[n] + " ";
+  if (n < 20) return BELASAN_KATA[n - 10] + " ";
+  if (n < 100) return SATUAN_KATA[Math.floor(n / 10)] + " Puluh " + bilangan(n % 10);
+  if (n < 1000) return (Math.floor(n / 100) === 1 ? "Seratus " : SATUAN_KATA[Math.floor(n / 100)] + " Ratus ") + bilangan(n % 100);
+  if (n < 1000000) return (Math.floor(n / 1000) === 1 ? "Seribu " : bilangan(Math.floor(n / 1000)) + "Ribu ") + bilangan(n % 1000);
+  if (n < 1000000000) return bilangan(Math.floor(n / 1000000)) + "Juta " + bilangan(n % 1000000);
+  return bilangan(Math.floor(n / 1000000000)) + "Miliar " + bilangan(n % 1000000000);
+}
+function terbilangRupiah(n: number): string {
+  const rounded = Math.round(n);
+  if (rounded === 0) return "Nol Rupiah";
+  return bilangan(rounded).trim() + " Rupiah";
+}
+
 // ── Invoice Profesional (A4) ─────────────────────────────────
 function InvoiceTemplate({
   tenantName,
@@ -335,6 +354,8 @@ function InvoiceTemplate({
   paymentMethod,
   storeAddress,
   storePhone,
+  storeEmail,
+  storeLogoUrl,
   signatureUrl,
   stampUrl,
   notaHeader,
@@ -362,6 +383,8 @@ function InvoiceTemplate({
   paymentMethod: string | null;
   storeAddress?: string;
   storePhone?: string;
+  storeEmail?: string;
+  storeLogoUrl?: string | null;
   signatureUrl?: string | null;
   stampUrl?: string | null;
   notaHeader?: string;
@@ -370,184 +393,194 @@ function InvoiceTemplate({
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model, vehicleInfo?.year ? String(vehicleInfo.year) : null].filter(Boolean).join(" ");
   const methodLabel = paymentMethod === "cash" ? "Tunai" : paymentMethod === "transfer" ? "Transfer Bank" : paymentMethod === "other" ? "Lainnya" : "-";
-  const statusLabel = status === "paid" ? "LUNAS" : status === "cancelled" ? "DIBATALKAN" : status === "completed" ? "SELESAI" : status === "in_progress" ? "DIKERJAKAN" : "DRAFT";
-  const statusColor = status === "paid" ? "#16a34a" : status === "cancelled" ? "#dc2626" : "#854d0e";
-  const statusBg = status === "paid" ? "#dcfce7" : status === "cancelled" ? "#fee2e2" : "#fef9c3";
+  const sisaTagihan = status === "paid" ? 0 : grandTotal;
 
   return (
-    <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "190mm", margin: "0 auto", padding: "10mm", color: "#1a1a1a" }}>
+    <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "190mm", margin: "0 auto", padding: "10mm 12mm", color: "#1a1a1a" }}>
 
-      {/* ── Header: company left, invoice meta right ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-        {/* Left: company info */}
-        <div style={{ maxWidth: "55%" }}>
-          <div style={{ fontWeight: "bold", fontSize: "20px", color: "#1e3a5f", letterSpacing: "0.3px" }}>{tenantName}</div>
-          {storeAddress && <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{storeAddress}</div>}
-          {storePhone && <div style={{ fontSize: "10px", color: "#64748b" }}>{storePhone}</div>}
-          {notaHeader && <div style={{ fontSize: "10px", color: "#555", fontStyle: "italic", marginTop: "3px" }}>{notaHeader}</div>}
+      {/* ── TOP: Logo left + Invoice title center + company right ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "60px 1fr 1fr", gap: "8px", alignItems: "flex-start", marginBottom: "10px" }}>
+        {/* Logo */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {storeLogoUrl
+            ? <img src={storeLogoUrl} alt="Logo" style={{ width: "52px", height: "52px", objectFit: "contain", borderRadius: "50%" }} />
+            : <div style={{ width: "52px", height: "52px", borderRadius: "50%", border: "2px solid #e2e8f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", fontWeight: "bold", color: "#94a3b8" }}>{tenantName.charAt(0)}</div>
+          }
         </div>
-        {/* Right: invoice badge + meta */}
-        <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: "bold", fontSize: "24px", color: "#2563eb", letterSpacing: "1px" }}>INVOICE</div>
-          <table style={{ marginLeft: "auto", borderCollapse: "collapse", marginTop: "4px" }}>
-            <tbody>
-              <tr>
-                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Nomor</td>
-                <td style={{ fontSize: "10px", fontWeight: "bold" }}>{invoiceNumber}</td>
-              </tr>
-              <tr>
-                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Tanggal</td>
-                <td style={{ fontSize: "10px" }}>{fmtDate(createdAt)}</td>
-              </tr>
-              {dueDate && (
-                <tr>
-                  <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Jatuh Tempo</td>
-                  <td style={{ fontSize: "10px", fontWeight: "500", color: "#dc2626" }}>{fmtDate(dueDate)}</td>
-                </tr>
-              )}
-              <tr>
-                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px" }}>Status</td>
-                <td>
-                  <span style={{ fontSize: "9px", fontWeight: "bold", padding: "2px 7px", borderRadius: "10px", background: statusBg, color: statusColor }}>
-                    {statusLabel}
-                  </span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+        {/* Center: INVOICE title + nomor + tanggal */}
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontWeight: "bold", fontSize: "22px", letterSpacing: "3px", color: "#1e3a5f" }}>INVOICE</div>
+          <div style={{ fontSize: "11px", marginTop: "2px" }}>Nomor : {invoiceNumber}</div>
+          <div style={{ fontSize: "10px", color: "#64748b", marginTop: "6px", textAlign: "left", paddingLeft: "10px" }}>
+            <div>Tanggal &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: {fmtDate(createdAt)}</div>
+            {dueDate && <div style={{ color: "#dc2626" }}>Tgl. Jatuh Tempo : {fmtDate(dueDate)}</div>}
+          </div>
+        </div>
+
+        {/* Right: company info */}
+        <div style={{ textAlign: "right", fontSize: "10px" }}>
+          <div style={{ fontWeight: "bold", fontSize: "13px", color: "#1e3a5f" }}>{tenantName}</div>
+          {storeAddress && <div style={{ color: "#555", marginTop: "2px" }}>{storeAddress}</div>}
+          {storePhone && <div style={{ color: "#555" }}>Telp: {storePhone}</div>}
+          {storeEmail && <div style={{ color: "#555" }}>Email: {storeEmail}</div>}
         </div>
       </div>
 
       {/* Divider */}
-      <div style={{ height: "3px", background: "linear-gradient(to right, #1e3a5f, #93c5fd)", marginBottom: "12px" }} />
+      <div style={{ height: "2px", background: "#1e3a5f", marginBottom: "8px" }} />
 
-      {/* ── Bill To + Payment Info ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-        <div style={{ borderLeft: "3px solid #2563eb", paddingLeft: "10px" }}>
-          <div style={{ fontSize: "9px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "4px" }}>Tagihan Kepada</div>
+      {/* ── Tagihan Kepada label + Informasi Perusahaan label ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "4px" }}>
+        <div style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b" }}>Tagihan Kepada</div>
+        <div style={{ fontSize: "10px", fontWeight: "bold", color: "#64748b", textAlign: "right" }}>Status Pembayaran</div>
+      </div>
+
+      {/* ── Two boxes: customer left, payment info right ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
+        <div style={{ border: "1px solid #cbd5e1", borderRadius: "4px", padding: "8px 10px", fontSize: "10px", minHeight: "54px" }}>
           <div style={{ fontWeight: "bold", fontSize: "12px" }}>{customerName}</div>
-          {customerPhone && <div style={{ color: "#555", fontSize: "10px", marginTop: "2px" }}>{customerPhone}</div>}
-          {plate && <div style={{ color: "#555", fontSize: "10px", marginTop: "2px" }}>Kendaraan: {plate}{vehicle ? ` — ${vehicle}` : ""}</div>}
+          {customerPhone && <div style={{ color: "#555", marginTop: "2px" }}>{customerPhone}</div>}
+          {plate && <div style={{ color: "#555", marginTop: "1px" }}>{plate}{vehicle ? ` · ${vehicle}` : ""}</div>}
         </div>
-        {status === "paid" && paidAt && (
-          <div style={{ borderLeft: "3px solid #16a34a", paddingLeft: "10px" }}>
-            <div style={{ fontSize: "9px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "4px" }}>Info Pembayaran</div>
-            <div style={{ fontSize: "10px" }}>Dibayar: <strong>{fmtDate(paidAt)}</strong></div>
-            <div style={{ fontSize: "10px", marginTop: "2px" }}>Metode: {methodLabel}</div>
+        <div style={{ border: "1px solid #cbd5e1", borderRadius: "4px", padding: "8px 10px", fontSize: "10px", minHeight: "54px" }}>
+          <div style={{
+            display: "inline-block", padding: "2px 10px", borderRadius: "12px", fontWeight: "bold", fontSize: "10px", marginBottom: "4px",
+            background: status === "paid" ? "#dcfce7" : status === "cancelled" ? "#fee2e2" : "#fef9c3",
+            color: status === "paid" ? "#16a34a" : status === "cancelled" ? "#dc2626" : "#854d0e",
+          }}>
+            {status === "paid" ? "✓ LUNAS" : status === "cancelled" ? "DIBATALKAN" : status === "completed" ? "SELESAI" : status === "in_progress" ? "DIKERJAKAN" : "DRAFT"}
           </div>
-        )}
+          {status === "paid" && paidAt && (
+            <div style={{ color: "#555" }}>Dibayar: {fmtDate(paidAt)}<br />Metode: {methodLabel}</div>
+          )}
+        </div>
       </div>
 
       {/* ── Items table ── */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "16px" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "0" }}>
         <thead>
           <tr style={{ background: "#1e3a5f", color: "#fff" }}>
-            <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: "600", fontSize: "10px", width: "24px" }}>#</th>
-            <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: "600", fontSize: "10px" }}>Uraian</th>
-            <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "50px" }}>Satuan</th>
-            <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "36px" }}>Qty</th>
-            <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Harga</th>
-            <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Jumlah</th>
+            <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "24px" }}>No.</th>
+            <th style={{ padding: "6px 8px", textAlign: "left", fontWeight: "600", fontSize: "10px" }}>Deskripsi</th>
+            <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "54px" }}>Kuantitas</th>
+            <th style={{ padding: "6px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "44px" }}>Satuan</th>
+            <th style={{ padding: "6px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Harga / Unit</th>
+            <th style={{ padding: "6px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Jumlah</th>
           </tr>
         </thead>
         <tbody>
-          {items.map((item, i) => (
-            <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
-              <td style={{ padding: "6px 8px", color: "#94a3b8", fontSize: "10px" }}>{i + 1}</td>
-              <td style={{ padding: "6px 8px", fontSize: "11px" }}>
-                {item.description}
-                <span style={{ marginLeft: "5px", fontSize: "8px", padding: "1px 4px", borderRadius: "8px",
-                  background: item.item_type === "service" ? "#dbeafe" : "#fef3c7",
-                  color: item.item_type === "service" ? "#1d4ed8" : "#92400e" }}>
-                  {item.item_type === "service" ? "Jasa" : "Part"}
-                </span>
-              </td>
-              <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "10px", color: "#64748b" }}>
-                {item.unit_label || "—"}
-              </td>
-              <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "11px" }}>{item.quantity}</td>
-              <td style={{ padding: "6px 8px", textAlign: "right", fontSize: "10px" }}>{fmt(item.final_price)}</td>
-              <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: "600", fontSize: "11px" }}>{fmt(item.final_price * item.quantity)}</td>
+          {items.map((item, i) => {
+            const unitPrice = item.quantity > 0 ? item.final_price / item.quantity : item.final_price;
+            return (
+              <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "10px" }}>{i + 1}</td>
+                <td style={{ padding: "6px 8px", fontSize: "11px" }}>
+                  <div>{item.description}</div>
+                  <div style={{ fontSize: "8px", marginTop: "1px",
+                    color: item.item_type === "service" ? "#1d4ed8" : "#92400e" }}>
+                    {item.item_type === "service" ? "Jasa" : "Part"}
+                  </div>
+                </td>
+                <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "11px" }}>{item.quantity}</td>
+                <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "10px", color: "#555" }}>{item.unit_label || "-"}</td>
+                <td style={{ padding: "6px 8px", textAlign: "right", fontSize: "10px" }}>{fmt(unitPrice)}</td>
+                <td style={{ padding: "6px 8px", textAlign: "right", fontSize: "11px", fontWeight: "500" }}>{fmt(item.final_price)}</td>
+              </tr>
+            );
+          })}
+          {/* Empty rows to reach at least 5 lines */}
+          {Array.from({ length: Math.max(0, 5 - items.length) }).map((_, i) => (
+            <tr key={`empty-${i}`} style={{ borderBottom: "1px solid #e2e8f0" }}>
+              <td style={{ padding: "6px 8px", fontSize: "10px" }}>&nbsp;</td>
+              <td style={{ padding: "6px 8px" }} />
+              <td style={{ padding: "6px 8px" }} />
+              <td style={{ padding: "6px 8px" }} />
+              <td style={{ padding: "6px 8px" }} />
+              <td style={{ padding: "6px 8px" }} />
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* ── Bottom: notes left, totals right ── */}
-      <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
-        {/* Left: notes */}
-        <div style={{ flex: 1 }}>
-          {notes && (
-            <div style={{ background: "#fef9c3", borderLeft: "3px solid #fbbf24", padding: "8px 10px", fontSize: "10px", marginBottom: "8px", borderRadius: "0 4px 4px 0" }}>
-              <div style={{ fontWeight: "bold", marginBottom: "2px", color: "#92400e" }}>Catatan:</div>
-              <div style={{ color: "#555" }}>{notes}</div>
+      {/* ── Terbilang ── */}
+      <div style={{ border: "1px solid #e2e8f0", borderTop: "none", padding: "6px 10px", marginBottom: "14px", fontSize: "10px" }}>
+        <span style={{ fontStyle: "italic", color: "#64748b" }}>Terbilang: </span>
+        <span style={{ fontWeight: "500" }}>{terbilangRupiah(grandTotal)}</span>
+      </div>
+
+      {/* ── Bottom: notes left + totals right ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 180px", gap: "16px", marginBottom: "14px" }}>
+        {/* Notes / Pesan */}
+        <div>
+          {(notes || notaHeader || notaFooter) && (
+            <div style={{ border: "1px solid #e2e8f0", borderRadius: "4px", padding: "8px 10px", fontSize: "10px" }}>
+              <div style={{ fontWeight: "bold", marginBottom: "4px", color: "#1e3a5f" }}>Pesan:</div>
+              {notaHeader && <div style={{ color: "#555", marginBottom: "2px" }}>{notaHeader}</div>}
+              {notes && <div style={{ color: "#555" }}>{notes}</div>}
+              {notaFooter && <div style={{ color: "#888", fontStyle: "italic", marginTop: "4px" }}>{notaFooter}</div>}
             </div>
           )}
-          {notaFooter && (
-            <div style={{ fontSize: "10px", color: "#555", fontStyle: "italic", borderTop: "1px solid #e2e8f0", paddingTop: "6px" }}>{notaFooter}</div>
-          )}
         </div>
-        {/* Right: totals */}
-        <div style={{ width: "210px", flexShrink: 0 }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+
+        {/* Totals */}
+        <div>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px", border: "1px solid #e2e8f0" }}>
             <tbody>
-              <tr>
-                <td style={{ padding: "3px 0", color: "#64748b" }}>Subtotal</td>
-                <td style={{ padding: "3px 0", textAlign: "right" }}>{fmt(subtotal)}</td>
+              <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                <td style={{ padding: "4px 8px", color: "#555" }}>Subtotal</td>
+                <td style={{ padding: "4px 8px", textAlign: "right" }}>Rp {subtotal.toLocaleString("id-ID")}</td>
               </tr>
               {discountAmount > 0 && (
-                <tr>
-                  <td style={{ padding: "3px 0", color: "#64748b" }}>Diskon</td>
-                  <td style={{ padding: "3px 0", textAlign: "right", color: "#dc2626" }}>-{fmt(discountAmount)}</td>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "4px 8px", color: "#555" }}>Diskon</td>
+                  <td style={{ padding: "4px 8px", textAlign: "right", color: "#dc2626" }}>-Rp {discountAmount.toLocaleString("id-ID")}</td>
                 </tr>
               )}
               {ppnAmount > 0 && (
-                <tr>
-                  <td style={{ padding: "3px 0", color: "#64748b" }}>PPN ({ppnPct}%)</td>
-                  <td style={{ padding: "3px 0", textAlign: "right" }}>+{fmt(ppnAmount)}</td>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "4px 8px", color: "#555" }}>PPN ({ppnPct}%)</td>
+                  <td style={{ padding: "4px 8px", textAlign: "right" }}>Rp {ppnAmount.toLocaleString("id-ID")}</td>
                 </tr>
               )}
               {pphAmount > 0 && (
-                <tr>
-                  <td style={{ padding: "3px 0", color: "#64748b" }}>PPh ({pphPct}%)</td>
-                  <td style={{ padding: "3px 0", textAlign: "right", color: "#dc2626" }}>-{fmt(pphAmount)}</td>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "4px 8px", color: "#555" }}>PPh ({pphPct}%)</td>
+                  <td style={{ padding: "4px 8px", textAlign: "right", color: "#dc2626" }}>-Rp {pphAmount.toLocaleString("id-ID")}</td>
                 </tr>
               )}
               {(shippingCost ?? 0) > 0 && (
-                <tr>
-                  <td style={{ padding: "3px 0", color: "#64748b" }}>Biaya Kirim</td>
-                  <td style={{ padding: "3px 0", textAlign: "right" }}>+{fmt(shippingCost ?? 0)}</td>
+                <tr style={{ borderBottom: "1px solid #e2e8f0" }}>
+                  <td style={{ padding: "4px 8px", color: "#555" }}>Biaya Kirim</td>
+                  <td style={{ padding: "4px 8px", textAlign: "right" }}>Rp {(shippingCost ?? 0).toLocaleString("id-ID")}</td>
                 </tr>
               )}
+              <tr style={{ borderBottom: "1px solid #e2e8f0", background: "#f8fafc" }}>
+                <td style={{ padding: "4px 8px", fontWeight: "bold" }}>Total</td>
+                <td style={{ padding: "4px 8px", textAlign: "right", fontWeight: "bold" }}>Rp {grandTotal.toLocaleString("id-ID")}</td>
+              </tr>
+              <tr style={{ background: sisaTagihan === 0 ? "#dcfce7" : "#fef9c3" }}>
+                <td style={{ padding: "4px 8px", fontWeight: "bold", color: sisaTagihan === 0 ? "#16a34a" : "#854d0e" }}>Sisa Tagihan</td>
+                <td style={{ padding: "4px 8px", textAlign: "right", fontWeight: "bold", color: sisaTagihan === 0 ? "#16a34a" : "#854d0e" }}>Rp {sisaTagihan.toLocaleString("id-ID")}</td>
+              </tr>
             </tbody>
           </table>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 10px", background: "#1e3a5f", color: "#fff", borderRadius: "5px", marginTop: "6px" }}>
-            <span style={{ fontWeight: "bold", fontSize: "11px" }}>TOTAL</span>
-            <span style={{ fontWeight: "bold", fontSize: "13px" }}>{fmt(grandTotal)}</span>
-          </div>
         </div>
       </div>
 
       {/* ── Signatures ── */}
-      <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "10px", color: "#64748b" }}>
-        <div>
-          <div style={{ fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>Hormat Kami,</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "8px", fontSize: "10px" }}>
+        <div />
+        <div style={{ textAlign: "center" }}>
+          <div style={{ marginBottom: "4px" }}>Dengan Hormat,</div>
           {signatureUrl
             ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "48px", marginBottom: "4px", objectFit: "contain" }} />
             : <div style={{ height: "48px" }} />
           }
-          {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", marginBottom: "4px", objectFit: "contain" }} />}
+          {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", position: "absolute", opacity: 0.8, objectFit: "contain" }} />}
           <div style={{ borderTop: "1px solid #ccc", paddingTop: "4px" }}>{tenantName}</div>
+          <div style={{ color: "#64748b" }}>Jabatan</div>
         </div>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>Penerima,</div>
-          <div style={{ height: "48px" }} />
-          <div style={{ borderTop: "1px solid #ccc", paddingTop: "4px" }}>{customerName}</div>
-        </div>
-      </div>
-
-      <div style={{ marginTop: "12px", textAlign: "center", fontSize: "9px", color: "#94a3b8" }}>
-        Dokumen ini diterbitkan secara digital oleh sistem POS {tenantName}
       </div>
     </div>
   );
@@ -584,7 +617,7 @@ export default async function PrintInvoicePage({
     supabase.from("invoice_items").select("*").eq("invoice_id", id).order("created_at", { ascending: true }),
     supabase
       .from("settings")
-      .select("store_name, store_address, store_phone, nota_header, nota_footer, nota_signature_url, nota_stamp_url")
+      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_header, nota_footer, nota_signature_url, nota_stamp_url")
       .eq("tenant_id", ctx.tenantId)
       .single(),
   ]);
@@ -592,6 +625,8 @@ export default async function PrintInvoicePage({
   const tenantName = (settings as { store_name?: string } | null)?.store_name || ctx.tenantName || "Bengkel";
   const storeAddress = (settings as { store_address?: string } | null)?.store_address ?? "";
   const storePhone = (settings as { store_phone?: string } | null)?.store_phone ?? "";
+  const storeEmail = (settings as { store_email?: string } | null)?.store_email ?? "";
+  const storeLogoUrl = (settings as { store_logo_url?: string } | null)?.store_logo_url ?? null;
   const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";
   const notaFooter = (settings as { nota_footer?: string } | null)?.nota_footer ?? "";
   const signatureUrl = (settings as { nota_signature_url?: string } | null)?.nota_signature_url ?? null;
@@ -621,6 +656,8 @@ export default async function PrintInvoicePage({
     status: inv.status,
     storeAddress,
     storePhone,
+    storeEmail,
+    storeLogoUrl,
     notaHeader,
     notaFooter,
     signatureUrl,

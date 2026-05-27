@@ -682,14 +682,29 @@ export default async function PrintInvoicePage({
   const storeLogoUrl = (settings as { store_logo_url?: string } | null)?.store_logo_url ?? null;
   const legacyHeader = extractNotaConfig((settings as { nota_header?: string } | null)?.nota_header ?? "");
   const legacyConfig = legacyHeader.config ?? {};
-  const notaTitle = (settings as { nota_title?: string } | null)?.nota_title ?? (legacyConfig.nota_title as string | undefined) ?? "";
-  const notaTitleSizeRaw = (settings as { nota_title_size?: number } | null)?.nota_title_size ?? (legacyConfig.nota_title_size as number | undefined) ?? 28;
+  const hasLegacyNotaConfig = Boolean(legacyHeader.config);
+  const notaTitle = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_title as string | undefined) ?? (settings as { nota_title?: string } | null)?.nota_title ?? "")
+    : ((settings as { nota_title?: string } | null)?.nota_title ?? (legacyConfig.nota_title as string | undefined) ?? "");
+  const notaTitleSizeRaw = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_title_size as number | undefined) ?? (settings as { nota_title_size?: number } | null)?.nota_title_size ?? 28)
+    : ((settings as { nota_title_size?: number } | null)?.nota_title_size ?? (legacyConfig.nota_title_size as number | undefined) ?? 28);
   const notaTitleSize = Number.isFinite(Number(notaTitleSizeRaw)) ? Number(notaTitleSizeRaw) : 28;
-  const notaSubtitle = (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? (legacyConfig.nota_subtitle as string | undefined) ?? "";
-  const notaCustomerLayout = (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? (legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked";
-  const notaSignatureLayout = (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? (legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double";
-  const notaJabatan = (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? (legacyConfig.nota_jabatan as string | undefined) ?? "";
-  const notaShowWatermark = (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? (legacyConfig.nota_show_watermark as boolean | undefined) ?? true;
+  const notaSubtitle = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_subtitle as string | undefined) ?? (settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? "")
+    : ((settings as { nota_subtitle?: string } | null)?.nota_subtitle ?? (legacyConfig.nota_subtitle as string | undefined) ?? "");
+  const notaCustomerLayout = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? (settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? "stacked")
+    : ((settings as { nota_customer_layout?: "stacked" | "split" } | null)?.nota_customer_layout ?? (legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
+  const notaSignatureLayout = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? (settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? "double")
+    : ((settings as { nota_signature_layout?: "double" | "single" } | null)?.nota_signature_layout ?? (legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
+  const notaJabatan = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_jabatan as string | undefined) ?? (settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? "")
+    : ((settings as { nota_jabatan?: string } | null)?.nota_jabatan ?? (legacyConfig.nota_jabatan as string | undefined) ?? "");
+  const notaShowWatermark = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_show_watermark as boolean | undefined) ?? (settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? true)
+    : ((settings as { nota_show_watermark?: boolean } | null)?.nota_show_watermark ?? (legacyConfig.nota_show_watermark as boolean | undefined) ?? true);
   const notaHeader = legacyHeader.visibleText;
   const notaFooter = (settings as { nota_footer?: string } | null)?.nota_footer ?? "";
   const signatureUrl = (settings as { nota_signature_url?: string } | null)?.nota_signature_url ?? null;

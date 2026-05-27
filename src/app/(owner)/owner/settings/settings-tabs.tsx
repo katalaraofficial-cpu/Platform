@@ -752,14 +752,36 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const router = useRouter();
   const legacyNotaHeader = extractNotaConfig(s?.nota_header);
   const legacyConfig = legacyNotaHeader.config ?? {};
-  const [notaTitle, setNotaTitle] = useState((s?.nota_title ?? legacyConfig.nota_title as string | null | undefined) ?? "");
-  const initialTitleSize = Number((s?.nota_title_size ?? legacyConfig.nota_title_size as number | undefined) ?? 28);
+  const hasLegacyNotaConfig = Boolean(legacyNotaHeader.config);
+  const resolvedNotaTitle = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_title as string | null | undefined) ?? s?.nota_title ?? "")
+    : ((s?.nota_title ?? legacyConfig.nota_title as string | null | undefined) ?? "");
+  const resolvedNotaTitleSize = hasLegacyNotaConfig
+    ? Number((legacyConfig.nota_title_size as number | undefined) ?? s?.nota_title_size ?? 28)
+    : Number((s?.nota_title_size ?? legacyConfig.nota_title_size as number | undefined) ?? 28);
+  const [notaTitle, setNotaTitle] = useState(resolvedNotaTitle);
+  const initialTitleSize = resolvedNotaTitleSize;
   const [notaTitleSize, setNotaTitleSize] = useState<number>(Number.isFinite(initialTitleSize) ? initialTitleSize : 28);
-  const [notaSubtitle, setNotaSubtitle] = useState((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "");
-  const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
-  const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
-  const [notaJabatan, setNotaJabatan] = useState((s?.nota_jabatan ?? legacyConfig.nota_jabatan as string | undefined) ?? "");
-  const [showWatermark, setShowWatermark] = useState((s?.nota_show_watermark ?? legacyConfig.nota_show_watermark as boolean | undefined) ?? true);
+  const resolvedNotaSubtitle = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_subtitle as string | null | undefined) ?? s?.nota_subtitle ?? "")
+    : ((s?.nota_subtitle ?? legacyConfig.nota_subtitle as string | null | undefined) ?? "");
+  const resolvedNotaCustomerLayout = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? s?.nota_customer_layout ?? "stacked")
+    : ((s?.nota_customer_layout ?? legacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
+  const resolvedNotaSignatureLayout = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? s?.nota_signature_layout ?? "double")
+    : ((s?.nota_signature_layout ?? legacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
+  const resolvedNotaJabatan = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_jabatan as string | undefined) ?? s?.nota_jabatan ?? "")
+    : ((s?.nota_jabatan ?? legacyConfig.nota_jabatan as string | undefined) ?? "");
+  const resolvedShowWatermark = hasLegacyNotaConfig
+    ? ((legacyConfig.nota_show_watermark as boolean | undefined) ?? s?.nota_show_watermark ?? true)
+    : ((s?.nota_show_watermark ?? legacyConfig.nota_show_watermark as boolean | undefined) ?? true);
+  const [notaSubtitle, setNotaSubtitle] = useState(resolvedNotaSubtitle);
+  const [notaCustomerLayout, setNotaCustomerLayout] = useState<"stacked" | "split">(resolvedNotaCustomerLayout);
+  const [notaSignatureLayout, setNotaSignatureLayout] = useState<"double" | "single">(resolvedNotaSignatureLayout);
+  const [notaJabatan, setNotaJabatan] = useState(resolvedNotaJabatan);
+  const [showWatermark, setShowWatermark] = useState(resolvedShowWatermark);
   const [header, setHeader] = useState(legacyNotaHeader.visibleText);
   const [footer, setFooter] = useState(s?.nota_footer ?? "");
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");
@@ -770,16 +792,31 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   useEffect(() => {
     const refreshedLegacyNotaHeader = extractNotaConfig(s?.nota_header);
     const refreshedLegacyConfig = refreshedLegacyNotaHeader.config ?? {};
-    const refreshedTitle = (s?.nota_title ?? refreshedLegacyConfig.nota_title as string | null | undefined) ?? "";
-    const refreshedTitleSize = Number((s?.nota_title_size ?? refreshedLegacyConfig.nota_title_size as number | undefined) ?? 28);
+    const refreshedHasLegacyConfig = Boolean(refreshedLegacyNotaHeader.config);
+    const refreshedTitle = refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_title as string | null | undefined) ?? s?.nota_title ?? "")
+      : ((s?.nota_title ?? refreshedLegacyConfig.nota_title as string | null | undefined) ?? "");
+    const refreshedTitleSize = refreshedHasLegacyConfig
+      ? Number((refreshedLegacyConfig.nota_title_size as number | undefined) ?? s?.nota_title_size ?? 28)
+      : Number((s?.nota_title_size ?? refreshedLegacyConfig.nota_title_size as number | undefined) ?? 28);
 
     setNotaTitle(refreshedTitle);
     setNotaTitleSize(Number.isFinite(refreshedTitleSize) ? refreshedTitleSize : 28);
-    setNotaSubtitle((s?.nota_subtitle ?? refreshedLegacyConfig.nota_subtitle as string | null | undefined) ?? "");
-    setNotaCustomerLayout((s?.nota_customer_layout ?? refreshedLegacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked");
-    setNotaSignatureLayout((s?.nota_signature_layout ?? refreshedLegacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double");
-    setNotaJabatan((s?.nota_jabatan ?? refreshedLegacyConfig.nota_jabatan as string | undefined) ?? "");
-    setShowWatermark((s?.nota_show_watermark ?? refreshedLegacyConfig.nota_show_watermark as boolean | undefined) ?? true);
+    setNotaSubtitle(refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_subtitle as string | null | undefined) ?? s?.nota_subtitle ?? "")
+      : ((s?.nota_subtitle ?? refreshedLegacyConfig.nota_subtitle as string | null | undefined) ?? ""));
+    setNotaCustomerLayout(refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? s?.nota_customer_layout ?? "stacked")
+      : ((s?.nota_customer_layout ?? refreshedLegacyConfig.nota_customer_layout as "stacked" | "split" | undefined) ?? "stacked"));
+    setNotaSignatureLayout(refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? s?.nota_signature_layout ?? "double")
+      : ((s?.nota_signature_layout ?? refreshedLegacyConfig.nota_signature_layout as "double" | "single" | undefined) ?? "double"));
+    setNotaJabatan(refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_jabatan as string | undefined) ?? s?.nota_jabatan ?? "")
+      : ((s?.nota_jabatan ?? refreshedLegacyConfig.nota_jabatan as string | undefined) ?? ""));
+    setShowWatermark(refreshedHasLegacyConfig
+      ? ((refreshedLegacyConfig.nota_show_watermark as boolean | undefined) ?? s?.nota_show_watermark ?? true)
+      : ((s?.nota_show_watermark ?? refreshedLegacyConfig.nota_show_watermark as boolean | undefined) ?? true));
     setHeader(refreshedLegacyNotaHeader.visibleText);
     setFooter(s?.nota_footer ?? "");
     setSignUrl(s?.nota_signature_url ?? "");

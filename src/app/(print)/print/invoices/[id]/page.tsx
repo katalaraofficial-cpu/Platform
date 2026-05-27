@@ -316,6 +316,7 @@ function InvoiceTemplate({
   tenantName,
   invoiceNumber,
   createdAt,
+  dueDate,
   customerName,
   customerPhone,
   vehicleInfo,
@@ -326,6 +327,7 @@ function InvoiceTemplate({
   ppnAmount,
   pphPct,
   pphAmount,
+  shippingCost,
   grandTotal,
   notes,
   status,
@@ -341,6 +343,7 @@ function InvoiceTemplate({
   tenantName: string;
   invoiceNumber: string;
   createdAt: string;
+  dueDate?: string | null;
   customerName: string;
   customerPhone: string | null;
   vehicleInfo: VehicleInfo | null;
@@ -351,6 +354,7 @@ function InvoiceTemplate({
   ppnAmount: number;
   pphPct: number;
   pphAmount: number;
+  shippingCost?: number;
   grandTotal: number;
   notes: string | null;
   status: string;
@@ -366,134 +370,165 @@ function InvoiceTemplate({
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model, vehicleInfo?.year ? String(vehicleInfo.year) : null].filter(Boolean).join(" ");
   const methodLabel = paymentMethod === "cash" ? "Tunai" : paymentMethod === "transfer" ? "Transfer Bank" : paymentMethod === "other" ? "Lainnya" : "-";
+  const statusLabel = status === "paid" ? "LUNAS" : status === "cancelled" ? "DIBATALKAN" : status === "completed" ? "SELESAI" : status === "in_progress" ? "DIKERJAKAN" : "DRAFT";
+  const statusColor = status === "paid" ? "#16a34a" : status === "cancelled" ? "#dc2626" : "#854d0e";
+  const statusBg = status === "paid" ? "#dcfce7" : status === "cancelled" ? "#fee2e2" : "#fef9c3";
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "190mm", margin: "0 auto", padding: "10mm", color: "#1a1a1a" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-        <div>
-          <div style={{ fontWeight: "bold", fontSize: "22px", letterSpacing: "0.5px" }}>{tenantName}</div>
-          {storeAddress && <div style={{ fontSize: "10px", color: "#666", marginTop: "1px" }}>{storeAddress}</div>}
-          {storePhone && <div style={{ fontSize: "10px", color: "#666" }}>{storePhone}</div>}
+
+      {/* ── Header: company left, invoice meta right ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+        {/* Left: company info */}
+        <div style={{ maxWidth: "55%" }}>
+          <div style={{ fontWeight: "bold", fontSize: "20px", color: "#1e3a5f", letterSpacing: "0.3px" }}>{tenantName}</div>
+          {storeAddress && <div style={{ fontSize: "10px", color: "#64748b", marginTop: "2px" }}>{storeAddress}</div>}
+          {storePhone && <div style={{ fontSize: "10px", color: "#64748b" }}>{storePhone}</div>}
+          {notaHeader && <div style={{ fontSize: "10px", color: "#555", fontStyle: "italic", marginTop: "3px" }}>{notaHeader}</div>}
         </div>
+        {/* Right: invoice badge + meta */}
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontWeight: "bold", fontSize: "18px", color: "#2563eb" }}>INVOICE</div>
-          <div style={{ fontSize: "11px", marginTop: "4px" }}><span style={{ color: "#666" }}>No. </span><strong>{invoiceNumber}</strong></div>
-          <div style={{ fontSize: "11px" }}><span style={{ color: "#666" }}>Tanggal: </span>{fmtDate(createdAt)}</div>
+          <div style={{ fontWeight: "bold", fontSize: "24px", color: "#2563eb", letterSpacing: "1px" }}>INVOICE</div>
+          <table style={{ marginLeft: "auto", borderCollapse: "collapse", marginTop: "4px" }}>
+            <tbody>
+              <tr>
+                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Nomor</td>
+                <td style={{ fontSize: "10px", fontWeight: "bold" }}>{invoiceNumber}</td>
+              </tr>
+              <tr>
+                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Tanggal</td>
+                <td style={{ fontSize: "10px" }}>{fmtDate(createdAt)}</td>
+              </tr>
+              {dueDate && (
+                <tr>
+                  <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px", paddingBottom: "2px" }}>Jatuh Tempo</td>
+                  <td style={{ fontSize: "10px", fontWeight: "500", color: "#dc2626" }}>{fmtDate(dueDate)}</td>
+                </tr>
+              )}
+              <tr>
+                <td style={{ fontSize: "10px", color: "#64748b", paddingRight: "8px" }}>Status</td>
+                <td>
+                  <span style={{ fontSize: "9px", fontWeight: "bold", padding: "2px 7px", borderRadius: "10px", background: statusBg, color: statusColor }}>
+                    {statusLabel}
+                  </span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
       {/* Divider */}
-      <div style={{ height: "3px", background: "linear-gradient(to right, #2563eb, #93c5fd)", marginBottom: notaHeader ? "8px" : "16px" }} />
+      <div style={{ height: "3px", background: "linear-gradient(to right, #1e3a5f, #93c5fd)", marginBottom: "12px" }} />
 
-      {/* Custom header text */}
-      {notaHeader && (
-        <div style={{ fontSize: "11px", color: "#555", fontStyle: "italic", marginBottom: "16px" }}>{notaHeader}</div>
-      )}
-
-      {/* Customer info */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
-        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "10px" }}>
-          <div style={{ fontWeight: "bold", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "6px" }}>Tagihan Kepada</div>
-          <div style={{ fontWeight: "bold", fontSize: "13px" }}>{customerName}</div>
-          {customerPhone && <div style={{ color: "#555", fontSize: "11px", marginTop: "2px" }}>{customerPhone}</div>}
-          {plate && <div style={{ color: "#555", fontSize: "11px", marginTop: "2px" }}>Kendaraan: {plate}{vehicle ? ` — ${vehicle}` : ""}</div>}
+      {/* ── Bill To + Payment Info ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+        <div style={{ borderLeft: "3px solid #2563eb", paddingLeft: "10px" }}>
+          <div style={{ fontSize: "9px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "4px" }}>Tagihan Kepada</div>
+          <div style={{ fontWeight: "bold", fontSize: "12px" }}>{customerName}</div>
+          {customerPhone && <div style={{ color: "#555", fontSize: "10px", marginTop: "2px" }}>{customerPhone}</div>}
+          {plate && <div style={{ color: "#555", fontSize: "10px", marginTop: "2px" }}>Kendaraan: {plate}{vehicle ? ` — ${vehicle}` : ""}</div>}
         </div>
-        <div style={{ background: "#f8fafc", borderRadius: "6px", padding: "10px" }}>
-          <div style={{ fontWeight: "bold", fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "6px" }}>Status Pembayaran</div>
-          <div style={{
-            display: "inline-block",
-            padding: "3px 10px",
-            borderRadius: "20px",
-            fontSize: "11px",
-            fontWeight: "bold",
-            background: status === "paid" ? "#dcfce7" : status === "cancelled" ? "#fee2e2" : "#fef9c3",
-            color: status === "paid" ? "#16a34a" : status === "cancelled" ? "#dc2626" : "#854d0e",
-          }}>
-            {status === "paid" ? "✓ LUNAS" : status === "cancelled" ? "DIBATALKAN" : status === "completed" ? "SELESAI" : status === "in_progress" ? "DIKERJAKAN" : "DRAFT"}
+        {status === "paid" && paidAt && (
+          <div style={{ borderLeft: "3px solid #16a34a", paddingLeft: "10px" }}>
+            <div style={{ fontSize: "9px", fontWeight: "bold", textTransform: "uppercase", letterSpacing: "0.5px", color: "#64748b", marginBottom: "4px" }}>Info Pembayaran</div>
+            <div style={{ fontSize: "10px" }}>Dibayar: <strong>{fmtDate(paidAt)}</strong></div>
+            <div style={{ fontSize: "10px", marginTop: "2px" }}>Metode: {methodLabel}</div>
           </div>
-          {status === "paid" && paidAt && (
-            <div style={{ fontSize: "11px", color: "#555", marginTop: "4px" }}>
-              Dibayar: {fmtDate(paidAt)} · {methodLabel}
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Items table */}
+      {/* ── Items table ── */}
       <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "16px" }}>
         <thead>
           <tr style={{ background: "#1e3a5f", color: "#fff" }}>
-            <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", fontSize: "11px", width: "28px" }}>#</th>
-            <th style={{ padding: "8px 10px", textAlign: "left", fontWeight: "600", fontSize: "11px" }}>Uraian Pekerjaan / Item</th>
-            <th style={{ padding: "8px 10px", textAlign: "center", fontWeight: "600", fontSize: "11px", width: "40px" }}>Qty</th>
-            <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "600", fontSize: "11px", width: "88px" }}>Harga Satuan</th>
-            <th style={{ padding: "8px 10px", textAlign: "right", fontWeight: "600", fontSize: "11px", width: "88px" }}>Jumlah</th>
+            <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: "600", fontSize: "10px", width: "24px" }}>#</th>
+            <th style={{ padding: "7px 8px", textAlign: "left", fontWeight: "600", fontSize: "10px" }}>Uraian</th>
+            <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "50px" }}>Satuan</th>
+            <th style={{ padding: "7px 8px", textAlign: "center", fontWeight: "600", fontSize: "10px", width: "36px" }}>Qty</th>
+            <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Harga</th>
+            <th style={{ padding: "7px 8px", textAlign: "right", fontWeight: "600", fontSize: "10px", width: "90px" }}>Jumlah</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, i) => (
             <tr key={item.id} style={{ borderBottom: "1px solid #e2e8f0", background: i % 2 === 0 ? "#fff" : "#f8fafc" }}>
-              <td style={{ padding: "7px 10px", color: "#94a3b8", fontSize: "11px" }}>{i + 1}</td>
-              <td style={{ padding: "7px 10px", fontSize: "11px" }}>
-                <span>{item.description}</span>
-                <span style={{ marginLeft: "6px", fontSize: "9px", padding: "1px 5px", borderRadius: "10px",
+              <td style={{ padding: "6px 8px", color: "#94a3b8", fontSize: "10px" }}>{i + 1}</td>
+              <td style={{ padding: "6px 8px", fontSize: "11px" }}>
+                {item.description}
+                <span style={{ marginLeft: "5px", fontSize: "8px", padding: "1px 4px", borderRadius: "8px",
                   background: item.item_type === "service" ? "#dbeafe" : "#fef3c7",
                   color: item.item_type === "service" ? "#1d4ed8" : "#92400e" }}>
                   {item.item_type === "service" ? "Jasa" : "Part"}
                 </span>
               </td>
-              <td style={{ padding: "7px 10px", textAlign: "center", fontSize: "11px" }}>{item.quantity}</td>
-              <td style={{ padding: "7px 10px", textAlign: "right", fontSize: "11px" }}>{fmt(item.final_price)}</td>
-              <td style={{ padding: "7px 10px", textAlign: "right", fontWeight: "500", fontSize: "11px" }}>{fmt(item.final_price * item.quantity)}</td>
+              <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "10px", color: "#64748b" }}>
+                {item.unit_label || "—"}
+              </td>
+              <td style={{ padding: "6px 8px", textAlign: "center", fontSize: "11px" }}>{item.quantity}</td>
+              <td style={{ padding: "6px 8px", textAlign: "right", fontSize: "10px" }}>{fmt(item.final_price)}</td>
+              <td style={{ padding: "6px 8px", textAlign: "right", fontWeight: "600", fontSize: "11px" }}>{fmt(item.final_price * item.quantity)}</td>
             </tr>
           ))}
         </tbody>
       </table>
 
-      {/* Totals */}
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "16px" }}>
-        <div style={{ width: "220px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "11px" }}>
-            <span style={{ color: "#64748b" }}>Subtotal</span>
-            <span>{fmt(subtotal)}</span>
-          </div>
-          {discountAmount > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "11px" }}>
-              <span style={{ color: "#64748b" }}>Diskon</span>
-              <span style={{ color: "#dc2626" }}>-{fmt(discountAmount)}</span>
+      {/* ── Bottom: notes left, totals right ── */}
+      <div style={{ display: "flex", gap: "16px", marginBottom: "16px" }}>
+        {/* Left: notes */}
+        <div style={{ flex: 1 }}>
+          {notes && (
+            <div style={{ background: "#fef9c3", borderLeft: "3px solid #fbbf24", padding: "8px 10px", fontSize: "10px", marginBottom: "8px", borderRadius: "0 4px 4px 0" }}>
+              <div style={{ fontWeight: "bold", marginBottom: "2px", color: "#92400e" }}>Catatan:</div>
+              <div style={{ color: "#555" }}>{notes}</div>
             </div>
           )}
-          {ppnAmount > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "11px" }}>
-              <span style={{ color: "#64748b" }}>PPN ({ppnPct}%)</span>
-              <span>{fmt(ppnAmount)}</span>
-            </div>
+          {notaFooter && (
+            <div style={{ fontSize: "10px", color: "#555", fontStyle: "italic", borderTop: "1px solid #e2e8f0", paddingTop: "6px" }}>{notaFooter}</div>
           )}
-          {pphAmount > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", padding: "4px 0", fontSize: "11px" }}>
-              <span style={{ color: "#64748b" }}>PPh ({pphPct}%)</span>
-              <span style={{ color: "#dc2626" }}>-{fmt(pphAmount)}</span>
-            </div>
-          )}
-          <div style={{ display: "flex", justifyContent: "space-between", padding: "8px 10px", background: "#1e3a5f", color: "#fff", borderRadius: "6px", marginTop: "6px" }}>
-            <span style={{ fontWeight: "bold" }}>GRAND TOTAL</span>
+        </div>
+        {/* Right: totals */}
+        <div style={{ width: "210px", flexShrink: 0 }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10px" }}>
+            <tbody>
+              <tr>
+                <td style={{ padding: "3px 0", color: "#64748b" }}>Subtotal</td>
+                <td style={{ padding: "3px 0", textAlign: "right" }}>{fmt(subtotal)}</td>
+              </tr>
+              {discountAmount > 0 && (
+                <tr>
+                  <td style={{ padding: "3px 0", color: "#64748b" }}>Diskon</td>
+                  <td style={{ padding: "3px 0", textAlign: "right", color: "#dc2626" }}>-{fmt(discountAmount)}</td>
+                </tr>
+              )}
+              {ppnAmount > 0 && (
+                <tr>
+                  <td style={{ padding: "3px 0", color: "#64748b" }}>PPN ({ppnPct}%)</td>
+                  <td style={{ padding: "3px 0", textAlign: "right" }}>+{fmt(ppnAmount)}</td>
+                </tr>
+              )}
+              {pphAmount > 0 && (
+                <tr>
+                  <td style={{ padding: "3px 0", color: "#64748b" }}>PPh ({pphPct}%)</td>
+                  <td style={{ padding: "3px 0", textAlign: "right", color: "#dc2626" }}>-{fmt(pphAmount)}</td>
+                </tr>
+              )}
+              {(shippingCost ?? 0) > 0 && (
+                <tr>
+                  <td style={{ padding: "3px 0", color: "#64748b" }}>Biaya Kirim</td>
+                  <td style={{ padding: "3px 0", textAlign: "right" }}>+{fmt(shippingCost ?? 0)}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+          <div style={{ display: "flex", justifyContent: "space-between", padding: "7px 10px", background: "#1e3a5f", color: "#fff", borderRadius: "5px", marginTop: "6px" }}>
+            <span style={{ fontWeight: "bold", fontSize: "11px" }}>TOTAL</span>
             <span style={{ fontWeight: "bold", fontSize: "13px" }}>{fmt(grandTotal)}</span>
           </div>
         </div>
       </div>
 
-      {/* Notes */}
-      {notes && (
-        <div style={{ background: "#fef9c3", borderLeft: "4px solid #fbbf24", padding: "8px 12px", marginBottom: "16px", fontSize: "11px" }}>
-          <strong>Catatan:</strong> {notes}
-        </div>
-      )}
-      {notaFooter && (
-        <div style={{ fontSize: "11px", color: "#555", fontStyle: "italic", marginBottom: "16px", borderTop: "1px solid #e2e8f0", paddingTop: "8px" }}>{notaFooter}</div>
-      )}
-
-      {/* Footer */}
+      {/* ── Signatures ── */}
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "10px", color: "#64748b" }}>
         <div>
           <div style={{ fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>Hormat Kami,</div>
@@ -511,7 +546,7 @@ function InvoiceTemplate({
         </div>
       </div>
 
-      <div style={{ marginTop: "12px", textAlign: "center", fontSize: "10px", color: "#94a3b8" }}>
+      <div style={{ marginTop: "12px", textAlign: "center", fontSize: "9px", color: "#94a3b8" }}>
         Dokumen ini diterbitkan secara digital oleh sistem POS {tenantName}
       </div>
     </div>
@@ -571,6 +606,7 @@ export default async function PrintInvoicePage({
     tenantName,
     invoiceNumber: inv.invoice_number,
     createdAt: (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
+    dueDate: (inv as { due_date?: string }).due_date ?? null,
     customerName,
     customerPhone,
     vehicleInfo,
@@ -579,6 +615,7 @@ export default async function PrintInvoicePage({
     discountAmount: Number(inv.discount_amount ?? 0),
     ppnAmount: Number(inv.ppn_amount ?? 0),
     pphAmount: Number(inv.pph_amount ?? 0),
+    shippingCost: Number((inv as { shipping_cost?: number }).shipping_cost ?? 0),
     grandTotal: Number(inv.grand_total),
     notes: inv.notes,
     status: inv.status,

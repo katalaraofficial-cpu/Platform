@@ -34,7 +34,7 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
       .eq("invoice_id", invoiceId),
     supabase
       .from("invoices")
-      .select("ppn_pct, pph_pct, discount_amount")
+      .select("ppn_pct, pph_pct, discount_amount, shipping_cost")
       .eq("id", invoiceId)
       .single(),
   ]);
@@ -45,11 +45,12 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
   );
   const preTax = items.reduce((s, i) => s + Number(i.final_price), 0);
   const totalMarkup = preTax - subtotal;
-  type InvData = { ppn_pct?: unknown; pph_pct?: unknown; discount_amount?: unknown } | null;
+  type InvData = { ppn_pct?: unknown; pph_pct?: unknown; discount_amount?: unknown; shipping_cost?: unknown } | null;
   const d = invData as InvData;
   const ppnPct = Number(d?.ppn_pct ?? 0);
   const pphPct = Number(d?.pph_pct ?? 0);
   const discountAmount = Number(d?.discount_amount ?? 0);
+  const shippingCost = Number(d?.shipping_cost ?? 0);
   const ppnAmount = preTax * ppnPct / 100;
   const pphAmount = preTax * pphPct / 100;
   await supabase
@@ -59,7 +60,7 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
       total_markup: totalMarkup,
       ppn_amount: ppnAmount,
       pph_amount: pphAmount,
-      grand_total: preTax - discountAmount + ppnAmount + pphAmount,
+      grand_total: preTax - discountAmount + ppnAmount + pphAmount + shippingCost,
     })
     .eq("id", invoiceId);
 }
@@ -271,6 +272,8 @@ export type InvoiceItemDraft = {
   unitPrice: number;
   sellPrice: number;
   itemType: ItemType;
+  unitLabel?: string;
+  paymentSource?: PaymentSource;
 };
 
 export type MechanicAssignment = {
@@ -286,6 +289,8 @@ export async function createInvoiceWithItems(payload: {
   notes: string;
   basePath: string;
   invoiceDate?: string;
+  dueDate?: string;
+  shippingCost?: number;
 }): Promise<{ error?: string; invoiceId?: string }> {
   const supabase = await createClient();
   const {
@@ -317,6 +322,8 @@ export async function createInvoiceWithItems(payload: {
       notes: combinedNotes,
       created_by: user.id,
       invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
+      due_date: payload.dueDate ?? null,
+      shipping_cost: payload.shippingCost ?? 0,
     })
     .select("id")
     .single();
@@ -336,7 +343,8 @@ export async function createInvoiceWithItems(payload: {
         unit_price: item.unitPrice,
         markup_pct: 0,
         final_price: item.sellPrice * item.qty,
-        payment_source: null as PaymentSource | null,
+        unit_label: item.unitLabel ?? null,
+        payment_source: item.paymentSource ?? null as PaymentSource | null,
       }))
     );
     if (itemsErr) {
@@ -405,7 +413,7 @@ export async function updateInvoiceItem(
   itemId: string,
   invoiceId: string,
   basePath: string,
-  data: { description: string; quantity: number; unitPrice: number; sellPrice?: number }
+  data: { description: string; quantity: number; unitPrice: number; sellPrice?: number; unitLabel?: string }
 ) {
   const supabase = await createClient();
   let markupPct: number;
@@ -426,6 +434,7 @@ export async function updateInvoiceItem(
         unit_price: data.unitPrice,
         markup_pct: markupPct,
         final_price: finalPrice,
+        ...(data.unitLabel !== undefined ? { unit_label: data.unitLabel || null } : {}),
       })
       .eq("id", itemId);
   } else {
@@ -444,6 +453,7 @@ export async function updateInvoiceItem(
         quantity: data.quantity,
         unit_price: data.unitPrice,
         final_price: finalPrice,
+        ...(data.unitLabel !== undefined ? { unit_label: data.unitLabel || null } : {}),
       })
       .eq("id", itemId);
   }
@@ -700,6 +710,7 @@ export async function addItemToInvoice(params: {
   unitPrice: number;
   markupPct: number;
   paymentSource: PaymentSource | null;
+  unitLabel?: string;
 }): Promise<
   | {
       item: {
@@ -737,10 +748,11 @@ export async function addItemToInvoice(params: {
       unit_price: unitPrice,
       markup_pct: markupPct,
       final_price: finalPrice,
+      unit_label: params.unitLabel ?? null,
       payment_source: paymentSource,
       submitted_by: user.id,
     })
-    .select("id, description, quantity, unit_price, markup_pct, final_price, item_type")
+    .select("id, description, quantity, unit_price, markup_pct, final_price, item_type, unit_label")
     .single();
 
   if (error || !data) return { error: "Gagal menambah item: " + (error?.message ?? "") };
@@ -941,4 +953,39 @@ export async function submitMechanicReceipt(payload: {
   revalidatePath("/mechanic/debts");
   revalidatePath(`/mechanic/dashboard/${payload.invoiceId}`);
   return {};
+}
+
+// ── Update invoice due date ───────────────────────────────────
+export async function updateInvoiceDueDate(
+  invoiceId: string,
+  dueDate: string | null,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  await supabase
+    .from("invoices")
+    .update({ due_date: dueDate || null })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}
+
+// ── Update invoice shipping cost ──────────────────────────────
+export async function updateInvoiceShipping(
+  invoiceId: string,
+  shippingCost: number,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  await supabase
+    .from("invoices")
+    .update({ shipping_cost: Math.max(0, shippingCost) })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  await syncTotals(supabase, invoiceId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }

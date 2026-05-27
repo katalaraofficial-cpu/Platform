@@ -42,7 +42,7 @@ export default async function OwnerInvoiceDetailPage({
       : Promise.resolve({ data: null }),
     supabase
       .from("invoice_items")
-      .select("id, description, quantity, unit_price, markup_pct, final_price, item_type, payment_source")
+      .select("id, description, quantity, unit_price, markup_pct, final_price, item_type, payment_source, unit_label")
       .eq("invoice_id", id)
       .order("created_at", { ascending: true }),
     supabase
@@ -85,6 +85,8 @@ export default async function OwnerInvoiceDetailPage({
         paidAt: invoice.paid_at ?? null,
         paymentMethod: (invoice as Record<string, unknown>)["payment_method"] as string ?? null,
         tenantId: invoice.tenant_id,
+        dueDate: (invoice as Record<string, unknown>)["due_date"] as string ?? null,
+        shippingCost: Number((invoice as Record<string, unknown>)["shipping_cost"] ?? 0),
       }}
       customer={
         customer
@@ -100,6 +102,7 @@ export default async function OwnerInvoiceDetailPage({
         final_price: Number(i.final_price),
         item_type: i.item_type,
         payment_source: i.payment_source ?? null,
+        unit_label: (i as Record<string, unknown>)["unit_label"] as string ?? "",
       }))}
       assignedMechanics={(assignedMechanics ?? []).map((am) => ({
         assignmentId: am.id,

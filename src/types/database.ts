@@ -132,6 +132,7 @@ export interface InvoiceItem {
   unit_price: number;
   markup_pct: number;
   final_price: number;
+  unit_label: string | null;
   payment_source: PaymentSource | null;
   receipt_image_url: string | null;
   submitted_by: string | null;

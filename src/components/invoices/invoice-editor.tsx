@@ -28,6 +28,8 @@ import {
   updateInvoiceStatus,
   rollbackInvoiceStatus,
   processPayment,
+  updateInvoiceDueDate,
+  updateInvoiceShipping,
 } from "@/lib/actions/invoice";
 import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -48,6 +50,7 @@ interface EditorItem {
   itemType: ItemType;
   markupPct: number;
   paymentSource: PaymentSource | null;
+  unitLabel: string;
 }
 
 interface AssignedMechanic {
@@ -81,6 +84,8 @@ export interface InvoiceEditData {
   paidAt: string | null;
   paymentMethod: string | null;
   tenantId: string;
+  dueDate?: string | null;
+  shippingCost?: number;
 }
 
 export interface InitialDbItem {
@@ -92,6 +97,7 @@ export interface InitialDbItem {
   item_type: string;
   markup_pct: number;
   payment_source: string | null;
+  unit_label?: string;
 }
 
 export interface InitialAssignedMechanic {
@@ -145,6 +151,7 @@ function mapDbItem(i: InitialDbItem): EditorItem {
     itemType: i.item_type as ItemType,
     markupPct: Number(i.markup_pct),
     paymentSource: (i.payment_source as PaymentSource) ?? null,
+    unitLabel: i.unit_label ?? "",
   };
 }
 
@@ -387,6 +394,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [itemType, setItemType] = useState<ItemType>("service");
   const [itemDesc, setItemDesc] = useState("");
   const [itemQty, setItemQty] = useState(1);
+  const [itemUnitLabel, setItemUnitLabel] = useState("");
   const [itemSellPrice, setItemSellPrice] = useState(0);
   const [itemBuyPrice, setItemBuyPrice] = useState(0);
   const [itemPaymentSource, setItemPaymentSource] = useState<PaymentSource>("owner");
@@ -398,6 +406,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [editRowId, setEditRowId] = useState<string | null>(null);
   const [editDesc, setEditDesc] = useState("");
   const [editQty, setEditQty] = useState(1);
+  const [editUnitLabel, setEditUnitLabel] = useState("");
   const [editSellPrice, setEditSellPrice] = useState(0);
   const [editBuyPrice, setEditBuyPrice] = useState(0); // for part rows
 
@@ -415,6 +424,14 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     return d > 0 ? String(d) : "";
   });
   const [discountMode, setDiscountMode] = useState<"rp" | "pct">("rp");
+
+  // ── Due date + shipping state ─────────────────────────────────────────
+  const [dueDate, setDueDate] = useState(() => editInvoice?.dueDate ?? "");
+  const [shippingCost, setShippingCost] = useState(() => Number(editInvoice?.shippingCost ?? 0));
+  const [shippingInput, setShippingInput] = useState(() => {
+    const s = Number(editInvoice?.shippingCost ?? 0);
+    return s > 0 ? String(s) : "";
+  });
 
   // ── Print size (create mode) ──────────────────────────────────────────
   const [printSize, setPrintSize] = useState<"thermal" | "a5" | "a4">("a4");
@@ -438,7 +455,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const pphAmount = pphEnabled ? (preTax * pphPct) / 100 : 0;
   const rawDiscount = Math.max(0, Number(discountInput) || 0);
   const computedDiscount = discountMode === "pct" ? (preTax * rawDiscount) / 100 : rawDiscount;
-  const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount;
+  const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount + shippingCost;
 
   // ── Derived edit-mode flags ───────────────────────────────────────────
   const canEdit = isEdit ? displayStatus !== "cancelled" : true;
@@ -508,6 +525,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           itemType,
           markupPct,
           paymentSource: itemType === "part_external" ? itemPaymentSource : null,
+          unitLabel: itemUnitLabel.trim(),
         },
       ]);
       resetItemInputs();
@@ -523,6 +541,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           unitPrice: isPart ? itemBuyPrice : itemSellPrice,
           markupPct: isPart ? markupPct : 0,
           paymentSource: itemType === "part_external" ? itemPaymentSource : null,
+          unitLabel: itemUnitLabel.trim() || undefined,
         });
         if ("error" in res) { setAddItemError(res.error); return; }
         const d = res.item;
@@ -538,6 +557,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             itemType: d.item_type as ItemType,
             markupPct: Number(d.markup_pct),
             paymentSource: null,
+            unitLabel: (d as Record<string, unknown>)["unit_label"] as string ?? "",
           },
         ]);
         resetItemInputs();
@@ -546,7 +566,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   }
 
   function resetItemInputs() {
-    setItemDesc(""); setItemQty(1); setItemSellPrice(0); setItemBuyPrice(0);
+    setItemDesc(""); setItemQty(1); setItemSellPrice(0); setItemBuyPrice(0); setItemUnitLabel("");
     setSuggestions([]); setShowSuggestions(false);
   }
 
@@ -567,6 +587,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     setEditRowId(item.id);
     setEditDesc(item.description);
     setEditQty(item.qty);
+    setEditUnitLabel(item.unitLabel);
     setEditSellPrice(item.sellPrice);
     setEditBuyPrice(item.unitPrice);
   }
@@ -576,12 +597,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     const newQty = Math.max(0.01, editQty);
     const newSell = editSellPrice;
     const newBuy = editBuyPrice;
+    const newUnitLabel = editUnitLabel.trim();
 
     if (!isEdit) {
       setItems((prev) =>
         prev.map((i) =>
           i.id === item.id
-            ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy }
+            ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, unitLabel: newUnitLabel }
             : i
         )
       );
@@ -593,6 +615,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             description: newDesc,
             quantity: newQty,
             unitPrice: newSell, // for services unit_price = sell_price
+            unitLabel: newUnitLabel,
           });
         } else {
           await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
@@ -600,6 +623,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             quantity: newQty,
             unitPrice: newBuy,  // H.Beli
             sellPrice: newSell > 0 ? newSell : undefined, // H.Jual override
+            unitLabel: newUnitLabel,
           });
         }
         const newMarkupPct = newBuy > 0 && newSell > 0
@@ -608,7 +632,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         setItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, markupPct: newMarkupPct }
+              ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, markupPct: newMarkupPct, unitLabel: newUnitLabel }
               : i
           )
         );
@@ -729,6 +753,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         jobDescription: "",
         notes,
         basePath: props.basePath,
+        dueDate: dueDate || undefined,
+        shippingCost: shippingCost > 0 ? shippingCost : undefined,
         mechanics: assignedMechanics.map((m) => ({ id: m.mechanicId, role: m.role })),
         items: items.map((i) => ({
           description: i.description,
@@ -737,11 +763,31 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           unitPrice: i.unitPrice,
           sellPrice: i.sellPrice,
           notes: "",
+          unitLabel: i.unitLabel || undefined,
           paymentSource: i.paymentSource ?? undefined,
         })),
       });
       if (res.error) { setSaveError(res.error); return; }
       router.push(`${props.basePath}/invoices/${res.invoiceId}`);
+    });
+  }
+
+  // ── Due date save ─────────────────────────────────────────────────────
+  function handleSaveDueDate(val: string) {
+    setDueDate(val);
+    if (!isEdit) return;
+    startTransition(async () => {
+      await updateInvoiceDueDate(editInvoice!.id, val || null, props.basePath);
+    });
+  }
+
+  // ── Shipping cost save ────────────────────────────────────────────────
+  function handleSaveShipping() {
+    const val = Math.max(0, Number(shippingInput) || 0);
+    setShippingCost(val);
+    if (!isEdit) return;
+    startTransition(async () => {
+      await updateInvoiceShipping(editInvoice!.id, val, props.basePath);
     });
   }
 
@@ -851,7 +897,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
           <div className="hidden h-4 w-px bg-gray-600 sm:block" />
 
-          {/* Customer */}
+          {/* Due Date */}
+          <div className="flex items-center gap-1.5">
+            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Jatuh Tempo</span>
+            <input
+              type="date"
+              value={dueDate}
+              onChange={(e) => handleSaveDueDate(e.target.value)}
+              className="rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
+          </div>
+
+          <div className="hidden h-4 w-px bg-gray-600 sm:block" />
           <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Customer</span>
             {isEdit ? (
@@ -1058,6 +1115,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   />
                 </div>
 
+                {/* Satuan */}
+                <div className="flex shrink-0 items-center gap-1">
+                  <span className="text-xs text-gray-500">Satuan</span>
+                  <input
+                    type="text"
+                    value={itemUnitLabel}
+                    onChange={(e) => setItemUnitLabel(e.target.value)}
+                    placeholder="pcs, unit…"
+                    className="w-16 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+
                 {/* Buy price (parts only) */}
                 {itemType !== "service" && (
                   <div className="flex shrink-0 items-center gap-1">
@@ -1145,6 +1214,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   <tr>
                     <th className="w-8 px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-400">#</th>
                     <th className="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-gray-300">Nama Item / Jasa</th>
+                    <th className="w-20 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-300">Satuan</th>
                     <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-300">Qty</th>
                     <th className="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-300">H. Jual</th>
                     <th className="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-300">Jumlah</th>
@@ -1175,6 +1245,14 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                               />
                             </div>
                           )}
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            className="w-full rounded border border-blue-300 px-1 py-1 text-center text-xs focus:outline-none"
+                            value={editUnitLabel}
+                            onChange={(e) => setEditUnitLabel(e.target.value)}
+                            placeholder="pcs"
+                          />
                         </td>
                         <td className="px-3 py-2">
                           <input
@@ -1226,6 +1304,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                               </span>
                             )}
                           </div>
+                        </td>
+                        <td className="px-3 py-2.5 text-center text-xs text-gray-500">
+                          {item.unitLabel || <span className="text-gray-300">—</span>}
                         </td>
                         <td className="px-3 py-2.5 text-center text-gray-700">
                           {item.qty % 1 === 0 ? item.qty : item.qty.toFixed(2)}
@@ -1387,6 +1468,26 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               <div className="flex items-center justify-between text-sm text-green-600">
                 <span>Diskon</span>
                 <span className="font-mono">-{fmt(computedDiscount)}</span>
+              </div>
+            ) : null}
+
+            {/* Shipping cost */}
+            {canEdit ? (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-xs text-gray-500">Biaya Kirim</span>
+                <input
+                  type="number" min="0" step="any"
+                  value={shippingInput}
+                  onChange={(e) => setShippingInput(e.target.value)}
+                  onBlur={handleSaveShipping}
+                  placeholder="0"
+                  className="w-28 rounded border border-gray-200 px-2 py-0.5 text-right text-xs focus:outline-none"
+                />
+              </div>
+            ) : shippingCost > 0 ? (
+              <div className="flex items-center justify-between text-sm text-gray-600">
+                <span>Biaya Kirim</span>
+                <span className="font-mono">+{fmt(shippingCost)}</span>
               </div>
             ) : null}
 

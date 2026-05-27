@@ -80,8 +80,6 @@ const TABS = [
   { id: "reset", label: "Reset Data", icon: Trash2 },
 ] as const;
 
-type TabId = (typeof TABS)[number]["id"];
-
 // ── main component ───────────────────────────────────────────
 export function SettingsTabs({
   activeTab,
@@ -139,7 +137,7 @@ function TabToko({ s }: { s: Settings | null }) {
     e.preventDefault();
     startTransition(async () => {
       const res = await saveStoreInfo({ storeName: name, storeAddress: address, storePhone: phone, storeEmail: email, storeLogoUrl: logoUrl });
-      res.error ? toast.error(res.error) : toast.success(res.success);
+      if (res.error) toast.error(res.error); else toast.success(res.success);
     });
   }
 
@@ -186,7 +184,7 @@ function TabPlatform({ s }: { s: Settings | null }) {
         qtyDecimal,
         priceTierLabels: tierLabels,
       });
-      res.error ? toast.error(res.error) : toast.success(res.success);
+      if (res.error) toast.error(res.error); else toast.success(res.success);
     });
   }
 
@@ -244,7 +242,7 @@ function TabNota({ s }: { s: Settings | null }) {
     e.preventDefault();
     startTransition(async () => {
       const res = await saveNotaSettings({ notaHeader: header, notaFooter: footer, notaSignatureUrl: signUrl, notaStampUrl: stampUrl, notaActiveFormat: format });
-      res.error ? toast.error(res.error) : toast.success(res.success);
+      if (res.error) toast.error(res.error); else toast.success(res.success);
     });
   }
 
@@ -307,7 +305,7 @@ function TabReward({ s }: { s: Settings | null }) {
         leadMultiplier: parseFloat(leadMult) || 1,
         helperMultiplier: parseFloat(helperMult) || 0.5,
       });
-      res.error ? toast.error(res.error) : toast.success(res.success);
+      if (res.error) toast.error(res.error); else toast.success(res.success);
     });
   }
 

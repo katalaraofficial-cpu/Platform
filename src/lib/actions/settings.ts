@@ -8,11 +8,11 @@ import { revalidatePath } from "next/cache";
 export type SettingsActionState = { error?: string; success?: string };
 
 // ── Helper: ensure caller is owner ──────────────────────────
-async function ownerGuard() {
+async function ownerGuard(): Promise<{ tenantId: string; id: string; role: string | null }> {
   const ctx = await getUserContext();
   if (!ctx.tenantId || ctx.role !== "owner")
     throw new Error("Hanya owner yang dapat mengubah pengaturan");
-  return ctx;
+  return { ...ctx, tenantId: ctx.tenantId };
 }
 
 // ── Tab 1: Informasi Toko ───────────────────────────────────

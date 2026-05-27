@@ -245,7 +245,7 @@ export interface Database {
       };
       settings: {
         Row: Settings & Record<string, unknown>;
-        Insert: Omit<Settings, "id" | "created_at" | "updated_at">;
+        Insert: Pick<Settings, "tenant_id"> & Partial<Omit<Settings, "id" | "tenant_id" | "created_at" | "updated_at">>;
         Update: Partial<Omit<Settings, "id" | "created_at">>;
         Relationships: never[];
       };

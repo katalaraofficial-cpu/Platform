@@ -1,5 +1,6 @@
 import { getUserContext } from "@/lib/get-user-context";
 import { Sidebar } from "@/components/layout/sidebar";
+import { OwnerMobileNav } from "@/components/layout/owner-mobile-nav";
 import {
   LayoutDashboard,
   FileText,
@@ -56,7 +57,7 @@ export default async function OwnerLayout({
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar */}
+      {/* Sidebar – desktop only */}
       <Sidebar
         navItems={navItems}
         tenantName={ctx.tenantName}
@@ -68,11 +69,21 @@ export default async function OwnerLayout({
 
       {/* Main content */}
       <main className="flex min-w-0 flex-1 flex-col">
+        {/* Mobile top bar */}
         <div className="border-b bg-white px-4 py-3 text-sm text-gray-500 lg:hidden">
           {ctx.tenantName} · {ctx.fullName}
         </div>
-        <div className="flex-1 overflow-y-auto px-4 py-4 lg:p-6">{children}</div>
+        {/* Extra bottom padding on mobile so content clears the bottom nav */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 pb-28 lg:p-6 lg:pb-6">{children}</div>
       </main>
+
+      {/* Mobile bottom nav */}
+      <OwnerMobileNav
+        navItems={navItems}
+        tenantName={ctx.tenantName}
+        userFullName={ctx.fullName}
+        newInvoiceHref="/owner/invoices/new"
+      />
     </div>
   );
 }

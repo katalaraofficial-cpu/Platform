@@ -224,6 +224,11 @@ function NotaTemplate({
 }) {
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model].filter(Boolean).join(" ");
+  const A5_NO_COL = "7mm";
+  const A5_QTY_COL = "12mm";
+  const A5_PRICE_COL = "24mm";
+  const A5_TOTAL_COL = "24mm";
+  const A5_ROW_HEIGHT = "7mm";
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "11px", width: "148mm", margin: "0 auto", padding: "6mm", position: "relative" }}>
@@ -266,33 +271,33 @@ function NotaTemplate({
       )}
 
       {/* Items table */}
-      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px", borderTop: "1.5px solid #111", borderBottom: "1px solid #d1d5db" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", marginBottom: "8px", fontSize: "10px", borderTop: "1.5px solid #111", borderBottom: "1px solid #d1d5db", tableLayout: "fixed" }}>
         <thead>
           <tr style={{ background: "#f0f0f0", borderBottom: "1px solid #999" }}>
-            <th style={{ padding: "4px", textAlign: "left", width: "24px" }}>No</th>
+            <th style={{ padding: "4px", textAlign: "left", width: A5_NO_COL }}>No</th>
             <th style={{ padding: "4px", textAlign: "left" }}>Uraian</th>
-            <th style={{ padding: "4px", textAlign: "center", width: "32px" }}>Qty</th>
-            <th style={{ padding: "4px", textAlign: "right", width: "72px" }}>Harga</th>
-            <th style={{ padding: "4px", textAlign: "right", width: "72px" }}>Jumlah</th>
+            <th style={{ padding: "4px", textAlign: "center", width: A5_QTY_COL }}>Qty</th>
+            <th style={{ padding: "4px", textAlign: "right", width: A5_PRICE_COL }}>Harga</th>
+            <th style={{ padding: "4px", textAlign: "right", width: A5_TOTAL_COL }}>Jumlah</th>
           </tr>
         </thead>
         <tbody>
           {items.map((item, i) => (
             <tr key={item.id} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "5px 4px" }}>{i + 1}</td>
-              <td style={{ padding: "5px 4px" }}>{item.description}</td>
-              <td style={{ padding: "5px 4px", textAlign: "center" }}>{item.quantity}</td>
-              <td style={{ padding: "5px 4px", textAlign: "right" }}>{fmt(item.final_price)}</td>
-              <td style={{ padding: "5px 4px", textAlign: "right" }}>{fmt(item.final_price * item.quantity)}</td>
+              <td style={{ padding: "5px 4px", height: A5_ROW_HEIGHT }}>{i + 1}</td>
+              <td style={{ padding: "5px 4px", height: A5_ROW_HEIGHT }}>{item.description}</td>
+              <td style={{ padding: "5px 4px", textAlign: "center", height: A5_ROW_HEIGHT }}>{item.quantity}</td>
+              <td style={{ padding: "5px 4px", textAlign: "right", height: A5_ROW_HEIGHT }}>{fmt(item.final_price)}</td>
+              <td style={{ padding: "5px 4px", textAlign: "right", height: A5_ROW_HEIGHT }}>{fmt(item.final_price * item.quantity)}</td>
             </tr>
           ))}
           {Array.from({ length: Math.max(0, 3 - items.length) }).map((_, i) => (
             <tr key={`nota-empty-${i}`} style={{ borderBottom: "1px solid #eee" }}>
-              <td style={{ padding: "10px 4px" }}>&nbsp;</td>
-              <td />
-              <td />
-              <td />
-              <td />
+              <td style={{ padding: "10px 4px", height: A5_ROW_HEIGHT }}>&nbsp;</td>
+              <td style={{ height: A5_ROW_HEIGHT }} />
+              <td style={{ height: A5_ROW_HEIGHT }} />
+              <td style={{ height: A5_ROW_HEIGHT }} />
+              <td style={{ height: A5_ROW_HEIGHT }} />
             </tr>
           ))}
         </tbody>
@@ -454,6 +459,15 @@ function InvoiceTemplate({
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model, vehicleInfo?.year ? String(vehicleInfo.year) : null].filter(Boolean).join(" ");
   const sisaTagihan = status === "paid" ? 0 : grandTotal;
+  const A4_BOX_HEIGHT = "31mm";
+  const A4_NO_COL = "8mm";
+  const A4_QTY_COL = "16mm";
+  const A4_UNIT_COL = "12mm";
+  const A4_DISC_COL = "10mm";
+  const A4_TAX_COL = "10mm";
+  const A4_PRICE_COL = "20mm";
+  const A4_TOTAL_COL = "22mm";
+  const A4_ROW_HEIGHT = "8.2mm";
 
   return (
     <div style={{ fontFamily: "Arial, sans-serif", fontSize: "12px", maxWidth: "190mm", margin: "0 auto", padding: "10mm 12mm", color: "#1a1a1a", position: "relative" }}>
@@ -490,12 +504,12 @@ function InvoiceTemplate({
 
       {/* ── Two boxes: customer left, company info right ── */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "14px" }}>
-        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "92px" }}>
+        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: A4_BOX_HEIGHT }}>
           <div style={{ fontWeight: "bold", fontSize: "12px" }}>{customerName}</div>
           {customerPhone && <div style={{ marginTop: "3px" }}>{customerPhone}</div>}
           {plate && <div style={{ marginTop: "2px" }}>{plate}{vehicle ? ` - ${vehicle}` : ""}</div>}
         </div>
-        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: "92px" }}>
+        <div style={{ border: "1px solid #000", padding: "8px 10px", fontSize: "10px", minHeight: A4_BOX_HEIGHT }}>
           <div style={{ fontWeight: "bold" }}>{tenantName}</div>
           {storeAddress && <div style={{ marginTop: "3px", color: "#444" }}>{storeAddress}</div>}
           {storePhone && <div style={{ color: "#444" }}>{storePhone}</div>}
@@ -504,20 +518,20 @@ function InvoiceTemplate({
       </div>
 
       {/* ── Items table (double header row) ── */}
-      <table style={{ width: "100%", borderCollapse: "collapse", border: "1.5px solid #222" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", border: "1.5px solid #222", tableLayout: "fixed" }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: "28px", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>No.</th>
+            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_NO_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>No.</th>
             <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 8px", textAlign: "left", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Deskripsi</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: "64px", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Kuantitas</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: "52px", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Satuan</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: "46px", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Diskon</th>
-            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: "42px", fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Pajak</th>
+            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_QTY_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Kuantitas</th>
+            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_UNIT_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Satuan</th>
+            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_DISC_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Diskon</th>
+            <th rowSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", width: A4_TAX_COL, fontSize: "10px", verticalAlign: "middle", fontWeight: 700 }}>Pajak</th>
             <th colSpan={2} style={{ border: "1px solid #222", padding: "6px 6px", textAlign: "center", fontSize: "10px", fontWeight: 700 }}>Harga</th>
           </tr>
           <tr>
-            <th style={{ border: "1px solid #222", padding: "4px 6px", textAlign: "right", width: "80px", fontSize: "10px", fontWeight: 700 }}>/ Unit</th>
-            <th style={{ border: "1px solid #222", padding: "4px 6px", textAlign: "right", width: "84px", fontSize: "10px", fontWeight: 700 }}>Jumlah</th>
+            <th style={{ border: "1px solid #222", padding: "4px 6px", textAlign: "right", width: A4_PRICE_COL, fontSize: "10px", fontWeight: 700 }}>/ Unit</th>
+            <th style={{ border: "1px solid #222", padding: "4px 6px", textAlign: "right", width: A4_TOTAL_COL, fontSize: "10px", fontWeight: 700 }}>Jumlah</th>
           </tr>
         </thead>
         <tbody>
@@ -525,29 +539,29 @@ function InvoiceTemplate({
             const unitPrice = item.quantity > 0 ? item.final_price / item.quantity : item.final_price;
             return (
               <tr key={item.id}>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px" }}>{i + 1}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 8px", fontSize: "10px" }}>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{i + 1}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 8px", fontSize: "10px", height: A4_ROW_HEIGHT }}>
                   <div style={{ fontWeight: "500" }}>{item.description}</div>
                 </td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px" }}>{item.quantity}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px" }}>{item.unit_label || "Unit"}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px" }}>0%</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px" }}>{ppnPct > 0 ? `${ppnPct}%` : ""}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px" }}>{unitPrice.toLocaleString("id-ID")}</td>
-                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px" }}>{item.final_price.toLocaleString("id-ID")}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.quantity}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.unit_label || "Unit"}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>0%</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "center", fontSize: "10px", height: A4_ROW_HEIGHT }}>{ppnPct > 0 ? `${ppnPct}%` : ""}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{unitPrice.toLocaleString("id-ID")}</td>
+                <td style={{ border: "1px solid #b3b3b3", padding: "8px 6px", textAlign: "right", fontSize: "10px", height: A4_ROW_HEIGHT }}>{item.final_price.toLocaleString("id-ID")}</td>
               </tr>
             );
           })}
           {Array.from({ length: Math.max(0, 7 - items.length) }).map((_, i) => (
             <tr key={`empty-${i}`}>
-              <td style={{ border: "1px solid #b3b3b3", padding: "20px 6px" }}>&nbsp;</td>
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
-              <td style={{ border: "1px solid #b3b3b3" }} />
+              <td style={{ border: "1px solid #b3b3b3", padding: "18px 6px", height: A4_ROW_HEIGHT }}>&nbsp;</td>
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
+              <td style={{ border: "1px solid #b3b3b3", height: A4_ROW_HEIGHT }} />
             </tr>
           ))}
         </tbody>

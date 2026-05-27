@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 27 Mei 2026 — commit `0df5fad`
+**Last updated:** 27 Mei 2026 — commit `3cdbd1c`
 
 > Untuk konteks lengkap (AI agent briefing, keputusan teknis, status modul, known issues): lihat [`docs/PROJECT_CONTEXT.md`](docs/PROJECT_CONTEXT.md)
 
@@ -20,6 +20,10 @@ Platform manajemen bengkel multi-tenant berbasis web. Dibangun dengan Next.js 15
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `3cdbd1c` | fix | Mobile invoice editor: field strip full-width, toggle centered, fix overflow form Barang |
+| `f79681f` | feat | Polish mobile invoice editor: sticky save bar + collapsible totals |
+| `98aab12` | feat | Owner mobile bottom nav: FAB invoice, drawer, 4 slot tetap |
+| `adf1681` | fix | Hotfix JSX malformed owner invoice list (Vercel build error) |
 | `0df5fad` | fix | Stabilkan build Vercel: perbaikan narrowing `window` pada prefetch sidebar |
 | `3f12dd7` | perf | Prefetch route owner dari navigasi sidebar dan bottom nav |
 | `2efa3ac` | perf | Paralelisasi query KPI + tabel pada halaman Kas |
@@ -133,6 +137,9 @@ RESEND_API_KEY=<resend-api-key>
 - [x] Sidebar collapsible (desktop)
 - [x] Mobile bottom nav (mekanik)
 - [x] Komponen `ConfirmDialog` reusable (5 dialog konfirmasi di seluruh app)
+- [x] **Owner mobile bottom nav** — FAB Invoice di tengah, drawer slide-up untuk semua menu, 4 slot tetap: Dashboard / Kas / Pengaturan / Menu
+- [x] Invoice list owner + admin: card view di mobile, tabel di desktop
+- [x] **Invoice editor mobile-first** — single-column layout, card item list, form tambah item full-width, sticky save bar di atas bottom nav, panel totals collapsible di mobile
 
 ---
 

@@ -1,6 +1,6 @@
 # AI Agent Framework - Katalara POS
 
-Last updated: 27 Mei 2026 (commit `0df5fad`)
+Last updated: 27 Mei 2026 (commit `3cdbd1c`)
 
 ## Tujuan Dokumen
 
@@ -80,7 +80,27 @@ Saat melakukan perubahan baru, jangan regress baseline di atas tanpa justifikasi
 
 ## 7) Log Build Terbaru (Ringkas)
 
+- `3cdbd1c`: fix mobile invoice editor — field strip full-width, toggle centered, overflow form Barang
+- `f79681f`: polish mobile invoice editor — sticky save bar + collapsible totals panel
+- `98aab12`: owner mobile bottom nav — FAB invoice, drawer, 4 fixed slots
+- `adf1681`: hotfix JSX malformed owner invoice list (Vercel build error)
+- `0df5fad`: fix window narrowing issue in sidebar prefetch fallback
 - `3f12dd7`: prefetch owner routes from navigation
 - `2efa3ac`: parallelize kas KPI and table queries
 - `6792240`: trim owner route query payloads
-- `0df5fad`: fix window narrowing issue in sidebar prefetch fallback
+
+## 8) Komponen Mobile Kritis (Jangan Regress)
+
+| Komponen | File | Catatan |
+|---|---|---|
+| Owner mobile nav | `src/components/layout/owner-mobile-nav.tsx` | FAB + drawer, 5 slot; `pb-28` di layout |
+| Invoice editor | `src/components/invoices/invoice-editor.tsx` | Mobile: single-col, card items, sticky bar |
+| Invoice list owner | `src/app/(owner)/owner/invoices/page.tsx` | `md:hidden` card / `hidden md:block` table |
+| Invoice list admin | `src/app/(admin)/admin/invoices/page.tsx` | Sama pola dengan owner |
+| Owner layout | `src/app/(owner)/layout.tsx` | `pb-28 lg:pb-6` agar konten tidak ketutup nav |
+
+Pattern kunci yang sudah diterapkan:
+- `md:hidden` = hanya mobile
+- `hidden md:block` = hanya desktop  
+- `pb-28` = padding bawah untuk konten agar tidak tertutup bottom nav
+- `fixed inset-x-0 bottom-20 z-40` = sticky bar di atas bottom nav (80px dari bawah)

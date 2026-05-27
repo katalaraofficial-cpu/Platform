@@ -1,6 +1,6 @@
 # Development Progress Log
 
-Last updated: 27 Mei 2026 (commit `0df5fad`)
+Last updated: 27 Mei 2026 (commit `3cdbd1c`)
 
 ## Ringkasan Status Saat Ini
 
@@ -13,6 +13,10 @@ Last updated: 27 Mei 2026 (commit `0df5fad`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `3cdbd1c` | fix | Mobile invoice editor: field strip full-width, toggle rata tengah, fix overflow form Barang |
+| `f79681f` | feat | Polish mobile invoice editor: sticky save bar + collapsible totals panel |
+| `98aab12` | feat | Owner mobile bottom nav: FAB invoice, drawer menu, 4 fixed slot (Dashboard/Kas/Pengaturan/Menu) |
+| `adf1681` | fix | Hotfix JSX malformed pada invoice list owner (Vercel build error) |
 | `0df5fad` | fix | Perbaikan build Vercel: hindari narrowing `window` di fallback prefetch sidebar |
 | `3f12dd7` | perf | Prefetch route owner dari sidebar + mobile bottom nav |
 | `2efa3ac` | perf | Paralelisasi query KPI + tabel halaman Kas |
@@ -43,3 +47,18 @@ Last updated: 27 Mei 2026 (commit `0df5fad`)
 7. Nilai form Nota & Printer tetap konsisten setelah save dan reload.
 8. Navigasi owner terasa lebih cepat pada perpindahan via sidebar/bottom nav.
 9. Build Vercel lolos tanpa error TypeScript pada `sidebar.tsx`.
+
+## Checklist Mobile UX (Per Halaman Owner — 27 Mei 2026)
+
+| Halaman | Status | Catatan |
+|---|---|---|
+| Invoice List (`/owner/invoices`) | ✅ Selesai | Card mobile + tabel desktop, KPI grid responsive |
+| Invoice Baru (`/owner/invoices/new`) | ✅ Selesai | Single-column mobile, form item full-width, sticky save bar |
+| Invoice Edit (`/owner/invoices/[id]`) | ✅ Selesai | Shared `InvoiceEditor`, layout sama dengan new |
+| Bottom Nav Owner | ✅ Selesai | FAB Invoice, drawer menu, 4 slot tetap (Dashboard/Kas/Pengaturan/Menu) |
+| Dashboard (`/owner/dashboard`) | 🔄 Belum | Kartu KPI perlu audit 360px |
+| Kas (`/owner/kas`) | 🔄 Belum | Tabel transaksi perlu card list di mobile |
+| Settings (`/owner/settings`) | 🔄 Belum | Form panjang perlu single-column audit |
+| Admin Invoice List | ✅ Selesai | Card mobile + tabel desktop |
+| Admin Invoice New/Edit | ✅ Selesai | Shared InvoiceEditor |
+| Admin Bottom Nav | 🔄 Belum | Masih sidebar lama tanpa bottom nav mobile |

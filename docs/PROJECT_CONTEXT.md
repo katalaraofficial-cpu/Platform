@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 27 Mei 2026 — commit `0df5fad`
+> **Last updated:** 27 Mei 2026 — commit `3cdbd1c`
 
 ---
 
@@ -22,24 +22,37 @@
 
 - Build log terbaru: lihat `docs/DEVELOPMENT_PROGRESS.md`
 - Kerangka operasional agent: lihat `docs/AI_AGENT_FRAMEWORK.md`
-- Update fitur print/settings terbaru:
-   - detail field di tab Nota & Printer (judul nota, jabatan, toggle watermark)
-   - output print mengikuti `nota_active_format` dan settings yang disimpan
-   - penyesuaian template A4/A5/thermal + watermark LUNAS
-- Migration terbaru terkait fitur ini:
-   - `023_invoice_new_fields.sql`
-   - `024_settings_nota_config.sql`
-   - `025_settings_nota_title_size.sql`
-- Update stabilisasi terbaru:
-   - perbaikan save pajak (toggle PPh/PPN) agar tidak kembali ke state lama
-   - sinkronisasi state form Nota & Printer setelah save + refresh
-   - fallback metadata nota diprioritaskan bila kolom modern belum sinkron
-- Update performa navigasi owner:
-   - query payload owner dipangkas pada dashboard/settings/kas
-   - query KPI + tabel di halaman kas diparalelkan
-   - prefetch route owner dari sidebar dan mobile bottom nav
-- Update stabilitas build:
-   - fix TypeScript narrowing issue pada prefetch fallback di sidebar (Vercel build)
+- Rencana mobile + PWA rollout: lihat `docs/MOBILE_PWA_ROLLOUT.md`
+
+### Mobile UX — Update Terbaru (27 Mei 2026)
+- Owner mobile bottom nav (`src/components/layout/owner-mobile-nav.tsx`):
+  - 5-slot bar: Menu (drawer) | Dashboard | FAB Invoice | Kas | Pengaturan
+  - FAB: `rounded-full` di tengah, link ke `/owner/invoices/new`
+  - Drawer: slide-up sheet, semua nav items, tombol logout
+- Invoice list owner + admin: card view di mobile, tabel di desktop (`md:hidden` / `hidden md:block`)
+- Invoice editor (`src/components/invoices/invoice-editor.tsx`) — mobile refactor penuh:
+  - Field strip header: grid 1-kolom di mobile, semua input full-width
+  - Toggle Jasa/Barang: `flex-1` supaya rata tengah
+  - Form tambah item: grid 2-kolom di mobile (full-width inputs)
+  - Daftar item: card list di mobile (bukan tabel), tabel tetap di desktop
+  - Panel totals: collapsible rincian biaya (PPN/PPh/Diskon/Kirim) di mobile
+  - Sticky save bar: fixed bar di atas bottom nav, tampilkan Grand Total + Reset + Simpan
+  - Left panel: `overflow-y-auto` di mobile supaya form Barang (lebih banyak field) bisa di-scroll
+
+### Update Settings & Print (sebelumnya)
+- field di tab Nota & Printer (judul nota, jabatan, toggle watermark)
+- output print mengikuti `nota_active_format` dan settings yang disimpan
+- penyesuaian template A4/A5/thermal + watermark LUNAS
+- Migration terkait: `023`, `024`, `025`
+
+### Update Stabilisasi & Performa (sebelumnya)
+- perbaikan save pajak (toggle PPh/PPN)
+- sinkronisasi state form Nota & Printer
+- fallback metadata nota bila kolom modern belum sinkron
+- query payload owner dipangkas
+- query KPI + tabel kas diparalelkan
+- prefetch route owner dari sidebar dan mobile bottom nav
+- fix TypeScript narrowing pada sidebar (Vercel build)
 
 ---
 

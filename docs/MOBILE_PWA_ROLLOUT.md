@@ -6,16 +6,18 @@ Dokumen ini jadi checklist implementasi mobile-first untuk role owner, admin, en
 
 ### Owner (prioritas tertinggi)
 - [x] Daftar invoice: mobile card list + desktop table
+- [x] Bottom nav mobile: FAB invoice, drawer, 4 slot tetap
+- [x] New/edit invoice: single-column mobile, form item responsive, sticky save bar, card item list
 - [ ] Dashboard: rapikan kartu KPI agar aman di 360px
 - [ ] Kas: mobile card list untuk transaksi (hindari horizontal scroll)
 - [ ] Settings: tata letak form jadi single-column di mobile
-- [ ] Detail invoice/new invoice: evaluasi section panjang + sticky action
 
 ### Admin
 - [x] Daftar invoice: mobile card list + desktop table
+- [x] New/edit invoice: shared InvoiceEditor (mobile sudah responsive)
+- [ ] Bottom nav mobile: belum ada, masih sidebar lama
 - [ ] Dashboard: ringkas tabel invoice terkini menjadi list di mobile
 - [ ] Reimburse: validasi komponen tabel riwayat di mobile
-- [ ] New/edit invoice: validasi flow input item di mobile
 
 ### Engineer
 - [x] Sudah support mobile (sesuai catatan terakhir)

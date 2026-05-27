@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 25 Mei 2026 — commit `2a8ba78`
+> **Last updated:** 27 Mei 2026 — commit `bd1cfe1`
 
 ---
 
@@ -15,6 +15,20 @@
 | **GitHub** | https://github.com/katalaraofficial-cpu/Platform (branch: `main`) |
 | **Supabase** | https://nmggvtewovganrwcbpzk.supabase.co |
 | **Deskripsi** | B2B SaaS multi-tenant untuk manajemen bengkel (workshop). Super admin onboard bengkel, lalu setiap bengkel punya owner/admin/mekanik. |
+
+---
+
+## Update Cepat (Mei 2026)
+
+- Build log terbaru: lihat `docs/DEVELOPMENT_PROGRESS.md`
+- Kerangka operasional agent: lihat `docs/AI_AGENT_FRAMEWORK.md`
+- Update fitur print/settings terbaru:
+   - detail field di tab Nota & Printer (judul nota, jabatan, toggle watermark)
+   - output print mengikuti `nota_active_format` dan settings yang disimpan
+   - penyesuaian template A4/A5/thermal + watermark LUNAS
+- Migration terbaru terkait fitur ini:
+   - `023_invoice_new_fields.sql`
+   - `024_settings_nota_config.sql`
 
 ---
 

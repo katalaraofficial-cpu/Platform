@@ -562,6 +562,77 @@ export async function processPayment(
     } as never);
   }
 
+  // ── Auto-earn employee points ────────────────────────────────
+  try {
+    const adminClient2 = createAdminClient();
+    const { data: settings } = await adminClient2
+      .from("settings")
+      .select("reward_employee_enabled, reward_spend_per_point, reward_point_validity_days, reward_lead_multiplier, reward_helper_multiplier")
+      .eq("tenant_id", ctx.tenantId)
+      .single();
+
+    if (settings?.reward_employee_enabled && amount > 0) {
+      const { data: mechanics } = await adminClient2
+        .from("invoice_mechanics")
+        .select("mechanic_id, mechanic_role")
+        .eq("invoice_id", invoiceId)
+        .eq("tenant_id", ctx.tenantId);
+
+      if (mechanics?.length) {
+        const basePoints = Math.floor(amount / Number(settings.reward_spend_per_point));
+        if (basePoints > 0) {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + (settings.reward_point_validity_days ?? 365));
+          const expiresStr = expiresAt.toISOString().split("T")[0];
+
+          for (const m of mechanics) {
+            const multiplier = m.mechanic_role === "lead"
+              ? Number(settings.reward_lead_multiplier ?? 1)
+              : Number(settings.reward_helper_multiplier ?? 0.5);
+            const earned = Math.floor(basePoints * multiplier);
+            if (earned <= 0) continue;
+
+            // Upsert or update balance
+            const { data: existing } = await adminClient2
+              .from("employee_points")
+              .select("id, points_balance, total_earned")
+              .eq("tenant_id", ctx.tenantId)
+              .eq("profile_id", m.mechanic_id)
+              .maybeSingle();
+
+            if (existing) {
+              await adminClient2.from("employee_points").update({
+                points_balance: existing.points_balance + earned,
+                total_earned: existing.total_earned + earned,
+              }).eq("id", existing.id);
+            } else {
+              await adminClient2.from("employee_points").insert({
+                tenant_id: ctx.tenantId,
+                profile_id: m.mechanic_id,
+                points_balance: earned,
+                total_earned: earned,
+                total_redeemed: 0,
+              });
+            }
+
+            // Log transaction
+            await adminClient2.from("employee_point_transactions").insert({
+              tenant_id: ctx.tenantId,
+              profile_id: m.mechanic_id,
+              transaction_type: "earn",
+              points: earned,
+              reference_id: invoiceId,
+              expires_at: expiresStr,
+              notes: `Invoice ${inv.invoice_number} (${m.mechanic_role})`,
+            });
+          }
+        }
+      }
+    }
+  } catch {
+    // Point earning is non-critical — do not fail the payment
+  }
+
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
   revalidatePath(`${basePath}/invoices`);
 }

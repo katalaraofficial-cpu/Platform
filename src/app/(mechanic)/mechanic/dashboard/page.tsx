@@ -1,8 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
-import { ChevronRight, ClipboardList } from "lucide-react";
-import type { Invoice, Customer, InvoiceStatus, MechanicRoleInInvoice } from "@/types/database";
+import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
+import type { Invoice, Customer, InvoiceStatus, MechanicRoleInInvoice, EmployeePoints, EmployeePointTransaction } from "@/types/database";
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   draft: "Menunggu",
@@ -33,7 +33,7 @@ export default async function MechanicDashboard({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const activeTab = tab === "all" ? "all" : "active";
+  const activeTab = tab === "all" ? "all" : tab === "point" ? "point" : "active";
 
   const supabase = await createClient();
   const ctx = await getUserContext();
@@ -100,6 +100,29 @@ export default async function MechanicDashboard({
     activeStatuses.includes(wo.invoice.status as InvoiceStatus)
   ).length;
 
+  // 7. Fetch employee points data if Point tab is active
+  let employeePoints: EmployeePoints | null = null;
+  let pointTransactions: EmployeePointTransaction[] = [];
+  if (activeTab === "point" && ctx.id && ctx.tenantId) {
+    const [{ data: epData }, { data: txData }] = await Promise.all([
+      supabase
+        .from("employee_points")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("profile_id", ctx.id)
+        .single(),
+      supabase
+        .from("employee_point_transactions")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("profile_id", ctx.id)
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ]);
+    employeePoints = epData as EmployeePoints | null;
+    pointTransactions = (txData as EmployeePointTransaction[] | null) ?? [];
+  }
+
   return (
     <div>
       {/* Header */}
@@ -136,6 +159,16 @@ export default async function MechanicDashboard({
           }`}
         >
           Semua
+        </Link>
+        <Link
+          href="/mechanic/dashboard?tab=point"
+          className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
+            activeTab === "point"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500"
+          }`}
+        >
+          Point
         </Link>
       </div>
 
@@ -227,6 +260,74 @@ export default async function MechanicDashboard({
               </Link>
             );
           })}
+        </div>
+      )}
+
+      {/* ── TAB: Point ──────────────────────────────────────── */}
+      {activeTab === "point" && (
+        <div className="space-y-4">
+          {/* Balance card */}
+          <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white shadow">
+            <div className="flex items-center gap-2 mb-1">
+              <Gift className="h-5 w-5 opacity-80" />
+              <span className="text-sm font-semibold opacity-80">Saldo Point Kamu</span>
+            </div>
+            <p className="text-4xl font-bold">{employeePoints?.points_balance ?? 0} pt</p>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <TrendingUp className="h-4 w-4 text-emerald-400" />
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Diperoleh</span>
+              </div>
+              <p className="text-2xl font-bold text-emerald-600">{employeePoints?.total_earned ?? 0} pt</p>
+            </div>
+            <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowDownLeft className="h-4 w-4 text-violet-400" />
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Ditukar</span>
+              </div>
+              <p className="text-2xl font-bold text-violet-600">{employeePoints?.total_redeemed ?? 0} pt</p>
+            </div>
+          </div>
+
+          {/* Transaction history */}
+          <div>
+            <h2 className="mb-3 text-sm font-bold text-gray-700 uppercase tracking-wider">Riwayat Point</h2>
+            {pointTransactions.length === 0 ? (
+              <div className="flex flex-col items-center py-10 text-center">
+                <Gift className="mb-3 h-10 w-10 text-gray-200" />
+                <p className="text-sm font-semibold text-gray-400">Belum ada riwayat point</p>
+                <p className="text-xs text-gray-300 mt-1">Point diperoleh saat invoice lunas dibayar</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {pointTransactions.map((tx) => (
+                  <div
+                    key={tx.id}
+                    className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-gray-800">{tx.notes ?? tx.transaction_type}</p>
+                      <p className="text-xs text-gray-400">
+                        {new Date(tx.created_at).toLocaleDateString("id-ID", {
+                          day: "numeric", month: "short", year: "numeric",
+                        })}
+                        {tx.expires_at && (
+                          <span className="ml-2 text-amber-400">· berlaku s/d {new Date(tx.expires_at).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</span>
+                        )}
+                      </p>
+                    </div>
+                    <span className={`ml-3 text-base font-bold ${tx.points > 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      {tx.points > 0 ? "+" : ""}{tx.points} pt
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

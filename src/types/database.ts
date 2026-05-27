@@ -60,6 +60,13 @@ export interface Settings {
   tenant_id: string;
   default_markup_pct: number;
   petty_cash_limit: number;
+  reward_employee_enabled: boolean;
+  reward_spend_per_point: number;
+  reward_point_value: number;
+  reward_min_redeem: number;
+  reward_point_validity_days: number;
+  reward_lead_multiplier: number;
+  reward_helper_multiplier: number;
   created_at: string;
   updated_at: string;
 }
@@ -162,6 +169,30 @@ export interface PettyCashTransaction {
   created_at: string;
 }
 
+export type PointTransactionType = "earn" | "redeem" | "expire" | "adjust";
+
+export interface EmployeePoints {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  points_balance: number;
+  total_earned: number;
+  total_redeemed: number;
+  updated_at: string;
+}
+
+export interface EmployeePointTransaction {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  transaction_type: PointTransactionType;
+  points: number;
+  reference_id: string | null;
+  notes: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
 export interface TenantRequest {
   id: string;
   business_name: string;
@@ -241,6 +272,18 @@ export interface Database {
       petty_cash_transactions: {
         Row: PettyCashTransaction & Record<string, unknown>;
         Insert: Omit<PettyCashTransaction, "id" | "created_at">;
+        Update: never;
+        Relationships: never[];
+      };
+      employee_points: {
+        Row: EmployeePoints & Record<string, unknown>;
+        Insert: Omit<EmployeePoints, "id" | "updated_at"> & Partial<Pick<EmployeePoints, "points_balance" | "total_earned" | "total_redeemed">>;
+        Update: Partial<Omit<EmployeePoints, "id">>;
+        Relationships: never[];
+      };
+      employee_point_transactions: {
+        Row: EmployeePointTransaction & Record<string, unknown>;
+        Insert: Omit<EmployeePointTransaction, "id" | "created_at"> & Partial<Pick<EmployeePointTransaction, "reference_id" | "notes" | "expires_at">>;
         Update: never;
         Relationships: never[];
       };

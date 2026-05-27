@@ -11,6 +11,7 @@ import {
   Wrench,
   TrendingUp,
   Star,
+  Gift,
 } from "lucide-react";
 import {
   LunasiButton,
@@ -20,6 +21,7 @@ import {
   DebtHistoryTable,
   type MechanicInfo,
 } from "@/components/mechanics/debt-history-table";
+import { RedeemPointButton } from "@/components/mechanics/redeem-point-button";
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -73,6 +75,8 @@ export default async function MechanicsPage({
     { data: debtSummaryRaw },
     { data: invoiceMechanicsRaw },
     { data: debtHistoryRaw },
+    { data: employeePointsRaw },
+    { data: settingsRaw },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -98,6 +102,17 @@ export default async function MechanicsPage({
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500),
+
+    supabase
+      .from("employee_points")
+      .select("profile_id, points_balance, total_earned, total_redeemed")
+      .eq("tenant_id", tenantId),
+
+    supabase
+      .from("settings")
+      .select("reward_employee_enabled, reward_point_value, reward_min_redeem")
+      .eq("tenant_id", tenantId)
+      .single(),
   ]);
 
   // ── Derived data ─────────────────────────────────────────────
@@ -105,6 +120,17 @@ export default async function MechanicsPage({
     id: m.id,
     full_name: m.full_name ?? "—",
   }));
+
+  // Points data
+  type EpRow = { profile_id: string; points_balance: number; total_earned: number; total_redeemed: number };
+  const pointsMap = new Map<string, EpRow>();
+  for (const ep of (employeePointsRaw as EpRow[] | null) ?? []) {
+    pointsMap.set(ep.profile_id, ep);
+  }
+  const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
+  const pointValue = Number(settingsRaw?.reward_point_value ?? 1000);
+  const minRedeem = Number(settingsRaw?.reward_min_redeem ?? 10);
+
   type DebtSummaryRow = {
     mechanic_id: string;
     total_advanced: number;
@@ -317,6 +343,32 @@ export default async function MechanicsPage({
                         />
                       </div>
                     </div>
+
+                    {/* Point reward section */}
+                    {rewardEnabled && (() => {
+                      const ep = pointsMap.get(mechanic.id);
+                      const balance = ep?.points_balance ?? 0;
+                      return (
+                        <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2">
+                          <div className="flex items-center gap-2">
+                            <Gift className="h-4 w-4 text-amber-500" />
+                            <div>
+                              <p className="text-xs font-semibold text-amber-700">{balance} Point</p>
+                              <p className="text-[10px] text-amber-400">
+                                Total earned: {ep?.total_earned ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}
+                              </p>
+                            </div>
+                          </div>
+                          <RedeemPointButton
+                            profileId={mechanic.id}
+                            mechanicName={mechanic.full_name}
+                            currentBalance={balance}
+                            pointValue={pointValue}
+                            minRedeem={minRedeem}
+                          />
+                        </div>
+                      );
+                    })()}
                   </div>
                 );
               })}

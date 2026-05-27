@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import {
   Store,
   Settings2,
@@ -10,6 +11,8 @@ import {
   Trash2,
   Save,
   AlertTriangle,
+  Upload,
+  X,
 } from "lucide-react";
 import type { Settings } from "@/types/database";
 import {
@@ -20,6 +23,7 @@ import {
   resetAllData,
 } from "@/lib/actions/settings";
 import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 
 // ── shared helpers ───────────────────────────────────────────
 function Field({
@@ -84,9 +88,11 @@ const TABS = [
 export function SettingsTabs({
   activeTab,
   settings,
+  tenantId,
 }: {
   activeTab: string;
   settings: Settings | null;
+  tenantId: string;
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -116,7 +122,7 @@ export function SettingsTabs({
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         {activeTab === "toko" && <TabToko s={settings} />}
         {activeTab === "platform" && <TabPlatform s={settings} />}
-        {activeTab === "nota" && <TabNota s={settings} />}
+        {activeTab === "nota" && <TabNota s={settings} tenantId={tenantId} />}
         {activeTab === "reward" && <TabReward s={settings} />}
         {activeTab === "reset" && <TabReset />}
       </div>
@@ -229,8 +235,100 @@ function TabPlatform({ s }: { s: Settings | null }) {
   );
 }
 
+// ── Image upload field ───────────────────────────────────────
+function ImageUploadField({
+  label,
+  currentUrl,
+  onUploaded,
+  tenantId,
+  fileKey,
+}: {
+  label: string;
+  currentUrl: string;
+  onUploaded: (url: string) => void;
+  tenantId: string;
+  fileKey: string; // e.g. "signature" | "stamp"
+}) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Ukuran file maksimal 2 MB");
+      return;
+    }
+    setUploading(true);
+    try {
+      const supabase = createClient();
+      const ext = file.name.split(".").pop() ?? "png";
+      const path = `${tenantId}/${fileKey}.${ext}`;
+      // upsert = true overwrites existing file
+      const { error } = await supabase.storage
+        .from("settings-assets")
+        .upload(path, file, { contentType: file.type, upsert: true });
+      if (error) { toast.error("Upload gagal: " + error.message); return; }
+      const { data: urlData } = supabase.storage
+        .from("settings-assets")
+        .getPublicUrl(path);
+      onUploaded(urlData.publicUrl);
+      toast.success(`${label} berhasil diupload`);
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <label className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+        {label}
+      </label>
+      {currentUrl ? (
+        <div className="relative inline-flex items-start gap-3">
+          <Image
+            src={currentUrl}
+            alt={label}
+            width={120}
+            height={80}
+            className="rounded-xl border border-gray-200 object-contain bg-gray-50"
+          />
+          <button
+            type="button"
+            onClick={() => onUploaded("")}
+            className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600"
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      ) : (
+        <div className="flex h-20 w-48 items-center justify-center rounded-xl border-2 border-dashed border-gray-200 bg-gray-50 text-xs text-gray-400">
+          Belum ada gambar
+        </div>
+      )}
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <button
+        type="button"
+        disabled={uploading}
+        onClick={() => inputRef.current?.click()}
+        className="flex w-fit items-center gap-2 rounded-xl border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+      >
+        <Upload className="h-3.5 w-3.5" />
+        {uploading ? "Mengupload..." : currentUrl ? "Ganti Gambar" : "Upload Gambar"}
+      </button>
+    </div>
+  );
+}
+
 // ── Tab 3: Nota & Printer ────────────────────────────────────
-function TabNota({ s }: { s: Settings | null }) {
+function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [header, setHeader] = useState(s?.nota_header ?? "");
   const [footer, setFooter] = useState(s?.nota_footer ?? "");
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");
@@ -269,12 +367,20 @@ function TabNota({ s }: { s: Settings | null }) {
       <Field label="Footer Nota">
         <Textarea value={footer} onChange={(e) => setFooter(e.target.value)} placeholder="Garansi 3 bulan untuk pekerjaan." />
       </Field>
-      <Field label="URL Gambar Tanda Tangan">
-        <Input value={signUrl} onChange={(e) => setSignUrl(e.target.value)} placeholder="https://..." />
-      </Field>
-      <Field label="URL Gambar Stempel / Cap">
-        <Input value={stampUrl} onChange={(e) => setStampUrl(e.target.value)} placeholder="https://..." />
-      </Field>
+      <ImageUploadField
+        label="Gambar Tanda Tangan"
+        currentUrl={signUrl}
+        onUploaded={setSignUrl}
+        tenantId={tenantId}
+        fileKey="signature"
+      />
+      <ImageUploadField
+        label="Gambar Stempel / Cap"
+        currentUrl={stampUrl}
+        onUploaded={setStampUrl}
+        tenantId={tenantId}
+        fileKey="stamp"
+      />
       <div className="flex justify-end">
         <SaveButton pending={pending} />
       </div>

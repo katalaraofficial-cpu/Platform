@@ -477,6 +477,147 @@ function FormatPicker({
   );
 }
 
+// ── Format field panel (sections matching the receipt layout) ────────
+function SectionBar({ label, sublabel }: { label: string; sublabel?: string }) {
+  return (
+    <div className="flex items-center gap-2 bg-gray-50 border-y border-gray-100 px-4 py-2">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">{label}</span>
+      {sublabel && (
+        <>
+          <div className="flex-1 border-t border-dashed border-gray-200" />
+          <span className="text-[10px] text-gray-400 italic">{sublabel}</span>
+        </>
+      )}
+    </div>
+  );
+}
+
+function InfoRef({ rowLabel, value }: { rowLabel: string; value: string }) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="text-xs text-gray-400 shrink-0 w-36">{rowLabel}</span>
+      <span className="text-sm text-gray-800 font-medium">
+        {value || <span className="text-gray-300 italic text-xs">belum diisi</span>}
+      </span>
+    </div>
+  );
+}
+
+function FormatFieldPanel({
+  format,
+  storeName,
+  storeAddress,
+  storePhone,
+  header,
+  setHeader,
+  footer,
+  setFooter,
+  signUrl,
+  setSignUrl,
+  stampUrl,
+  setStampUrl,
+  tenantId,
+}: {
+  format: "A4" | "A5" | "thermal";
+  storeName: string;
+  storeAddress: string;
+  storePhone: string;
+  header: string;
+  setHeader: (v: string) => void;
+  footer: string;
+  setFooter: (v: string) => void;
+  signUrl: string;
+  setSignUrl: (v: string) => void;
+  stampUrl: string;
+  setStampUrl: (v: string) => void;
+  tenantId: string;
+}) {
+  return (
+    <div className="rounded-xl border border-gray-200 overflow-hidden">
+
+      {/* ── HEADER SECTION ─────────────────────────── */}
+      <SectionBar label={format === "thermal" ? "Header Struk" : format === "A5" ? "Header Nota" : "Header Invoice"} />
+      <div className="p-4 flex flex-col gap-3">
+        {format === "thermal" ? (
+          <>
+            <InfoRef rowLabel="Baris 1 — Nama Toko" value={storeName} />
+            <InfoRef rowLabel="Baris 2 — Alamat" value={storeAddress} />
+            <InfoRef rowLabel="Baris 3 — Telepon" value={storePhone} />
+          </>
+        ) : (
+          <>
+            <InfoRef rowLabel="Nama Toko" value={storeName} />
+            <InfoRef rowLabel="Alamat" value={storeAddress} />
+            <InfoRef rowLabel="Telepon" value={storePhone} />
+          </>
+        )}
+        <Link
+          href="/owner/settings?tab=toko"
+          className="text-[11px] text-violet-500 hover:underline w-fit"
+        >
+          → Edit di Tab Informasi Toko
+        </Link>
+        {format === "thermal" && (
+          <Field label={`Baris ${storeName && storeAddress && storePhone ? 4 : "Lanjutan"} — Teks Pembuka (opsional)`}>
+            <Textarea
+              value={header}
+              onChange={(e) => setHeader(e.target.value)}
+              placeholder="Tagihan ini resmi dari bengkel kami..."
+            />
+          </Field>
+        )}
+      </div>
+
+      {/* ── AUTO SECTIONS ──────────────────────────── */}
+      {(format === "A4" || format === "A5") && (
+        <SectionBar label="Info Pelanggan" sublabel="diisi otomatis dari faktur" />
+      )}
+      <SectionBar label="Baris Item" sublabel="diisi otomatis dari faktur" />
+      {format !== "thermal" && (
+        <SectionBar label="Ringkasan Total" sublabel="diisi otomatis dari faktur" />
+      )}
+
+      {/* ── FOOTER SECTION ─────────────────────────── */}
+      <SectionBar label={format === "thermal" ? "Footer Struk" : "Bagian Penutup / TTD"} />
+      <div className="p-4 flex flex-col gap-4">
+        {format === "thermal" ? (
+          <Field label="Teks Penutup (opsional)">
+            <Textarea
+              value={footer}
+              onChange={(e) => setFooter(e.target.value)}
+              placeholder="Simpan struk ini sebagai bukti pembayaran."
+            />
+          </Field>
+        ) : (
+          <>
+            <ImageUploadField
+              label="Gambar Tanda Tangan"
+              currentUrl={signUrl}
+              onUploaded={setSignUrl}
+              tenantId={tenantId}
+              fileKey="signature"
+            />
+            <ImageUploadField
+              label="Gambar Stempel / Cap"
+              currentUrl={stampUrl}
+              onUploaded={setStampUrl}
+              tenantId={tenantId}
+              fileKey="stamp"
+            />
+            <Field label="Catatan Penutup (opsional)">
+              <Textarea
+                value={footer}
+                onChange={(e) => setFooter(e.target.value)}
+                placeholder="Garansi 3 bulan untuk pekerjaan servis."
+              />
+            </Field>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Tab 3: Nota & Printer ────────────────────────────────────
 function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [header, setHeader] = useState(s?.nota_header ?? "");
@@ -495,30 +636,25 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-lg">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-xl">
       <h2 className="font-bold text-gray-900 text-lg">Nota &amp; Printer</h2>
       <Field label="Format Nota Aktif">
         <FormatPicker value={format} onChange={setFormat} />
       </Field>
-      <Field label="Header Nota">
-        <Textarea value={header} onChange={(e) => setHeader(e.target.value)} placeholder="Terima kasih atas kepercayaan Anda..." />
-      </Field>
-      <Field label="Footer Nota">
-        <Textarea value={footer} onChange={(e) => setFooter(e.target.value)} placeholder="Garansi 3 bulan untuk pekerjaan." />
-      </Field>
-      <ImageUploadField
-        label="Gambar Tanda Tangan"
-        currentUrl={signUrl}
-        onUploaded={setSignUrl}
+      <FormatFieldPanel
+        format={format}
+        storeName={s?.store_name ?? ""}
+        storeAddress={s?.store_address ?? ""}
+        storePhone={s?.store_phone ?? ""}
+        header={header}
+        setHeader={setHeader}
+        footer={footer}
+        setFooter={setFooter}
+        signUrl={signUrl}
+        setSignUrl={setSignUrl}
+        stampUrl={stampUrl}
+        setStampUrl={setStampUrl}
         tenantId={tenantId}
-        fileKey="signature"
-      />
-      <ImageUploadField
-        label="Gambar Stempel / Cap"
-        currentUrl={stampUrl}
-        onUploaded={setStampUrl}
-        tenantId={tenantId}
-        fileKey="stamp"
       />
       <div className="flex justify-end">
         <SaveButton pending={pending} />

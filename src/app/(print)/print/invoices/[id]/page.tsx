@@ -169,6 +169,8 @@ function NotaTemplate({
   storePhone,
   signatureUrl,
   stampUrl,
+  notaHeader,
+  notaFooter,
 }: {
   tenantName: string;
   invoiceNumber: string;
@@ -188,6 +190,8 @@ function NotaTemplate({
   storePhone?: string;
   signatureUrl?: string | null;
   stampUrl?: string | null;
+  notaHeader?: string;
+  notaFooter?: string;
 }) {
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model].filter(Boolean).join(" ");
@@ -208,6 +212,11 @@ function NotaTemplate({
           <div>{fmtDate(createdAt)}</div>
         </div>
       </div>
+
+      {/* Custom header text */}
+      {notaHeader && (
+        <div style={{ fontSize: "10px", color: "#555", fontStyle: "italic", marginBottom: "6px" }}>{notaHeader}</div>
+      )}
 
       {/* Customer info */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px", marginBottom: "8px", fontSize: "10px" }}>
@@ -277,6 +286,9 @@ function NotaTemplate({
           Catatan: {notes}
         </div>
       )}
+      {notaFooter && (
+        <div style={{ marginTop: "8px", fontSize: "10px", color: "#555", fontStyle: "italic", borderTop: "1px solid #ddd", paddingTop: "6px" }}>{notaFooter}</div>
+      )}
 
       {/* Signatures */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px", fontSize: "10px" }}>
@@ -323,6 +335,8 @@ function InvoiceTemplate({
   storePhone,
   signatureUrl,
   stampUrl,
+  notaHeader,
+  notaFooter,
 }: {
   tenantName: string;
   invoiceNumber: string;
@@ -346,6 +360,8 @@ function InvoiceTemplate({
   storePhone?: string;
   signatureUrl?: string | null;
   stampUrl?: string | null;
+  notaHeader?: string;
+  notaFooter?: string;
 }) {
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model, vehicleInfo?.year ? String(vehicleInfo.year) : null].filter(Boolean).join(" ");
@@ -368,7 +384,12 @@ function InvoiceTemplate({
       </div>
 
       {/* Divider */}
-      <div style={{ height: "3px", background: "linear-gradient(to right, #2563eb, #93c5fd)", marginBottom: "16px" }} />
+      <div style={{ height: "3px", background: "linear-gradient(to right, #2563eb, #93c5fd)", marginBottom: notaHeader ? "8px" : "16px" }} />
+
+      {/* Custom header text */}
+      {notaHeader && (
+        <div style={{ fontSize: "11px", color: "#555", fontStyle: "italic", marginBottom: "16px" }}>{notaHeader}</div>
+      )}
 
       {/* Customer info */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
@@ -467,6 +488,9 @@ function InvoiceTemplate({
         <div style={{ background: "#fef9c3", borderLeft: "4px solid #fbbf24", padding: "8px 12px", marginBottom: "16px", fontSize: "11px" }}>
           <strong>Catatan:</strong> {notes}
         </div>
+      )}
+      {notaFooter && (
+        <div style={{ fontSize: "11px", color: "#555", fontStyle: "italic", marginBottom: "16px", borderTop: "1px solid #e2e8f0", paddingTop: "8px" }}>{notaFooter}</div>
       )}
 
       {/* Footer */}

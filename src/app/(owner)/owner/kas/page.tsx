@@ -88,7 +88,7 @@ export default async function KasPage({
   // ── Table: build filtered + paginated query ─────────────────
   let query = supabase
     .from("ledger")
-    .select("*", { count: "exact" })
+    .select("id, account_type, transaction_type, category, amount, reference_id, transfer_ref, notes, created_by, created_at", { count: "exact" })
     .eq("tenant_id", ctx.tenantId)
     .order("created_at", { ascending: false });
 

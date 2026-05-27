@@ -196,7 +196,7 @@ export default async function OwnerDashboard({
   ] = await Promise.all([
     supabase
       .from("invoices")
-      .select("id, status, grand_total, paid_at, customer_id")
+      .select("status, grand_total")
       .eq("tenant_id", tenantId)
       .gte("created_at", firstOfMonth),
     supabase
@@ -242,7 +242,6 @@ export default async function OwnerDashboard({
   // Customer names
   const allCustomerIds = [
     ...new Set([
-      ...(invoicesMonth ?? []).map((i) => i.customer_id).filter(Boolean),
       ...(recentRaw ?? []).map((i) => i.customer_id).filter(Boolean),
       ...(invoicesPeriod ?? []).map((i) => i.customer_id).filter(Boolean),
     ]),

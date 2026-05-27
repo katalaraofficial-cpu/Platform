@@ -27,7 +27,9 @@ export default async function SettingsPage({
 
   const { data: settingsRaw } = await supabase
     .from("settings")
-    .select("*")
+    .select(
+      "id, tenant_id, default_markup_pct, petty_cash_limit, qty_decimal, price_tier_labels, store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_title_size, nota_subtitle, nota_customer_layout, nota_signature_layout, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format, reward_employee_enabled, reward_spend_per_point, reward_point_value, reward_min_redeem, reward_point_validity_days, reward_lead_multiplier, reward_helper_multiplier, created_at, updated_at"
+    )
     .eq("tenant_id", ctx.tenantId)
     .single();
 

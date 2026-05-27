@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { cache } from "react";
 import type { FeatureToggles, UserRole } from "@/types/database";
 
 export interface UserContext {
@@ -16,7 +17,7 @@ export interface UserContext {
  * Redirects to /login if not authenticated.
  * Call this at the top of each role-specific layout.
  */
-export async function getUserContext(): Promise<UserContext> {
+export const getUserContext = cache(async function getUserContext(): Promise<UserContext> {
   const supabase = await createClient();
 
   const {
@@ -75,4 +76,4 @@ export async function getUserContext(): Promise<UserContext> {
     tenantName: profile.tenants?.name ?? null,
     featureToggles: profile.tenants?.feature_toggles ?? null,
   };
-}
+});

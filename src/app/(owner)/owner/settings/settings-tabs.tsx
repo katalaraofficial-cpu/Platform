@@ -120,7 +120,7 @@ export function SettingsTabs({
 
       {/* Tab content */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
-        {activeTab === "toko" && <TabToko s={settings} />}
+        {activeTab === "toko" && <TabToko s={settings} tenantId={tenantId} />}
         {activeTab === "platform" && <TabPlatform s={settings} />}
         {activeTab === "nota" && <TabNota s={settings} tenantId={tenantId} />}
         {activeTab === "reward" && <TabReward s={settings} />}
@@ -131,7 +131,7 @@ export function SettingsTabs({
 }
 
 // ── Tab 1: Informasi Toko ────────────────────────────────────
-function TabToko({ s }: { s: Settings | null }) {
+function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [name, setName] = useState(s?.store_name ?? "");
   const [address, setAddress] = useState(s?.store_address ?? "");
   const [phone, setPhone] = useState(s?.store_phone ?? "");
@@ -162,9 +162,13 @@ function TabToko({ s }: { s: Settings | null }) {
       <Field label="Email">
         <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="bengkel@contoh.com" />
       </Field>
-      <Field label="URL Logo (link gambar)">
-        <Input value={logoUrl} onChange={(e) => setLogoUrl(e.target.value)} placeholder="https://..." />
-      </Field>
+      <ImageUploadField
+        label="Logo Toko"
+        currentUrl={logoUrl}
+        onUploaded={setLogoUrl}
+        tenantId={tenantId}
+        fileKey="logo"
+      />
       <div className="flex justify-end">
         <SaveButton pending={pending} />
       </div>
@@ -327,6 +331,152 @@ function ImageUploadField({
   );
 }
 
+// ── Format visual previews ──────────────────────────────────
+function MiniA4() {
+  return (
+    <div style={{ width: 72, height: 100, border: "1.5px solid #d1d5db", borderRadius: 4, background: "#fff", overflow: "hidden", padding: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", paddingBottom: 2, borderBottom: "1px solid #e2e8f0" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ width: 22, height: 4, background: "#1e3a5f", borderRadius: 1 }} />
+          <div style={{ width: 16, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+          <div style={{ width: 12, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+          <div style={{ width: 18, height: 4, background: "#2563eb", borderRadius: 1 }} />
+          <div style={{ width: 14, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+          <div style={{ width: 16, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+        </div>
+      </div>
+      <div style={{ height: 2, background: "linear-gradient(to right, #2563eb, #93c5fd)", borderRadius: 1 }} />
+      <div style={{ display: "flex", gap: 2 }}>
+        <div style={{ flex: 1, height: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 2 }} />
+        <div style={{ flex: 1, height: 12, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 2 }} />
+      </div>
+      <div style={{ height: 4, background: "#1e3a5f", borderRadius: 1 }} />
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ height: 3, background: i % 2 === 0 ? "#fff" : "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 1 }} />
+      ))}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: 28, height: 5, background: "#1e3a5f", borderRadius: 1 }} />
+      </div>
+      <div style={{ marginTop: "auto", display: "flex", gap: 3, borderTop: "1px solid #e2e8f0", paddingTop: 2 }}>
+        <div style={{ flex: 1, height: 8, borderTop: "1px solid #94a3b8" }} />
+        <div style={{ flex: 1, height: 8, borderTop: "1px solid #94a3b8" }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniA5() {
+  return (
+    <div style={{ width: 68, height: 94, border: "1.5px solid #d1d5db", borderRadius: 4, background: "#fff", overflow: "hidden", padding: 4, display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", paddingBottom: 2, borderBottom: "2px solid #000" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <div style={{ width: 22, height: 5, background: "#111", borderRadius: 1 }} />
+          <div style={{ width: 14, height: 2, background: "#94a3b8", borderRadius: 1 }} />
+          <div style={{ width: 12, height: 2, background: "#94a3b8", borderRadius: 1 }} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+          <div style={{ width: 16, height: 4, background: "#374151", borderRadius: 1 }} />
+          <div style={{ width: 14, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+        <div style={{ width: 22, height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+        <div style={{ width: 18, height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+      </div>
+      <div style={{ height: 4, background: "#f0f0f0", border: "1px solid #999", borderRadius: 1 }} />
+      {[0, 1, 2].map((i) => (
+        <div key={i} style={{ height: 3, background: "#fff", border: "1px solid #eee", borderRadius: 1 }} />
+      ))}
+      <div style={{ display: "flex", justifyContent: "flex-end" }}>
+        <div style={{ width: 30, height: 4, borderTop: "2px solid #000" }} />
+      </div>
+      <div style={{ marginTop: "auto", display: "flex", gap: 3, borderTop: "1px solid #e2e8f0", paddingTop: 2 }}>
+        <div style={{ flex: 1, height: 8, borderTop: "1px solid #374151" }} />
+        <div style={{ flex: 1, height: 8, borderTop: "1px solid #374151" }} />
+      </div>
+    </div>
+  );
+}
+
+function MiniThermal() {
+  return (
+    <div style={{ width: 44, height: 94, border: "1.5px solid #d1d5db", borderRadius: 4, background: "#fff", overflow: "hidden", padding: "4px 3px", display: "flex", flexDirection: "column", gap: 2, fontFamily: "monospace" }}>
+      <div style={{ textAlign: "center", paddingBottom: 2, borderBottom: "1px dashed #888", display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <div style={{ width: 30, height: 4, background: "#111", borderRadius: 1 }} />
+        <div style={{ width: 22, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+        <div style={{ width: 18, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        <div style={{ width: 26, height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+        <div style={{ width: 20, height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+      </div>
+      <div style={{ borderTop: "1px dashed #888", borderBottom: "1px dashed #888", padding: "2px 0", display: "flex", flexDirection: "column", gap: 1 }}>
+        <div style={{ width: "100%", height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+        <div style={{ width: "80%", height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+        <div style={{ width: "100%", height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+        <div style={{ width: "70%", height: 2, background: "#e2e8f0", borderRadius: 1 }} />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ width: 14, height: 2, background: "#374151", borderRadius: 1 }} />
+        <div style={{ width: 14, height: 4, background: "#111", borderRadius: 1 }} />
+      </div>
+      <div style={{ marginTop: "auto", textAlign: "center", borderTop: "1px dashed #888", paddingTop: 2, display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+        <div style={{ width: 30, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+        <div style={{ width: 22, height: 2, background: "#cbd5e1", borderRadius: 1 }} />
+      </div>
+    </div>
+  );
+}
+
+const FORMAT_INFO = {
+  A4: { label: "A4", desc: "Invoice Profesional", preview: <MiniA4 /> },
+  A5: { label: "A5", desc: "Nota Kontan", preview: <MiniA5 /> },
+  thermal: { label: "Thermal 58/80mm", desc: "Struk Kasir", preview: <MiniThermal /> },
+} as const;
+
+function FormatPicker({
+  value,
+  onChange,
+}: {
+  value: "A4" | "A5" | "thermal";
+  onChange: (f: "A4" | "A5" | "thermal") => void;
+}) {
+  return (
+    <div className="flex gap-3 flex-wrap">
+      {(["A4", "A5", "thermal"] as const).map((f) => {
+        const info = FORMAT_INFO[f];
+        const active = value === f;
+        return (
+          <button
+            key={f}
+            type="button"
+            onClick={() => onChange(f)}
+            className={`flex flex-col items-center gap-2 rounded-xl border-2 px-3 pt-3 pb-2 transition-colors ${
+              active
+                ? "border-violet-500 bg-violet-50"
+                : "border-gray-200 bg-white hover:border-gray-300"
+            }`}
+          >
+            <div className={`transition-opacity ${active ? "opacity-100" : "opacity-60"}`}>
+              {info.preview}
+            </div>
+            <div className="flex flex-col items-center gap-0.5">
+              <span className={`text-xs font-bold ${active ? "text-violet-700" : "text-gray-600"}`}>
+                {info.label}
+              </span>
+              <span className={`text-[10px] ${active ? "text-violet-500" : "text-gray-400"}`}>
+                {info.desc}
+              </span>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Tab 3: Nota & Printer ────────────────────────────────────
 function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [header, setHeader] = useState(s?.nota_header ?? "");
@@ -348,18 +498,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 max-w-lg">
       <h2 className="font-bold text-gray-900 text-lg">Nota &amp; Printer</h2>
       <Field label="Format Nota Aktif">
-        <div className="flex gap-2">
-          {(["A4", "A5", "thermal"] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => setFormat(f)}
-              className={`rounded-xl px-4 py-2 text-sm font-semibold border transition-colors ${format === f ? "border-violet-500 bg-violet-50 text-violet-700" : "border-gray-200 text-gray-500 hover:border-gray-300"}`}
-            >
-              {f === "thermal" ? "Thermal 58/80mm" : f}
-            </button>
-          ))}
-        </div>
+        <FormatPicker value={format} onChange={setFormat} />
       </Field>
       <Field label="Header Nota">
         <Textarea value={header} onChange={(e) => setHeader(e.target.value)} placeholder="Terima kasih atas kepercayaan Anda..." />

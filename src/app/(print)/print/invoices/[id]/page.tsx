@@ -38,6 +38,10 @@ function StrukTemplate({
   grandTotal,
   notes,
   status,
+  storeAddress,
+  storePhone,
+  notaHeader,
+  notaFooter,
 }: {
   tenantName: string;
   invoiceNumber: string;
@@ -53,6 +57,10 @@ function StrukTemplate({
   grandTotal: number;
   notes: string | null;
   status: string;
+  storeAddress?: string;
+  storePhone?: string;
+  notaHeader?: string;
+  notaFooter?: string;
 }) {
   const line = "================================";
   const plate = vehicleInfo?.plate;
@@ -62,7 +70,9 @@ function StrukTemplate({
     <div style={{ fontFamily: "monospace", fontSize: "12px", width: "72mm", margin: "0 auto", padding: "4mm", lineHeight: "1.4" }}>
       <div style={{ textAlign: "center", borderBottom: "1px dashed #000", paddingBottom: "6px", marginBottom: "6px" }}>
         <div style={{ fontWeight: "bold", fontSize: "14px" }}>{tenantName}</div>
-        <div style={{ fontSize: "11px", marginTop: "2px" }}>Bengkel Otomotif</div>
+        {storeAddress && <div style={{ fontSize: "10px", marginTop: "1px" }}>{storeAddress}</div>}
+        {storePhone && <div style={{ fontSize: "10px" }}>{storePhone}</div>}
+        {notaHeader && <div style={{ fontSize: "10px", marginTop: "3px", borderTop: "1px dashed #ccc", paddingTop: "3px" }}>{notaHeader}</div>}
       </div>
 
       <div style={{ marginBottom: "4px" }}>
@@ -125,8 +135,14 @@ function StrukTemplate({
       )}
 
       <div style={{ textAlign: "center", borderTop: "1px dashed #000", paddingTop: "6px", marginTop: "6px", fontSize: "11px" }}>
-        <div>Terima kasih atas kepercayaan Anda</div>
-        <div style={{ marginTop: "2px" }}>Simpan struk ini sebagai bukti servis</div>
+        {notaFooter ? (
+          <div style={{ whiteSpace: "pre-wrap" }}>{notaFooter}</div>
+        ) : (
+          <>
+            <div>Terima kasih atas kepercayaan Anda</div>
+            <div style={{ marginTop: "2px" }}>Simpan struk ini sebagai bukti servis</div>
+          </>
+        )}
       </div>
       <div style={{ textAlign: "center", marginTop: "4px", fontSize: "10px", color: "#666" }}>{line}</div>
     </div>
@@ -174,7 +190,9 @@ function NotaTemplate({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #000", paddingBottom: "6px", marginBottom: "8px" }}>
         <div>
           <div style={{ fontWeight: "bold", fontSize: "16px" }}>{tenantName}</div>
-          <div style={{ fontSize: "10px", color: "#555" }}>NOTA SERVIS KENDARAAN</div>
+          {storeAddress && <div style={{ fontSize: "9px", color: "#555", marginTop: "1px" }}>{storeAddress}</div>}
+          {storePhone && <div style={{ fontSize: "9px", color: "#555" }}>{storePhone}</div>}
+          <div style={{ fontSize: "10px", color: "#555", marginTop: "2px" }}>NOTA SERVIS KENDARAAN</div>
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: "bold" }}>NOTA KONTAN</div>
@@ -256,13 +274,17 @@ function NotaTemplate({
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px", fontSize: "10px" }}>
         <div style={{ textAlign: "center" }}>
           <div>Hormat Kami,</div>
-          <div style={{ height: "32px" }} />
-          <div style={{ borderTop: "1px solid #000" }}>{tenantName}</div>
+          {signatureUrl
+            ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "40px", margin: "4px auto", display: "block", objectFit: "contain" }} />
+            : <div style={{ height: "40px" }} />
+          }
+          {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "32px", margin: "0 auto 4px", display: "block", objectFit: "contain" }} />}
+          <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{tenantName}</div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div>Penerima,</div>
-          <div style={{ height: "32px" }} />
-          <div style={{ borderTop: "1px solid #000" }}>{customerName}</div>
+          <div style={{ height: "40px" }} />
+          <div style={{ borderTop: "1px solid #000", paddingTop: "3px" }}>{customerName}</div>
         </div>
       </div>
     </div>
@@ -289,6 +311,10 @@ function InvoiceTemplate({
   status,
   paidAt,
   paymentMethod,
+  storeAddress,
+  storePhone,
+  signatureUrl,
+  stampUrl,
 }: {
   tenantName: string;
   invoiceNumber: string;
@@ -308,6 +334,10 @@ function InvoiceTemplate({
   status: string;
   paidAt: string | null;
   paymentMethod: string | null;
+  storeAddress?: string;
+  storePhone?: string;
+  signatureUrl?: string | null;
+  stampUrl?: string | null;
 }) {
   const plate = vehicleInfo?.plate;
   const vehicle = [vehicleInfo?.brand, vehicleInfo?.model, vehicleInfo?.year ? String(vehicleInfo.year) : null].filter(Boolean).join(" ");
@@ -319,7 +349,8 @@ function InvoiceTemplate({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
         <div>
           <div style={{ fontWeight: "bold", fontSize: "22px", letterSpacing: "0.5px" }}>{tenantName}</div>
-          <div style={{ fontSize: "11px", color: "#666", marginTop: "2px" }}>Bengkel Otomotif & Servis Kendaraan</div>
+          {storeAddress && <div style={{ fontSize: "10px", color: "#666", marginTop: "1px" }}>{storeAddress}</div>}
+          {storePhone && <div style={{ fontSize: "10px", color: "#666" }}>{storePhone}</div>}
         </div>
         <div style={{ textAlign: "right" }}>
           <div style={{ fontWeight: "bold", fontSize: "18px", color: "#2563eb" }}>INVOICE</div>
@@ -434,12 +465,16 @@ function InvoiceTemplate({
       <div style={{ borderTop: "1px solid #e2e8f0", paddingTop: "12px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", fontSize: "10px", color: "#64748b" }}>
         <div>
           <div style={{ fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>Hormat Kami,</div>
-          <div style={{ height: "40px" }} />
+          {signatureUrl
+            ? <img src={signatureUrl} alt="Tanda Tangan" style={{ height: "48px", marginBottom: "4px", objectFit: "contain" }} />
+            : <div style={{ height: "48px" }} />
+          }
+          {stampUrl && <img src={stampUrl} alt="Stempel" style={{ height: "36px", marginBottom: "4px", objectFit: "contain" }} />}
           <div style={{ borderTop: "1px solid #ccc", paddingTop: "4px" }}>{tenantName}</div>
         </div>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontWeight: "bold", color: "#1a1a1a", marginBottom: "4px" }}>Penerima,</div>
-          <div style={{ height: "40px" }} />
+          <div style={{ height: "48px" }} />
           <div style={{ borderTop: "1px solid #ccc", paddingTop: "4px" }}>{customerName}</div>
         </div>
       </div>
@@ -475,14 +510,25 @@ export default async function PrintInvoicePage({
     .single();
   if (!invoiceData) notFound();
 
-  const [{ data: customer }, { data: items }] = await Promise.all([
+  const [{ data: customer }, { data: items }, { data: settings }] = await Promise.all([
     invoiceData.customer_id
       ? supabase.from("customers").select("name, phone, vehicle_info").eq("id", invoiceData.customer_id).single()
       : Promise.resolve({ data: null }),
     supabase.from("invoice_items").select("*").eq("invoice_id", id).order("created_at", { ascending: true }),
+    supabase
+      .from("settings")
+      .select("store_name, store_address, store_phone, nota_header, nota_footer, nota_signature_url, nota_stamp_url")
+      .eq("tenant_id", ctx.tenantId)
+      .single(),
   ]);
 
-  const tenantName = ctx.tenantName ?? "Bengkel";
+  const tenantName = (settings as { store_name?: string } | null)?.store_name || ctx.tenantName || "Bengkel";
+  const storeAddress = (settings as { store_address?: string } | null)?.store_address ?? "";
+  const storePhone = (settings as { store_phone?: string } | null)?.store_phone ?? "";
+  const notaHeader = (settings as { nota_header?: string } | null)?.nota_header ?? "";
+  const notaFooter = (settings as { nota_footer?: string } | null)?.nota_footer ?? "";
+  const signatureUrl = (settings as { nota_signature_url?: string } | null)?.nota_signature_url ?? null;
+  const stampUrl = (settings as { nota_stamp_url?: string } | null)?.nota_stamp_url ?? null;
   const customerName = customer?.name ?? "-";
   const customerPhone = customer?.phone ?? null;
   const vehicleInfo = (customer?.vehicle_info as VehicleInfo | null) ?? null;
@@ -504,6 +550,12 @@ export default async function PrintInvoicePage({
     grandTotal: Number(inv.grand_total),
     notes: inv.notes,
     status: inv.status,
+    storeAddress,
+    storePhone,
+    notaHeader,
+    notaFooter,
+    signatureUrl,
+    stampUrl,
   };
 
   const waMessage = encodeURIComponent(

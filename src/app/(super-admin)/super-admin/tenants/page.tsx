@@ -1,27 +1,36 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { TenantListTable } from "@/components/super-admin/tenant-list-table";
 
-function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-}
+const PAGE_SIZE = 10;
 
-export default async function TenantsPage() {
+export default async function TenantsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const { page: rawPage } = await searchParams;
+  const page = Math.max(1, Number(rawPage ?? "1") || 1);
+  const offset = (page - 1) * PAGE_SIZE;
+
   const supabase = await createClient();
 
-  const { data: tenants } = await supabase
+  const { data: tenants, count: totalCount } = await supabase
     .from("tenants")
-    .select("id, name, slug, is_active, created_at")
-    .order("created_at", { ascending: false });
+    .select("id, name, slug, is_active, created_at", { count: "exact" })
+    .order("created_at", { ascending: false })
+    .range(offset, offset + PAGE_SIZE - 1);
 
-  // Get user counts per tenant
-  const { data: profileCounts } = await supabase
-    .from("profiles")
-    .select("tenant_id")
-    .neq("role", "super_admin");
+  const tenantIds = (tenants ?? []).map((t) => t.id);
+
+  // Get user counts for current page tenant rows
+  const { data: profileCounts } = tenantIds.length
+    ? await supabase
+        .from("profiles")
+        .select("tenant_id")
+        .in("tenant_id", tenantIds)
+        .neq("role", "super_admin")
+    : { data: [] as { tenant_id: string | null }[] };
 
   const countByTenant: Record<string, number> = {};
   for (const p of profileCounts ?? []) {
@@ -29,6 +38,9 @@ export default async function TenantsPage() {
       countByTenant[p.tenant_id] = (countByTenant[p.tenant_id] ?? 0) + 1;
     }
   }
+
+  const total = totalCount ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   return (
     <div className="space-y-6">
@@ -47,78 +59,22 @@ export default async function TenantsPage() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-        {!tenants || tenants.length === 0 ? (
-          <div className="py-16 text-center text-gray-400">
-            <p className="text-lg font-medium">Belum ada tenant</p>
-            <p className="mt-1 text-sm">
-              Klik &ldquo;Buat Tenant&rdquo; untuk menambah bengkel pertama
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Nama Bengkel
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Slug
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Status
-                  </th>
-                  <th className="px-5 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Pengguna
-                  </th>
-                  <th className="px-5 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Dibuat
-                  </th>
-                  <th className="px-5 py-3" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {tenants.map((t) => (
-                  <tr key={t.id} className="hover:bg-gray-50">
-                    <td className="px-5 py-3 text-sm font-medium text-gray-900">
-                      {t.name}
-                    </td>
-                    <td className="px-5 py-3 text-sm font-mono text-gray-500">
-                      {t.slug}
-                    </td>
-                    <td className="px-5 py-3">
-                      {t.is_active ? (
-                        <span className="inline-flex rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                          Aktif
-                        </span>
-                      ) : (
-                        <span className="inline-flex rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-600">
-                          Non-Aktif
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-right text-sm text-gray-500">
-                      {countByTenant[t.id] ?? 0}
-                    </td>
-                    <td className="px-5 py-3 text-sm text-gray-500">
-                      {formatDate(t.created_at)}
-                    </td>
-                    <td className="px-5 py-3 text-right text-sm">
-                      <Link
-                        href={`/super-admin/tenants/${t.id}`}
-                        className="font-medium text-blue-600 hover:text-blue-500"
-                      >
-                        Kelola
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {!tenants || tenants.length === 0 ? (
+        <div className="rounded-xl border border-gray-200 bg-white py-16 text-center text-gray-400 shadow-sm">
+          <p className="text-lg font-medium">Belum ada tenant</p>
+          <p className="mt-1 text-sm">
+            Klik &ldquo;Buat Tenant&rdquo; untuk menambah bengkel pertama
+          </p>
+        </div>
+      ) : (
+        <TenantListTable
+          tenants={tenants}
+          countByTenant={countByTenant}
+          page={page}
+          totalPages={totalPages}
+          totalCount={total}
+        />
+      )}
     </div>
   );
 }

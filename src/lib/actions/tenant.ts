@@ -403,3 +403,61 @@ export async function updateUserProfile(
   return { success: "Profil berhasil diperbarui" };
 }
 
+// ── Bulk hapus tenant (khusus super admin) ───────────────────
+export async function removeTenantsBulk(tenantIds: string[]): Promise<ActionState> {
+  await assertSuperAdmin();
+  const adminClient = createAdminClient();
+
+  if (!tenantIds.length) return { error: "Tidak ada tenant yang dipilih" };
+
+  const { data: tenants, error: tenantsErr } = await adminClient
+    .from("tenants")
+    .select("id, is_active")
+    .in("id", tenantIds);
+
+  if (tenantsErr) return { error: `Gagal memuat tenant: ${tenantsErr.message}` };
+
+  const selectedIds = new Set((tenants ?? []).map((t) => t.id));
+  const invalidIds = tenantIds.filter((id) => !selectedIds.has(id));
+  const activeIds = (tenants ?? []).filter((t) => t.is_active).map((t) => t.id);
+  const eligibleIds = (tenants ?? []).filter((t) => !t.is_active).map((t) => t.id);
+
+  if (eligibleIds.length === 0) {
+    return { error: "Hanya tenant non-aktif yang dapat dihapus" };
+  }
+
+  const { data: members, error: memberErr } = await adminClient
+    .from("profiles")
+    .select("tenant_id")
+    .in("tenant_id", eligibleIds)
+    .neq("role", "super_admin");
+
+  if (memberErr) return { error: `Gagal memeriksa pengguna tenant: ${memberErr.message}` };
+
+  const tenantWithMembers = new Set((members ?? []).map((m) => m.tenant_id).filter(Boolean));
+  const deletableIds = eligibleIds.filter((id) => !tenantWithMembers.has(id));
+
+  if (deletableIds.length > 0) {
+    const { error: delErr } = await adminClient
+      .from("tenants")
+      .delete()
+      .in("id", deletableIds);
+    if (delErr) return { error: `Gagal menghapus tenant: ${delErr.message}` };
+  }
+
+  revalidatePath("/super-admin/tenants");
+  revalidatePath("/super-admin/dashboard");
+
+  const skippedActive = activeIds.length;
+  const skippedMembers = eligibleIds.length - deletableIds.length;
+  const skippedMissing = invalidIds.length;
+
+  const notes: string[] = [];
+  if (skippedActive > 0) notes.push(`${skippedActive} aktif`);
+  if (skippedMembers > 0) notes.push(`${skippedMembers} masih punya pengguna`);
+  if (skippedMissing > 0) notes.push(`${skippedMissing} tidak ditemukan`);
+
+  const suffix = notes.length ? ` (dilewati: ${notes.join(", ")})` : "";
+  return { success: `${deletableIds.length} tenant berhasil dihapus${suffix}` };
+}
+

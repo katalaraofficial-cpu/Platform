@@ -58,33 +58,6 @@ export default async function KasPage({
 
   const supabase = await createClient();
 
-  // ── KPI: fetch all amounts (no pagination) ──────────────────
-  const { data: allEntries } = await supabase
-    .from("ledger")
-    .select("account_type, transaction_type, amount")
-    .eq("tenant_id", ctx.tenantId);
-
-  let kasTunaiIn = 0,
-    kasTunaiOut = 0,
-    bankIn = 0,
-    bankOut = 0;
-
-  for (const row of (allEntries as Pick<Ledger, "account_type" | "transaction_type" | "amount">[] | null) ?? []) {
-    const amt = Number(row.amount);
-    if (row.account_type === "kas_tunai") {
-      if (row.transaction_type === "kas_masuk") kasTunaiIn += amt;
-      else kasTunaiOut += amt;
-    } else {
-      if (row.transaction_type === "kas_masuk") bankIn += amt;
-      else bankOut += amt;
-    }
-  }
-  const kasTunaiBalance = kasTunaiIn - kasTunaiOut;
-  const bankBalance = bankIn - bankOut;
-  const totalBalance = kasTunaiBalance + bankBalance;
-  const totalIn = kasTunaiIn + bankIn;
-  const totalOut = kasTunaiOut + bankOut;
-
   // ── Table: build filtered + paginated query ─────────────────
   let query = supabase
     .from("ledger")
@@ -108,7 +81,34 @@ export default async function KasPage({
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const { data: entries, count } = await query.range(from, to);
+  const [{ data: allEntries }, { data: entries, count }] = await Promise.all([
+    supabase
+      .from("ledger")
+      .select("account_type, transaction_type, amount")
+      .eq("tenant_id", ctx.tenantId),
+    query.range(from, to),
+  ]);
+
+  let kasTunaiIn = 0,
+    kasTunaiOut = 0,
+    bankIn = 0,
+    bankOut = 0;
+
+  for (const row of (allEntries as Pick<Ledger, "account_type" | "transaction_type" | "amount">[] | null) ?? []) {
+    const amt = Number(row.amount);
+    if (row.account_type === "kas_tunai") {
+      if (row.transaction_type === "kas_masuk") kasTunaiIn += amt;
+      else kasTunaiOut += amt;
+    } else {
+      if (row.transaction_type === "kas_masuk") bankIn += amt;
+      else bankOut += amt;
+    }
+  }
+  const kasTunaiBalance = kasTunaiIn - kasTunaiOut;
+  const bankBalance = bankIn - bankOut;
+  const totalBalance = kasTunaiBalance + bankBalance;
+  const totalIn = kasTunaiIn + bankIn;
+  const totalOut = kasTunaiOut + bankOut;
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
 

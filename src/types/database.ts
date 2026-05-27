@@ -299,7 +299,7 @@ export interface Database {
       };
       employee_point_transactions: {
         Row: EmployeePointTransaction & Record<string, unknown>;
-        Insert: Omit<EmployeePointTransaction, "id" | "created_at"> & Partial<Pick<EmployeePointTransaction, "reference_id" | "notes" | "expires_at">>;
+        Insert: Omit<EmployeePointTransaction, "id" | "created_at" | "reference_id" | "notes" | "expires_at"> & Partial<Pick<EmployeePointTransaction, "reference_id" | "notes" | "expires_at">>;
         Update: never;
         Relationships: never[];
       };

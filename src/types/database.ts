@@ -58,8 +58,24 @@ export interface Profile {
 export interface Settings {
   id: string;
   tenant_id: string;
+  // Platform
   default_markup_pct: number;
   petty_cash_limit: number;
+  qty_decimal: boolean;
+  price_tier_labels: { HET: string; HG1: string; HG2: string; HG3: string };
+  // Store info
+  store_name: string | null;
+  store_address: string | null;
+  store_phone: string | null;
+  store_email: string | null;
+  store_logo_url: string | null;
+  // Nota & Printer
+  nota_header: string | null;
+  nota_footer: string | null;
+  nota_signature_url: string | null;
+  nota_stamp_url: string | null;
+  nota_active_format: "A4" | "A5" | "thermal";
+  // Reward
   reward_employee_enabled: boolean;
   reward_spend_per_point: number;
   reward_point_value: number;

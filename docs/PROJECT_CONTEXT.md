@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 28 Mei 2026 — local workspace update phase 2 point-claim
+> **Last updated:** 29 Mei 2026 — sync setelah commit `7179bd1`
 
 ---
 
@@ -45,6 +45,15 @@
   - Owner review klaim dari halaman Engineer (`approve` / `reject`)
   - Approval memotong saldo point, membuat transaksi `employee_point_transactions` (redeem), dan mencatat `ledger` `kas_keluar`
 - Migration baru: `026_point_redemption_requests.sql`
+
+### Update Stabilitas Point & Complaint (29 Mei 2026)
+- Rollback invoice sekarang mengembalikan point mekanik berbasis net transaksi per invoice (`earn` + `adjust`), sehingga point card sinkron setelah status diturunkan.
+- Complaint badge di owner invoice list sudah complaint-aware (`Komplain` untuk completed dengan complaint aktif).
+- Migration complaint assignment: `027_invoice_mechanics_complaint.sql`.
+
+### Update Navigasi & Modul Owner/Mechanic (29 Mei 2026)
+- Menu owner `Pelanggan` sudah memiliki halaman dasar aktif di `/owner/customers` (KPI + pie lokasi + tabel pelanggan).
+- Dashboard mechanic disiapkan dengan 4 tab: Log Aktivitas, Kehadiran, Insentif, Payroll (attendance/payroll masih scaffold, belum sinkron data).
 
 ### Update Settings & Print (sebelumnya)
 - field di tab Nota & Printer (judul nota, jabatan, toggle watermark)
@@ -299,7 +308,7 @@ supabase/migrations/
 | Invoice — Print | ✅ Jalan | Modal pilih ukuran (Thermal/A5/A4), QR + cetak |
 | Mekanik & Hutang | ✅ Jalan | Daftar mekanik, riwayat hutang, FIFO paid status, reimburse, hapus+undo |
 | Kas & Keuangan | ⚠️ Placeholder | Halaman ada, konten belum |
-| Pelanggan | ⚠️ Placeholder | |
+| Pelanggan | ✅ Jalan (versi dasar) | Halaman `/owner/customers`: KPI omzet terbanyak, pie lokasi, tabel pelanggan |
 | Kas Kecil | ⚠️ Placeholder | |
 | Pengaturan | ⚠️ Placeholder | |
 

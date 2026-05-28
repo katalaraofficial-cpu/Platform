@@ -1,106 +1,70 @@
 # AI Agent Framework - Katalara POS
 
-Last updated: 27 Mei 2026 (commit `3cdbd1c`)
+Last updated: 29 Mei 2026 (commit `7179bd1`)
 
 ## Tujuan Dokumen
 
-Dokumen ini menjadi kerangka cepat bagi AI agent agar perubahan kode konsisten dengan arsitektur platform dan aman untuk production.
+Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa mengulang bug lama atau merusak baseline produksi.
 
-## 1) Peta Area Kode Utama
+## 1) Startup Checklist Agent Baru
 
-- App routes: `src/app/(super-admin)`, `src/app/(owner)`, `src/app/(admin)`, `src/app/(mechanic)`, `src/app/(print)`
-- Server actions: `src/lib/actions/*`
-- Context auth+role+tenant: `src/lib/get-user-context.ts`
+1. Baca [docs/PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) untuk peta modul dan constraints.
+2. Baca [docs/DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) untuk histori commit terbaru.
+3. Jalankan build awal: `npm run build`.
+4. Cek migrasi terbaru (`020` s.d. `027`) sudah tersedia di environment target.
+5. Saat selesai coding, update README + docs progres sebelum commit akhir.
+
+## 2) Peta Area Kode Kritis
+
+- Routes: `src/app/(super-admin)`, `src/app/(owner)`, `src/app/(admin)`, `src/app/(mechanic)`, `src/app/(print)`
+- Server Actions: `src/lib/actions/*`
+- Context auth-role-tenant: `src/lib/get-user-context.ts`
 - Supabase clients:
   - browser: `src/lib/supabase/client.ts`
   - server: `src/lib/supabase/server.ts`
   - admin/service role: `src/lib/supabase/admin.ts`
-- Types DB: `src/types/database.ts`
-- Migration SQL: `supabase/migrations/*.sql`
+- DB types: `src/types/database.ts`
+- Migrations: `supabase/migrations/*.sql`
 
-## 2) Aturan Kerja Agent (Wajib)
+## 3) Aturan Kerja Wajib
 
-1. Jangan ubah RBAC flow di `middleware.ts` tanpa alasan kuat.
-2. Setiap perubahan kolom DB wajib sinkron:
-   - migration SQL
+1. Jangan ubah alur RBAC pada `src/middleware.ts` tanpa kebutuhan jelas.
+2. Setiap perubahan schema wajib sinkron pada 4 titik:
+   - SQL migration
    - `src/types/database.ts`
    - server action terkait
-   - UI form terkait
-3. Untuk fitur print/invoice, update sumber data di:
-   - `src/app/(print)/print/invoices/[id]/page.tsx`
-   - setting save action (`src/lib/actions/settings.ts`) jika field dari pengaturan.
-4. Jangan hardcode format print jika sudah ada `nota_active_format`.
-5. Selalu cek type/lint error setelah edit file inti.
-6. Untuk optimasi performa route owner, prioritaskan:
-   - pengurangan payload query (`select` kolom spesifik)
-   - paralelisasi query independen
-   - prefetch route navigasi (aman untuk SSR auth)
-7. Untuk perbaikan settings nota, pertahankan kompatibilitas dua sumber data:
-   - kolom modern `settings.*`
-   - fallback metadata pada `nota_header`
+   - UI/form terkait
+3. Untuk fitur invoice/print, jangan hardcode format; hormati `nota_active_format`.
+4. Untuk perubahan poin mekanik, konsistenkan dua jalur:
+   - `processPayment()` (earn)
+   - `rollbackInvoiceStatus()` (reverse/adjust)
+5. Rollback point harus menghitung net transaksi per invoice (`earn + adjust`) agar idempotent.
+6. Setelah edit file inti, wajib jalankan build.
 
-## 3) Alur Perubahan Fitur Settings -> Output Print
+## 4) Guardrail Produksi (Berdasarkan Insiden Sebelumnya)
 
-1. Tambah field di tabel `settings` via migration.
-2. Update interface `Settings` di `src/types/database.ts`.
-3. Update payload server action `saveNotaSettings`.
-4. Update UI tab `owner/settings` untuk field baru.
-5. Update print page agar membaca field settings dan merender output.
-6. Verifikasi output di 3 format: A4, A5, thermal.
+- Hindari query settings dengan daftar kolom kaku jika production schema berpotensi drift.
+- Undangan user owner jangan memakai action yang khusus super-admin.
+- Badge status invoice list harus complaint-aware, tidak hanya `inv.status` mentah.
+- Perubahan cache-sensitive wajib `revalidatePath` ke halaman consumer (owner/mechanic).
 
-## 4) Konvensi Build Log
+## 5) Baseline Performa yang Harus Dipertahankan
 
-Saat merge fitur penting, catat minimal:
+- Prefetch route owner dari navigasi yang aman SSR.
+- Query independen diparalelkan bila memungkinkan.
+- Payload `select` dipangkas ke kolom yang benar-benar dipakai.
 
-- commit hash
-- ruang lingkup perubahan (settings, invoice, print, auth, dashboard)
-- dampak migration (ya/tidak)
-- langkah verifikasi manual
+## 6) Build Log Ringkas Terbaru
 
-Simpan ringkasan build di `docs/DEVELOPMENT_PROGRESS.md` dan update ringkasan di `README.md`.
+- `7179bd1`: owner customers page + mechanic 4-tab scaffold + sinkron rollback point card
+- `e9a788b`: reverse point mekanik saat invoice paid di-rollback
+- `0e5b6ad`: complaint badge invoice list owner + owner invite flow fix
+- `131e400`: complaint surfaced di owner/admin/mechanic views
+- `683e3c5`: settings read schema-compatible + refresh after save
 
-## 5) Risiko Tinggi yang Perlu Dicek Ulang
+## 7) Fokus Fase Berikutnya
 
-- Ketidaksinkronan migration vs type TS -> memicu error build Vercel.
-- Perbedaan nilai harga item (`unit_price` vs `final_price`) di template print.
-- Props tambahan di `commonProps` yang tidak dipakai template tertentu.
-- Status paid + watermark toggle (harus konsisten lintas format).
-- Type narrowing browser API (`window.requestIdleCallback`/`setTimeout`) yang bisa lolos lokal tapi gagal di build Vercel.
-
-## 6) Baseline Performa (Mei 2026)
-
-Perubahan baseline performa yang sudah aktif:
-
-- `getUserContext` dicache per-request untuk mengurangi hit auth/profile berulang.
-- Payload query owner dipangkas pada route utama (`dashboard`, `settings`, `kas`).
-- Halaman kas menjalankan query KPI dan query tabel secara paralel.
-- Navigasi owner melakukan prefetch route saat idle dan hover/focus.
-
-Saat melakukan perubahan baru, jangan regress baseline di atas tanpa justifikasi.
-
-## 7) Log Build Terbaru (Ringkas)
-
-- `3cdbd1c`: fix mobile invoice editor — field strip full-width, toggle centered, overflow form Barang
-- `f79681f`: polish mobile invoice editor — sticky save bar + collapsible totals panel
-- `98aab12`: owner mobile bottom nav — FAB invoice, drawer, 4 fixed slots
-- `adf1681`: hotfix JSX malformed owner invoice list (Vercel build error)
-- `0df5fad`: fix window narrowing issue in sidebar prefetch fallback
-- `3f12dd7`: prefetch owner routes from navigation
-- `2efa3ac`: parallelize kas KPI and table queries
-- `6792240`: trim owner route query payloads
-
-## 8) Komponen Mobile Kritis (Jangan Regress)
-
-| Komponen | File | Catatan |
-|---|---|---|
-| Owner mobile nav | `src/components/layout/owner-mobile-nav.tsx` | FAB + drawer, 5 slot; `pb-28` di layout |
-| Invoice editor | `src/components/invoices/invoice-editor.tsx` | Mobile: single-col, card items, sticky bar |
-| Invoice list owner | `src/app/(owner)/owner/invoices/page.tsx` | `md:hidden` card / `hidden md:block` table |
-| Invoice list admin | `src/app/(admin)/admin/invoices/page.tsx` | Sama pola dengan owner |
-| Owner layout | `src/app/(owner)/layout.tsx` | `pb-28 lg:pb-6` agar konten tidak ketutup nav |
-
-Pattern kunci yang sudah diterapkan:
-- `md:hidden` = hanya mobile
-- `hidden md:block` = hanya desktop  
-- `pb-28` = padding bawah untuk konten agar tidak tertutup bottom nav
-- `fixed inset-x-0 bottom-20 z-40` = sticky bar di atas bottom nav (80px dari bawah)
+1. Finalisasi CRUD pelanggan owner/admin di atas halaman dasar `/owner/customers`.
+2. Integrasi data riil tab `Kehadiran` dan `Payroll` mekanik.
+3. Perbaikan akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
+4. Validasi persistence settings owner pada production dengan logging yang cukup.

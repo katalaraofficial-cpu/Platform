@@ -55,7 +55,7 @@ function avatarColor(id: string) {
 }
 
 // ── Page ───────────────────────────────────────────────────────
-type SearchParams = Promise<{ tab?: string }>;
+type SearchParams = Promise<{ tab?: string; view?: string }>;
 
 export default async function MechanicsPage({
   searchParams,
@@ -67,6 +67,14 @@ export default async function MechanicsPage({
 
   const sp = await searchParams;
   const tab = sp.tab === "reimburse" ? "reimburse" : "performa";
+  const ownerView =
+    sp.view === "attendance"
+      ? "attendance"
+      : sp.view === "insentif"
+        ? "insentif"
+        : sp.view === "payroll"
+          ? "payroll"
+          : "activity";
 
   const supabase = await createClient();
   const tenantId = ctx.tenantId;
@@ -96,7 +104,7 @@ export default async function MechanicsPage({
     // All invoice assignments with invoice status + value for performance
     supabase
       .from("invoice_mechanics")
-      .select("invoice_id, mechanic_id, mechanic_role, is_complaint, invoices(status, grand_total)")
+      .select("invoice_id, mechanic_id, mechanic_role, is_complaint, invoices(status, grand_total, created_at, completed_at)")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -175,7 +183,7 @@ export default async function MechanicsPage({
     mechanic_id: string;
     mechanic_role: string;
     is_complaint?: boolean;
-    invoices: { status: string; grand_total: number } | null;
+    invoices: { status: string; grand_total: number; created_at: string; completed_at: string | null } | null;
   };
   const allAssignments = (invoiceMechanicsRaw as InvRow[] | null) ?? [];
 
@@ -215,6 +223,7 @@ export default async function MechanicsPage({
     revenueService: number;
     revenueMaterial: number;
     complaintCount: number;
+    workHours: number;
     attendancePct: number | null;
   };
   const perfMap = new Map<string, PerfData>();
@@ -231,6 +240,7 @@ export default async function MechanicsPage({
       revenueService: 0,
       revenueMaterial: 0,
       complaintCount: 0,
+      workHours: 0,
       attendancePct: null,
     };
     prev.total++;
@@ -245,6 +255,13 @@ export default async function MechanicsPage({
     if (row.mechanic_role === "lead") prev.leadCount++;
     if (row.mechanic_role === "helper") prev.helperCount++;
     if (row.is_complaint) prev.complaintCount++;
+    if (inv.completed_at) {
+      const startedAt = new Date(inv.created_at).getTime();
+      const completedAt = new Date(inv.completed_at).getTime();
+      if (!Number.isNaN(startedAt) && !Number.isNaN(completedAt) && completedAt > startedAt) {
+        prev.workHours += (completedAt - startedAt) / 3_600_000;
+      }
+    }
     perfMap.set(row.mechanic_id, prev);
   }
 
@@ -347,7 +364,34 @@ export default async function MechanicsPage({
         ))}
       </div>
 
-      {tab === "performa" && <PointClaimReviewList claims={pendingClaims} />}
+      {tab === "performa" && (
+        <>
+          <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+            {(
+              [
+                ["activity", "Log Aktivitas"],
+                ["attendance", "Kehadiran"],
+                ["insentif", "Insentif"],
+                ["payroll", "Payroll"],
+              ] as const
+            ).map(([val, label]) => (
+              <a
+                key={val}
+                href={`/owner/mechanics?tab=performa&view=${val}`}
+                className={`rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                  ownerView === val
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {label}
+              </a>
+            ))}
+          </div>
+
+          {ownerView === "insentif" && <PointClaimReviewList claims={pendingClaims} />}
+        </>
+      )}
 
       {/* ── TAB: Performa Mekanik ─────────────────────────────── */}
       {tab === "performa" && (
@@ -373,6 +417,7 @@ export default async function MechanicsPage({
                   revenueService: 0,
                   revenueMaterial: 0,
                   complaintCount: 0,
+                  workHours: 0,
                   attendancePct: null,
                 };
                 const completionRate = perf.total > 0
@@ -408,23 +453,92 @@ export default async function MechanicsPage({
                       </div>
                     </div>
 
-                    {/* Revenue highlight */}
-                    <div className="mt-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 px-4 py-3">
-                      <p className="text-xs font-medium text-violet-500">Revenue Invoice Lunas</p>
-                      <div className="mt-1 grid grid-cols-2 gap-2">
-                        <div className="rounded-lg bg-white/60 px-2.5 py-2">
-                          <p className="text-[10px] uppercase tracking-wider text-violet-400">Jasa</p>
-                          <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueService)}</p>
+                    {ownerView === "activity" && (
+                      <div className="mt-4 space-y-3">
+                        <div className="rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 px-4 py-3">
+                          <p className="text-xs font-medium text-violet-500">Revenue Invoice Lunas</p>
+                          <div className="mt-1 grid grid-cols-2 gap-2">
+                            <div className="rounded-lg bg-white/60 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wider text-violet-400">Jasa</p>
+                              <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueService)}</p>
+                            </div>
+                            <div className="rounded-lg bg-white/60 px-2.5 py-2">
+                              <p className="text-[10px] uppercase tracking-wider text-violet-400">Barang/Material</p>
+                              <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueMaterial)}</p>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-violet-500">
+                            Total: <span className="font-semibold">{fmt(perf.revenueService + perf.revenueMaterial)}</span>
+                          </p>
                         </div>
-                        <div className="rounded-lg bg-white/60 px-2.5 py-2">
-                          <p className="text-[10px] uppercase tracking-wider text-violet-400">Barang/Material</p>
-                          <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueMaterial)}</p>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="rounded-xl bg-blue-50 p-3">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-blue-400">Waktu Kerja</p>
+                            <p className="mt-1 text-lg font-bold text-blue-700">{perf.workHours.toFixed(1)} jam</p>
+                          </div>
+                          <div className="rounded-xl bg-rose-50 p-3">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-rose-400">Komplain</p>
+                            <p className="mt-1 text-lg font-bold text-rose-600">{perf.complaintCount}</p>
+                          </div>
                         </div>
                       </div>
-                      <p className="mt-2 text-xs text-violet-500">
-                        Total: <span className="font-semibold">{fmt(perf.revenueService + perf.revenueMaterial)}</span>
-                      </p>
-                    </div>
+                    )}
+
+                    {ownerView === "attendance" && (
+                      <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3">
+                        <p className="text-xs font-medium text-amber-500">Kehadiran</p>
+                        <div className="mt-2 grid grid-cols-3 gap-2">
+                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                            <p className="text-lg font-bold text-amber-700">{perf.total}</p>
+                            <p className="text-[10px] text-amber-500">Assignment</p>
+                          </div>
+                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                            <p className="text-lg font-bold text-amber-700">{perf.workHours.toFixed(1)}</p>
+                            <p className="text-[10px] text-amber-500">Jam Kerja</p>
+                          </div>
+                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                            <p className="text-lg font-bold text-amber-700">-</p>
+                            <p className="text-[10px] text-amber-500">Absensi</p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs text-amber-500">Sinkron absensi belum dihubungkan, tab ini menyiapkan ringkasan awal.</p>
+                      </div>
+                    )}
+
+                    {ownerView === "insentif" && (
+                      <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3">
+                        <p className="text-xs font-medium text-amber-600">Insentif & Point</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-white/70 px-2.5 py-2">
+                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Saldo Point</p>
+                            <p className="text-sm font-bold text-amber-700">{pointsMap.get(mechanic.id)?.points_balance ?? 0} pt</p>
+                          </div>
+                          <div className="rounded-lg bg-white/70 px-2.5 py-2">
+                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Total Earned</p>
+                            <p className="text-sm font-bold text-amber-700">{pointsMap.get(mechanic.id)?.total_earned ?? 0} pt</p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs text-amber-500">Review klaim point tersedia di panel approval owner.</p>
+                      </div>
+                    )}
+
+                    {ownerView === "payroll" && (
+                      <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
+                        <p className="text-xs font-medium text-slate-500">Payroll Draft</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          <div className="rounded-lg bg-white px-2.5 py-2">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-400">Revenue Basis</p>
+                            <p className="text-sm font-bold text-slate-700">{fmt(perf.revenueService + perf.revenueMaterial)}</p>
+                          </div>
+                          <div className="rounded-lg bg-white px-2.5 py-2">
+                            <p className="text-[10px] uppercase tracking-wider text-slate-400">Status</p>
+                            <p className="text-sm font-bold text-slate-700">Draft</p>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-xs text-slate-400">Tab payroll masih tahap persiapan, belum tersinkron ke slip gaji.</p>
+                      </div>
+                    )}
 
                     {/* Job stats grid */}
                     <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
@@ -473,7 +587,7 @@ export default async function MechanicsPage({
                     </div>
 
                     {/* Point reward section */}
-                    {rewardEnabled && (() => {
+                    {rewardEnabled && ownerView !== "insentif" && (() => {
                       const ep = pointsMap.get(mechanic.id);
                       const balance = ep?.points_balance ?? 0;
                       return (

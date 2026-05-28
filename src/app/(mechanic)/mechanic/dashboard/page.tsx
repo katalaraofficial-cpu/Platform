@@ -172,95 +172,100 @@ export default async function MechanicDashboard({
         </Link>
       </div>
 
-      {/* Empty state */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
-            <ClipboardList className="h-6 w-6 text-gray-400" />
-          </div>
-          <p className="font-semibold text-gray-600">
-            {activeTab === "active"
-              ? "Tidak ada pekerjaan aktif"
-              : "Belum ada pekerjaan"}
-          </p>
-          <p className="mt-1 text-sm text-gray-400">
-            {activeTab === "active" ? (
-              <>
-                Semua pekerjaan sudah selesai.{" "}
-                <Link
-                  href="/mechanic/dashboard?tab=all"
-                  className="text-blue-600 underline"
-                >
-                  Lihat riwayat
-                </Link>
-              </>
-            ) : (
-              "Belum ada invoice yang ditugaskan ke kamu."
-            )}
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map((wo) => {
-            const v = wo.customer?.vehicle_info;
-            const vehicleStr = [v?.brand, v?.model, v?.plate]
-              .filter(Boolean)
-              .join(" · ");
-            const status = wo.invoice.status as InvoiceStatus;
-            const isActive = activeStatuses.includes(status);
-
-            return (
-              <Link
-                key={wo.assignmentId}
-                href={`/mechanic/dashboard/${wo.invoice.id}`}
-                className="block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all active:scale-[0.99] active:bg-gray-50"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-mono text-sm font-bold text-gray-900">
-                        {wo.invoice.invoice_number}
-                      </span>
-                      <span
-                        className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[status]}`}
-                      >
-                        {STATUS_LABELS[status]}
-                      </span>
-                    </div>
-                    <p className="mt-1 truncate text-base font-semibold text-gray-800">
-                      {wo.customer?.name ?? "–"}
-                    </p>
-                    {vehicleStr && (
-                      <p className="mt-0.5 truncate text-sm text-gray-500">
-                        {vehicleStr}
-                      </p>
-                    )}
-                    <p className="mt-2 text-xs text-gray-400">
-                      {new Date(wo.invoice.created_at).toLocaleDateString(
-                        "id-ID",
-                        { day: "numeric", month: "short", year: "numeric" }
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                        wo.mechanicRole === "lead"
-                          ? "bg-violet-100 text-violet-700"
-                          : "bg-gray-100 text-gray-500"
-                      }`}
+      {/* Work order list only for Active/All tabs */}
+      {activeTab !== "point" && (
+        <>
+          {/* Empty state */}
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                <ClipboardList className="h-6 w-6 text-gray-400" />
+              </div>
+              <p className="font-semibold text-gray-600">
+                {activeTab === "active"
+                  ? "Tidak ada pekerjaan aktif"
+                  : "Belum ada pekerjaan"}
+              </p>
+              <p className="mt-1 text-sm text-gray-400">
+                {activeTab === "active" ? (
+                  <>
+                    Semua pekerjaan sudah selesai.{" "}
+                    <Link
+                      href="/mechanic/dashboard?tab=all"
+                      className="text-blue-600 underline"
                     >
-                      {wo.mechanicRole === "lead" ? "Lead" : "Helper"}
-                    </span>
-                    <ChevronRight
-                      className={`h-4 w-4 ${isActive ? "text-blue-400" : "text-gray-300"}`}
-                    />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+                      Lihat riwayat
+                    </Link>
+                  </>
+                ) : (
+                  "Belum ada invoice yang ditugaskan ke kamu."
+                )}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filtered.map((wo) => {
+                const v = wo.customer?.vehicle_info;
+                const vehicleStr = [v?.brand, v?.model, v?.plate]
+                  .filter(Boolean)
+                  .join(" · ");
+                const status = wo.invoice.status as InvoiceStatus;
+                const isActive = activeStatuses.includes(status);
+
+                return (
+                  <Link
+                    key={wo.assignmentId}
+                    href={`/mechanic/dashboard/${wo.invoice.id}`}
+                    className="block rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition-all active:scale-[0.99] active:bg-gray-50"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-sm font-bold text-gray-900">
+                            {wo.invoice.invoice_number}
+                          </span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${STATUS_COLORS[status]}`}
+                          >
+                            {STATUS_LABELS[status]}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-base font-semibold text-gray-800">
+                          {wo.customer?.name ?? "–"}
+                        </p>
+                        {vehicleStr && (
+                          <p className="mt-0.5 truncate text-sm text-gray-500">
+                            {vehicleStr}
+                          </p>
+                        )}
+                        <p className="mt-2 text-xs text-gray-400">
+                          {new Date(wo.invoice.created_at).toLocaleDateString(
+                            "id-ID",
+                            { day: "numeric", month: "short", year: "numeric" }
+                          )}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            wo.mechanicRole === "lead"
+                              ? "bg-violet-100 text-violet-700"
+                              : "bg-gray-100 text-gray-500"
+                          }`}
+                        >
+                          {wo.mechanicRole === "lead" ? "Lead" : "Helper"}
+                        </span>
+                        <ChevronRight
+                          className={`h-4 w-4 ${isActive ? "text-blue-400" : "text-gray-300"}`}
+                        />
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
 
       {/* ── TAB: Point ──────────────────────────────────────── */}
@@ -291,6 +296,15 @@ export default async function MechanicDashboard({
               </div>
               <p className="text-2xl font-bold text-violet-600">{employeePoints?.total_redeemed ?? 0} pt</p>
             </div>
+          </div>
+
+          <div className="rounded-2xl border border-amber-100 bg-amber-50 p-4 text-sm text-amber-700">
+            <p className="font-semibold">Info Point</p>
+            <ul className="mt-1 space-y-1 text-xs text-amber-600">
+              <li>Point dihitung dari pekerjaan yang sudah ditagihkan.</li>
+              <li>Point bisa ditukar saat melakukan pengajuan klaim/redeem.</li>
+              <li>Approval pencairan dilakukan oleh Owner.</li>
+            </ul>
           </div>
 
           {/* Transaction history */}

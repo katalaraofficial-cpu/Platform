@@ -12,6 +12,8 @@ import {
   TrendingUp,
   Star,
   Gift,
+  MessageSquareWarning,
+  CalendarCheck2,
 } from "lucide-react";
 import {
   LunasiButton,
@@ -93,7 +95,7 @@ export default async function MechanicsPage({
     // All invoice assignments with invoice status + value for performance
     supabase
       .from("invoice_mechanics")
-      .select("mechanic_id, mechanic_role, invoices(status, grand_total)")
+      .select("invoice_id, mechanic_id, mechanic_role, invoices(status, grand_total)")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -143,8 +145,39 @@ export default async function MechanicsPage({
   }
 
   // Performance data per mechanic
-  type InvRow = { mechanic_id: string; mechanic_role: string; invoices: { status: string; grand_total: number } | null };
+  type InvRow = {
+    invoice_id: string;
+    mechanic_id: string;
+    mechanic_role: string;
+    invoices: { status: string; grand_total: number } | null;
+  };
   const allAssignments = (invoiceMechanicsRaw as InvRow[] | null) ?? [];
+
+  const paidInvoiceIds = [
+    ...new Set(
+      allAssignments
+        .filter((row) => row.invoices?.status === "paid")
+        .map((row) => row.invoice_id)
+        .filter(Boolean)
+    ),
+  ];
+
+  const { data: paidItemsRaw } = paidInvoiceIds.length
+    ? await supabase
+        .from("invoice_items")
+        .select("invoice_id, item_type, final_price")
+        .eq("tenant_id", tenantId)
+        .in("invoice_id", paidInvoiceIds)
+    : { data: [] as { invoice_id: string; item_type: string; final_price: number }[] };
+
+  const revenueByInvoice = new Map<string, { service: number; material: number }>();
+  for (const item of paidItemsRaw ?? []) {
+    const prev = revenueByInvoice.get(item.invoice_id) ?? { service: 0, material: 0 };
+    const lineTotal = Number(item.final_price ?? 0);
+    if (item.item_type === "service") prev.service += lineTotal;
+    else prev.material += lineTotal;
+    revenueByInvoice.set(item.invoice_id, prev);
+  }
 
   type PerfData = {
     total: number;
@@ -152,20 +185,39 @@ export default async function MechanicsPage({
     completed: number;
     paid: number;
     leadCount: number;
-    totalRevenue: number; // sum grand_total of paid invoices
+    helperCount: number;
+    revenueService: number;
+    revenueMaterial: number;
+    complaintCount: number;
+    attendancePct: number | null;
   };
   const perfMap = new Map<string, PerfData>();
   for (const row of allAssignments) {
     const inv = row.invoices;
     if (!inv) continue;
     const prev = perfMap.get(row.mechanic_id) ?? {
-      total: 0, inProgress: 0, completed: 0, paid: 0, leadCount: 0, totalRevenue: 0,
+      total: 0,
+      inProgress: 0,
+      completed: 0,
+      paid: 0,
+      leadCount: 0,
+      helperCount: 0,
+      revenueService: 0,
+      revenueMaterial: 0,
+      complaintCount: 0,
+      attendancePct: null,
     };
     prev.total++;
     if (inv.status === "in_progress") prev.inProgress++;
     if (inv.status === "completed") prev.completed++;
-    if (inv.status === "paid") { prev.paid++; prev.totalRevenue += Number(inv.grand_total ?? 0); }
+    if (inv.status === "paid") {
+      prev.paid++;
+      const rev = revenueByInvoice.get(row.invoice_id);
+      prev.revenueService += rev?.service ?? 0;
+      prev.revenueMaterial += rev?.material ?? 0;
+    }
     if (row.mechanic_role === "lead") prev.leadCount++;
+    if (row.mechanic_role === "helper") prev.helperCount++;
     perfMap.set(row.mechanic_id, prev);
   }
 
@@ -177,7 +229,10 @@ export default async function MechanicsPage({
   const mechanicsWithDebt = [...debtMap.values()].filter(
     (r) => Number(r.outstanding_balance) > 0
   ).length;
-  const totalRevenueAll = [...perfMap.values()].reduce((s, p) => s + p.totalRevenue, 0);
+  const totalRevenueAll = [...perfMap.values()].reduce(
+    (s, p) => s + p.revenueService + p.revenueMaterial,
+    0
+  );
 
   const debtHistory = (
     debtHistoryRaw as {
@@ -280,7 +335,16 @@ export default async function MechanicsPage({
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {mechanics.map((mechanic) => {
                 const perf = perfMap.get(mechanic.id) ?? {
-                  total: 0, inProgress: 0, completed: 0, paid: 0, leadCount: 0, totalRevenue: 0,
+                  total: 0,
+                  inProgress: 0,
+                  completed: 0,
+                  paid: 0,
+                  leadCount: 0,
+                  helperCount: 0,
+                  revenueService: 0,
+                  revenueMaterial: 0,
+                  complaintCount: 0,
+                  attendancePct: null,
                 };
                 const completionRate = perf.total > 0
                   ? Math.round(((perf.completed + perf.paid) / perf.total) * 100)
@@ -300,22 +364,41 @@ export default async function MechanicsPage({
                         <p className="truncate font-semibold text-gray-900">{mechanic.full_name}</p>
                         <p className="text-xs text-gray-400">Engineer</p>
                       </div>
-                      {perf.leadCount > 0 && (
-                        <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                          <Star className="h-3 w-3" />
-                          Lead ×{perf.leadCount}
-                        </span>
-                      )}
+                      <div className="flex flex-col items-end gap-1">
+                        {perf.leadCount > 0 && (
+                          <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            <Star className="h-3 w-3" />
+                            Lead ×{perf.leadCount}
+                          </span>
+                        )}
+                        {perf.helperCount > 0 && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                            Helper ×{perf.helperCount}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Revenue highlight */}
                     <div className="mt-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 px-4 py-3">
-                      <p className="text-xs text-violet-500 font-medium">Total Revenue Invoice Lunas</p>
-                      <p className="mt-0.5 text-xl font-bold text-violet-700">{fmt(perf.totalRevenue)}</p>
+                      <p className="text-xs font-medium text-violet-500">Revenue Invoice Lunas</p>
+                      <div className="mt-1 grid grid-cols-2 gap-2">
+                        <div className="rounded-lg bg-white/60 px-2.5 py-2">
+                          <p className="text-[10px] uppercase tracking-wider text-violet-400">Jasa</p>
+                          <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueService)}</p>
+                        </div>
+                        <div className="rounded-lg bg-white/60 px-2.5 py-2">
+                          <p className="text-[10px] uppercase tracking-wider text-violet-400">Barang/Material</p>
+                          <p className="text-sm font-bold text-violet-700">{fmt(perf.revenueMaterial)}</p>
+                        </div>
+                      </div>
+                      <p className="mt-2 text-xs text-violet-500">
+                        Total: <span className="font-semibold">{fmt(perf.revenueService + perf.revenueMaterial)}</span>
+                      </p>
                     </div>
 
                     {/* Job stats grid */}
-                    <div className="mt-3 grid grid-cols-3 gap-2">
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
                       <div className="rounded-xl bg-blue-50 p-2.5 text-center">
                         <p className="text-lg font-bold text-blue-700">{perf.inProgress}</p>
                         <p className="text-[10px] text-blue-400 font-medium">Aktif</p>
@@ -327,6 +410,22 @@ export default async function MechanicsPage({
                       <div className="rounded-xl bg-gray-50 p-2.5 text-center">
                         <p className="text-lg font-bold text-gray-700">{perf.total}</p>
                         <p className="text-[10px] text-gray-400 font-medium">Total</p>
+                      </div>
+                      <div className="rounded-xl bg-rose-50 p-2.5 text-center">
+                        <p className="text-lg font-bold text-rose-600">{perf.complaintCount}</p>
+                        <p className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-400">
+                          <MessageSquareWarning className="h-3 w-3" />
+                          Komplain
+                        </p>
+                      </div>
+                      <div className="rounded-xl bg-amber-50 p-2.5 text-center">
+                        <p className="text-lg font-bold text-amber-600">
+                          {perf.attendancePct === null ? "-" : `${perf.attendancePct}%`}
+                        </p>
+                        <p className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500">
+                          <CalendarCheck2 className="h-3 w-3" />
+                          Kehadiran
+                        </p>
                       </div>
                     </div>
 

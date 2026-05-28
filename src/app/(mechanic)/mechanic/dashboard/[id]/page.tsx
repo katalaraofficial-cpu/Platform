@@ -41,7 +41,7 @@ export default async function WorkOrderDetail({
   // Verify the mechanic is assigned to this invoice
   const { data: assignment } = await supabase
     .from("invoice_mechanics")
-    .select("id, mechanic_role")
+    .select("id, mechanic_role, is_complaint, complaint_at")
     .eq("invoice_id", id)
     .eq("mechanic_id", ctx.id)
     .single();
@@ -79,6 +79,7 @@ export default async function WorkOrderDetail({
     .filter(Boolean)
     .join(" · ");
   const status = invoice.status as InvoiceStatus;
+  const showComplaint = Boolean((assignment as { is_complaint?: boolean }).is_complaint) && status === "completed";
 
   // Mechanic can only transition: draft → in_progress → completed
   const nextAction: { label: string; next: "in_progress" | "completed" } | null =
@@ -104,9 +105,9 @@ export default async function WorkOrderDetail({
               {invoice.invoice_number}
             </h1>
             <span
-              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS_COLORS[status]}`}
+              className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${showComplaint ? "bg-red-100 text-red-700" : STATUS_COLORS[status]}`}
             >
-              {STATUS_LABELS[status]}
+              {showComplaint ? "Komplain" : STATUS_LABELS[status]}
             </span>
           </div>
           <p className="mt-0.5 text-xs text-gray-400">
@@ -232,6 +233,15 @@ export default async function WorkOrderDetail({
             {status === "paid"
               ? "Terima kasih, pekerjaan telah selesai dan dibayar."
               : "Menunggu konfirmasi pembayaran dari admin."}
+          </p>
+        </div>
+      )}
+
+      {showComplaint && (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-center">
+          <p className="font-semibold text-red-700">Ada Komplain pada Pekerjaan Ini</p>
+          <p className="mt-1 text-sm text-red-600">
+            Mohon cek ulang hasil pekerjaan dan koordinasi dengan owner/admin untuk penyelesaian.
           </p>
         </div>
       )}

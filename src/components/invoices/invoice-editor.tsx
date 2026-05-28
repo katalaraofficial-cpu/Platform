@@ -481,6 +481,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     displayStatus !== null &&
     displayStatus !== "draft" &&
     displayStatus !== "cancelled";
+  const showComplaintStatus = isEdit && displayStatus === "completed" && hasComplaint;
 
   // ── Customer search ───────────────────────────────────────────────────
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -885,9 +886,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           </h1>
           {isEdit && displayStatus && (
             <span
-              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${STATUS_COLORS[displayStatus]}`}
+              className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                showComplaintStatus ? "bg-red-700 text-red-100" : STATUS_COLORS[displayStatus]
+              }`}
             >
-              {STATUS_LABELS[displayStatus]}
+              {showComplaintStatus ? "Komplain" : STATUS_LABELS[displayStatus]}
             </span>
           )}
         </div>

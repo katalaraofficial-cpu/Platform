@@ -32,6 +32,8 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
 type WorkOrderRow = {
   assignmentId: string;
   mechanicRole: MechanicRoleInInvoice;
+  isComplaint: boolean;
+  complaintAt: string | null;
   invoice: Invoice;
   customer: Customer | null;
 };
@@ -50,7 +52,7 @@ export default async function MechanicDashboard({
   // 1. Fetch assignments for this mechanic
   const { data: assignments } = await supabase
     .from("invoice_mechanics")
-    .select("id, mechanic_role, invoice_id")
+    .select("id, mechanic_role, invoice_id, is_complaint, complaint_at")
     .eq("mechanic_id", ctx.id)
     .order("assigned_at", { ascending: false });
 
@@ -87,6 +89,8 @@ export default async function MechanicDashboard({
         return {
           assignmentId: a.id,
           mechanicRole: a.mechanic_role as MechanicRoleInInvoice,
+          isComplaint: Boolean((a as { is_complaint?: boolean }).is_complaint),
+          complaintAt: (a as { complaint_at?: string | null }).complaint_at ?? null,
           invoice,
           customer: invoice.customer_id
             ? ((customerMap[invoice.customer_id] as Customer) ?? null)
@@ -238,6 +242,7 @@ export default async function MechanicDashboard({
                   .join(" · ");
                 const status = wo.invoice.status as InvoiceStatus;
                 const isActive = activeStatuses.includes(status);
+                const showComplaint = wo.isComplaint && status === "completed";
 
                 return (
                   <Link
@@ -256,6 +261,11 @@ export default async function MechanicDashboard({
                           >
                             {STATUS_LABELS[status]}
                           </span>
+                          {showComplaint && (
+                            <span className="rounded-full bg-red-100 px-2 py-0.5 text-[11px] font-semibold text-red-700">
+                              Komplain
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 truncate text-base font-semibold text-gray-800">
                           {wo.customer?.name ?? "–"}
@@ -271,6 +281,11 @@ export default async function MechanicDashboard({
                             { day: "numeric", month: "short", year: "numeric" }
                           )}
                         </p>
+                        {showComplaint && (
+                          <p className="mt-1 text-xs font-medium text-red-600">
+                            Ada komplain dari owner untuk pekerjaan ini.
+                          </p>
+                        )}
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-2 pt-0.5">
                         <span

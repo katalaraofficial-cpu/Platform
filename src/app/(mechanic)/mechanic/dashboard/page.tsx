@@ -1,7 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
-import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
+import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft, Clock3, MessageSquareWarning, CalendarCheck2, Wallet } from "lucide-react";
 import { SubmitPointClaimCard } from "@/components/mechanics/submit-point-claim-card";
 import type {
   Invoice,
@@ -44,7 +44,16 @@ export default async function MechanicDashboard({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const activeTab = tab === "all" ? "all" : tab === "point" ? "point" : "active";
+  const tabParam = (tab ?? "").toLowerCase();
+  const activeTab =
+    tabParam === "attendance"
+      ? "attendance"
+      : tabParam === "insentif" || tabParam === "point"
+        ? "insentif"
+        : tabParam === "payroll"
+          ? "payroll"
+          : "activity";
+  const activityFilter = tabParam === "all" ? "all" : "active";
 
   const supabase = await createClient();
   const ctx = await getUserContext();
@@ -103,7 +112,7 @@ export default async function MechanicDashboard({
   // 6. Filter by tab
   const activeStatuses: InvoiceStatus[] = ["draft", "in_progress"];
   const filtered =
-    activeTab === "active"
+    activityFilter === "active"
       ? workOrders.filter((wo) =>
           activeStatuses.includes(wo.invoice.status as InvoiceStatus)
         )
@@ -113,13 +122,23 @@ export default async function MechanicDashboard({
     activeStatuses.includes(wo.invoice.status as InvoiceStatus)
   ).length;
 
-  // 7. Fetch employee points data if Point tab is active
+  const complaintCount = workOrders.filter((wo) => wo.isComplaint).length;
+  const totalWorkHours = workOrders.reduce((sum, wo) => {
+    const completedAt = wo.invoice.completed_at;
+    if (!completedAt) return sum;
+    const start = new Date(wo.invoice.created_at).getTime();
+    const end = new Date(completedAt).getTime();
+    if (Number.isNaN(start) || Number.isNaN(end) || end <= start) return sum;
+    return sum + (end - start) / 3_600_000;
+  }, 0);
+
+  // 7. Fetch employee points data if Incentive tab is active
   let employeePoints: EmployeePoints | null = null;
   let pointTransactions: EmployeePointTransaction[] = [];
   let claimRequests: PointRedemptionRequest[] = [];
   let rewardMinRedeem = 50;
   let rewardPointValue = 1000;
-  if (activeTab === "point" && ctx.id && ctx.tenantId) {
+  if (activeTab === "insentif" && ctx.id && ctx.tenantId) {
     const [{ data: epData }, { data: txData }, { data: claimData }, { data: settingsData }] = await Promise.all([
       supabase
         .from("employee_points")
@@ -167,14 +186,14 @@ export default async function MechanicDashboard({
       {/* Tab filter */}
       <div className="mb-4 flex gap-1 rounded-xl bg-gray-100 p-1">
         <Link
-          href="/mechanic/dashboard"
+          href="/mechanic/dashboard?tab=activity"
           className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
-            activeTab === "active"
+            activeTab === "activity"
               ? "bg-white text-gray-900 shadow-sm"
               : "text-gray-500"
           }`}
         >
-          Aktif
+          Log Aktivitas
           {activeCount > 0 && (
             <span className="ml-1.5 inline-flex h-4 min-w-[1rem] items-center justify-center rounded-full bg-blue-500 px-1 text-[10px] font-bold text-white">
               {activeCount}
@@ -182,30 +201,85 @@ export default async function MechanicDashboard({
           )}
         </Link>
         <Link
-          href="/mechanic/dashboard?tab=all"
+          href="/mechanic/dashboard?tab=attendance"
           className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
-            activeTab === "all"
+            activeTab === "attendance"
               ? "bg-white text-gray-900 shadow-sm"
               : "text-gray-500"
           }`}
         >
-          Semua
+          Kehadiran
         </Link>
         <Link
-          href="/mechanic/dashboard?tab=point"
+          href="/mechanic/dashboard?tab=insentif"
           className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
-            activeTab === "point"
+            activeTab === "insentif"
               ? "bg-white text-gray-900 shadow-sm"
               : "text-gray-500"
           }`}
         >
-          Point
+          Insentif
+        </Link>
+        <Link
+          href="/mechanic/dashboard?tab=payroll"
+          className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
+            activeTab === "payroll"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500"
+          }`}
+        >
+          Payroll
         </Link>
       </div>
 
+      {activeTab === "activity" && (
+        <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <Clock3 className="h-4 w-4 text-blue-500" /> Waktu Kerja
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{totalWorkHours.toFixed(1)} jam</p>
+            <p className="mt-1 text-xs text-gray-400">Akumulasi dari pekerjaan selesai</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <MessageSquareWarning className="h-4 w-4 text-red-500" /> Komplain
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{complaintCount}</p>
+            <p className="mt-1 text-xs text-gray-400">Total komplain pada assignment kamu</p>
+          </div>
+          <div className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+            <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+              <ClipboardList className="h-4 w-4 text-emerald-500" /> Ringkasan Tugas
+            </div>
+            <p className="text-2xl font-bold text-gray-900">{workOrders.length}</p>
+            <p className="mt-1 text-xs text-gray-400">Total assignment masuk</p>
+          </div>
+        </div>
+      )}
+
       {/* Work order list only for Active/All tabs */}
-      {activeTab !== "point" && (
+      {activeTab === "activity" && (
         <>
+          <div className="mb-3 flex gap-1 rounded-xl bg-gray-100 p-1">
+            <Link
+              href="/mechanic/dashboard?tab=activity"
+              className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
+                activityFilter === "active" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+              }`}
+            >
+              Aktif
+            </Link>
+            <Link
+              href="/mechanic/dashboard?tab=all"
+              className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
+                activityFilter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
+              }`}
+            >
+              Semua
+            </Link>
+          </div>
+
           {/* Empty state */}
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -213,12 +287,12 @@ export default async function MechanicDashboard({
                 <ClipboardList className="h-6 w-6 text-gray-400" />
               </div>
               <p className="font-semibold text-gray-600">
-                {activeTab === "active"
+                {activityFilter === "active"
                   ? "Tidak ada pekerjaan aktif"
                   : "Belum ada pekerjaan"}
               </p>
               <p className="mt-1 text-sm text-gray-400">
-                {activeTab === "active" ? (
+                {activityFilter === "active" ? (
                   <>
                     Semua pekerjaan sudah selesai.{" "}
                     <Link
@@ -310,8 +384,24 @@ export default async function MechanicDashboard({
         </>
       )}
 
-      {/* ── TAB: Point ──────────────────────────────────────── */}
-      {activeTab === "point" && (
+      {activeTab === "attendance" && (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
+          <CalendarCheck2 className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+          <p className="text-base font-semibold text-gray-700">Tab Kehadiran disiapkan</p>
+          <p className="mt-1 text-sm text-gray-400">Data absensi akan dihubungkan di fase berikutnya.</p>
+        </div>
+      )}
+
+      {activeTab === "payroll" && (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-white p-8 text-center shadow-sm">
+          <Wallet className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+          <p className="text-base font-semibold text-gray-700">Tab Payroll disiapkan</p>
+          <p className="mt-1 text-sm text-gray-400">Rencana sinkron gaji dan slip akan ditambahkan bertahap.</p>
+        </div>
+      )}
+
+      {/* ── TAB: Insentif ───────────────────────────────────── */}
+      {activeTab === "insentif" && (
         <div className="space-y-4">
           {/* Balance card */}
           <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-6 text-white shadow">

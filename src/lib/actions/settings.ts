@@ -10,10 +10,24 @@ const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
 async function ensureSettingsRow(tenantId: string): Promise<{ error?: string }> {
   const admin = createAdminClient();
-  const { error } = await admin
+  const { data: existing, error: selectErr } = await admin
     .from("settings")
-    .upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
-  if (error) return { error: error.message };
+    .select("id")
+    .eq("tenant_id", tenantId)
+    .limit(1);
+
+  if (selectErr) return { error: selectErr.message };
+  if ((existing ?? []).length > 0) return {};
+
+  const { error: insertErr } = await admin
+    .from("settings")
+    .insert({ tenant_id: tenantId });
+
+  // Safe to ignore duplicate insert race.
+  if (insertErr && insertErr.code !== "23505") {
+    return { error: insertErr.message };
+  }
+
   return {};
 }
 
@@ -200,7 +214,8 @@ export async function saveRewardSettings(data: {
 
     const { error } = await admin
       .from("settings")
-      .upsert(payload, { onConflict: "tenant_id" });
+      .update(payload)
+      .eq("tenant_id", ctx.tenantId);
     if (error) return { error: error.message };
 
     const { data: verify } = await admin

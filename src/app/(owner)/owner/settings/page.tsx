@@ -37,7 +37,7 @@ export default async function SettingsPage({
   let settings = ((settingsRows ?? [])[0] ?? null) as Settings | null;
 
   if (!settings) {
-    await admin.from("settings").upsert({ tenant_id: ctx.tenantId }, { onConflict: "tenant_id" });
+    await admin.from("settings").insert({ tenant_id: ctx.tenantId });
     const { data: refetchedRows } = await admin
       .from("settings")
       .select(

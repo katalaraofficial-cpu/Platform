@@ -30,6 +30,7 @@ import {
   processPayment,
   updateInvoiceDueDate,
   updateInvoiceShipping,
+  updateInvoiceDate,
 } from "@/lib/actions/invoice";
 import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -75,6 +76,7 @@ export interface InvoiceEditData {
   id: string;
   invoiceNumber: string;
   status: InvoiceStatus;
+  invoiceDate?: string | null;
   notes: string | null;
   ppnPct: number;
   pphPct: number;
@@ -377,8 +379,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [customerResults, setCustomerResults] = useState<CustomerResult[]>([]);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
 
-  // ── Date state (create mode) ──────────────────────────────────────────
-  const [invoiceDate, setInvoiceDate] = useState(todayStr());
+  // ── Date state ────────────────────────────────────────────────────────
+  const [invoiceDate, setInvoiceDate] = useState(
+    isEdit ? (editInvoice?.invoiceDate?.split("T")[0] ?? todayStr()) : todayStr()
+  );
+  useEffect(() => {
+    if (isEdit) {
+      setInvoiceDate(editInvoice?.invoiceDate?.split("T")[0] ?? todayStr());
+    }
+  }, [isEdit, editInvoice?.invoiceDate]);
 
   // ── Notes state ───────────────────────────────────────────────────────
   const [notes, setNotes] = useState(editInvoice?.notes ?? "");
@@ -755,6 +764,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         notes,
         basePath: props.basePath,
         dueDate: dueDate || undefined,
+        invoiceDate: invoiceDate || undefined,
         shippingCost: shippingCost > 0 ? shippingCost : undefined,
         mechanics: assignedMechanics.map((m) => ({ id: m.mechanicId, role: m.role })),
         items: items.map((i) => ({
@@ -770,6 +780,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       });
       if (res.error) { setSaveError(res.error); return; }
       router.push(`${props.basePath}/invoices/${res.invoiceId}`);
+    });
+  }
+
+  // ── Due date save ─────────────────────────────────────────────────────
+  function handleSaveInvoiceDate(val: string) {
+    setInvoiceDate(val);
+    if (!isEdit) return;
+    startTransition(async () => {
+      await updateInvoiceDate(editInvoice!.id, val || null, props.basePath);
     });
   }
 
@@ -880,20 +899,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           {/* Date */}
           <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Tgl</span>
-            {isEdit ? (
-              <span className="font-mono text-sm text-white">
-                {new Date(editInvoice!.createdAt).toLocaleDateString("id-ID", {
-                  day: "numeric", month: "short", year: "numeric",
-                })}
-              </span>
-            ) : (
-              <input
-                type="date"
-                value={invoiceDate}
-                onChange={(e) => setInvoiceDate(e.target.value)}
-                className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
-              />
-            )}
+            <input
+              type="date"
+              value={invoiceDate}
+              onChange={(e) => setInvoiceDate(e.target.value)}
+              onBlur={(e) => {
+                if (isEdit) handleSaveInvoiceDate(e.target.value);
+              }}
+              className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+            />
           </div>
 
           <div className="hidden h-4 w-px bg-gray-600 sm:block" />

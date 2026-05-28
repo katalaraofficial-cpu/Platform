@@ -895,6 +895,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
 
 // ── Tab 4: Reward ────────────────────────────────────────────
 function TabReward({ s }: { s: Settings | null }) {
+  const router = useRouter();
   const [enabled, setEnabled] = useState(s?.reward_employee_enabled ?? false);
   const [spendPer, setSpendPer] = useState(String(s?.reward_spend_per_point ?? 100000));
   const [ptValue, setPtValue] = useState(String(s?.reward_point_value ?? 1000));
@@ -903,6 +904,16 @@ function TabReward({ s }: { s: Settings | null }) {
   const [leadMult, setLeadMult] = useState(String(s?.reward_lead_multiplier ?? 1));
   const [helperMult, setHelperMult] = useState(String(s?.reward_helper_multiplier ?? 0.5));
   const [pending, startTransition] = useTransition();
+
+  useEffect(() => {
+    setEnabled(s?.reward_employee_enabled ?? false);
+    setSpendPer(String(s?.reward_spend_per_point ?? 100000));
+    setPtValue(String(s?.reward_point_value ?? 1000));
+    setMinRedeem(String(s?.reward_min_redeem ?? 10));
+    setValidity(String(s?.reward_point_validity_days ?? 365));
+    setLeadMult(String(s?.reward_lead_multiplier ?? 1));
+    setHelperMult(String(s?.reward_helper_multiplier ?? 0.5));
+  }, [s]);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -916,7 +927,12 @@ function TabReward({ s }: { s: Settings | null }) {
         leadMultiplier: parseFloat(leadMult) || 1,
         helperMultiplier: parseFloat(helperMult) || 0.5,
       });
-      if (res.error) toast.error(res.error); else toast.success(res.success);
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        toast.success(res.success);
+        router.refresh();
+      }
     });
   }
 

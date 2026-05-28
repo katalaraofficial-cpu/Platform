@@ -75,6 +75,7 @@ export default async function AdminInvoiceDetailPage({
         id: invoice.id,
         invoiceNumber: invoice.invoice_number,
         status: invoice.status as InvoiceStatus,
+        invoiceDate: (invoice as Record<string, unknown>)["invoice_date"] as string ?? null,
         notes: invoice.notes ?? null,
         ppnPct: Number(invoice.ppn_pct ?? 0),
         pphPct: Number(invoice.pph_pct ?? 0),

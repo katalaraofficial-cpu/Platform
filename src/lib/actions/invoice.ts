@@ -980,6 +980,25 @@ export async function updateInvoiceDueDate(
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 
+// ── Update invoice date ──────────────────────────────────────
+export async function updateInvoiceDate(
+  invoiceId: string,
+  invoiceDate: string | null,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  if (!invoiceDate) return;
+  await supabase
+    .from("invoices")
+    .update({ invoice_date: invoiceDate })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  revalidatePath(`${basePath}/invoices`);
+}
+
 // ── Update invoice shipping cost ──────────────────────────────
 export async function updateInvoiceShipping(
   invoiceId: string,

@@ -669,6 +669,73 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
     .single();
   if (!inv) return;
 
+  if (inv.status === "paid") {
+    try {
+      const adminClient = createAdminClient();
+      const { data: settings } = await adminClient
+        .from("settings")
+        .select("reward_employee_enabled")
+        .eq("tenant_id", ctx.tenantId)
+        .maybeSingle();
+
+      if (settings?.reward_employee_enabled) {
+        const { data: mechanics } = await adminClient
+          .from("invoice_mechanics")
+          .select("mechanic_id, mechanic_role")
+          .eq("tenant_id", ctx.tenantId)
+          .eq("invoice_id", invoiceId);
+
+        const { data: pointTxns } = await adminClient
+          .from("employee_point_transactions")
+          .select("id, profile_id, points")
+          .eq("tenant_id", ctx.tenantId)
+          .eq("reference_id", invoiceId)
+          .eq("transaction_type", "earn");
+
+        const pointsByProfile = new Map<string, number>();
+        for (const txn of pointTxns ?? []) {
+          pointsByProfile.set(
+            txn.profile_id,
+            (pointsByProfile.get(txn.profile_id) ?? 0) + Number(txn.points ?? 0)
+          );
+        }
+
+        for (const mechanic of mechanics ?? []) {
+          const pointsToReverse = pointsByProfile.get(mechanic.mechanic_id) ?? 0;
+          if (pointsToReverse <= 0) continue;
+
+          const { data: existing } = await adminClient
+            .from("employee_points")
+            .select("id, points_balance, total_earned, total_redeemed")
+            .eq("tenant_id", ctx.tenantId)
+            .eq("profile_id", mechanic.mechanic_id)
+            .maybeSingle();
+
+          if (existing) {
+            await adminClient
+              .from("employee_points")
+              .update({
+                points_balance: Math.max(0, Number(existing.points_balance ?? 0) - pointsToReverse),
+                total_earned: Math.max(0, Number(existing.total_earned ?? 0) - pointsToReverse),
+              })
+              .eq("id", existing.id);
+          }
+
+          await adminClient.from("employee_point_transactions").insert({
+            tenant_id: ctx.tenantId,
+            profile_id: mechanic.mechanic_id,
+            transaction_type: "adjust",
+            points: -pointsToReverse,
+            reference_id: invoiceId,
+            notes: `Reversal invoice ${invoiceId} (${mechanic.mechanic_role})`,
+          });
+        }
+      }
+    } catch {
+      // Point reversal is non-critical; invoice rollback should still proceed.
+    }
+  }
+
   const prevMap: Partial<Record<string, string>> = {
     paid: "completed",
     completed: "in_progress",

@@ -149,6 +149,7 @@ export function SettingsTabs({
 
 // ── Tab 1: Informasi Toko ────────────────────────────────────
 function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
+  const router = useRouter();
   const [name, setName] = useState(s?.store_name ?? "");
   const [address, setAddress] = useState(s?.store_address ?? "");
   const [phone, setPhone] = useState(s?.store_phone ?? "");
@@ -160,7 +161,11 @@ function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
     e.preventDefault();
     startTransition(async () => {
       const res = await saveStoreInfo({ storeName: name, storeAddress: address, storePhone: phone, storeEmail: email, storeLogoUrl: logoUrl });
-      if (res.error) toast.error(res.error); else toast.success(res.success);
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(res.success);
+        router.refresh();
+      }
     });
   }
 
@@ -195,6 +200,7 @@ function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
 
 // ── Tab 2: Platform ──────────────────────────────────────────
 function TabPlatform({ s }: { s: Settings | null }) {
+  const router = useRouter();
   const [markupPct, setMarkupPct] = useState(String(s?.default_markup_pct ?? 20));
   const [pettyCash, setPettyCash] = useState(String(s?.petty_cash_limit ?? 500000));
   const [qtyDecimal, setQtyDecimal] = useState(s?.qty_decimal ?? false);
@@ -211,7 +217,11 @@ function TabPlatform({ s }: { s: Settings | null }) {
         qtyDecimal,
         priceTierLabels: tierLabels,
       });
-      if (res.error) toast.error(res.error); else toast.success(res.success);
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(res.success);
+        router.refresh();
+      }
     });
   }
 

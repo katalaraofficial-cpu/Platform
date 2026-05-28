@@ -1016,3 +1016,48 @@ export async function updateInvoiceShipping(
   await syncTotals(supabase, invoiceId);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
+
+// ── Toggle complaint status for mechanics on invoice ────────
+export async function setInvoiceComplaintStatus(
+  invoiceId: string,
+  isComplaint: boolean,
+  basePath: string
+): Promise<{ error?: string }> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId || !["owner", "admin"].includes(ctx.role ?? "")) {
+    return { error: "Tidak memiliki akses" };
+  }
+
+  const { data: invoice } = await supabase
+    .from("invoices")
+    .select("status")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+
+  if (!invoice) return { error: "Invoice tidak ditemukan" };
+  if (invoice.status !== "completed") {
+    return { error: "Komplain hanya bisa diubah saat status invoice Selesai" };
+  }
+
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("invoice_mechanics")
+    .update({
+      is_complaint: isComplaint,
+      complaint_at: isComplaint ? now : null,
+      complaint_resolved_at: isComplaint ? null : now,
+    })
+    .eq("invoice_id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+
+  if (error) return { error: "Gagal menyimpan status komplain: " + error.message };
+
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+  revalidatePath(`${basePath}/invoices`);
+  revalidatePath("/owner/mechanics");
+  revalidatePath("/owner/invoices");
+  revalidatePath("/admin/invoices");
+  return {};
+}

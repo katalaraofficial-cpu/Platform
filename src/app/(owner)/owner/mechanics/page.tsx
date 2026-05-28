@@ -96,7 +96,7 @@ export default async function MechanicsPage({
     // All invoice assignments with invoice status + value for performance
     supabase
       .from("invoice_mechanics")
-      .select("invoice_id, mechanic_id, mechanic_role, invoices(status, grand_total)")
+      .select("invoice_id, mechanic_id, mechanic_role, is_complaint, invoices(status, grand_total)")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -174,6 +174,7 @@ export default async function MechanicsPage({
     invoice_id: string;
     mechanic_id: string;
     mechanic_role: string;
+    is_complaint?: boolean;
     invoices: { status: string; grand_total: number } | null;
   };
   const allAssignments = (invoiceMechanicsRaw as InvRow[] | null) ?? [];
@@ -243,6 +244,7 @@ export default async function MechanicsPage({
     }
     if (row.mechanic_role === "lead") prev.leadCount++;
     if (row.mechanic_role === "helper") prev.helperCount++;
+    if (row.is_complaint) prev.complaintCount++;
     perfMap.set(row.mechanic_id, prev);
   }
 

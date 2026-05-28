@@ -31,6 +31,7 @@ import {
   updateInvoiceDueDate,
   updateInvoiceShipping,
   updateInvoiceDate,
+  setInvoiceComplaintStatus,
 } from "@/lib/actions/invoice";
 import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -59,6 +60,7 @@ interface AssignedMechanic {
   mechanicId: string;
   name: string;
   role: MechanicRoleInInvoice;
+  hasComplaint: boolean;
 }
 
 export interface MechanicOption {
@@ -107,6 +109,7 @@ export interface InitialAssignedMechanic {
   mechanicId: string;
   name: string;
   role: MechanicRoleInInvoice;
+  hasComplaint?: boolean;
 }
 
 export type InvoiceEditorProps = {
@@ -395,8 +398,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Mechanics state ───────────────────────────────────────────────────
   const [assignedMechanics, setAssignedMechanics] = useState<AssignedMechanic[]>(
-    editAssignedMechanics
+    editAssignedMechanics.map((m) => ({ ...m, hasComplaint: Boolean(m.hasComplaint) }))
   );
+  const hasComplaint = assignedMechanics.some((m) => m.hasComplaint);
   const [showMechanicPicker, setShowMechanicPicker] = useState(false);
 
   // ── Item input state ──────────────────────────────────────────────────
@@ -659,7 +663,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     if (!isEdit) {
       setAssignedMechanics((prev) => [
         ...prev,
-        { assignmentId: uid(), mechanicId, name: mechanic.name, role },
+        { assignmentId: uid(), mechanicId, name: mechanic.name, role, hasComplaint: false },
       ]);
     } else {
       startTransition(async () => {
@@ -669,10 +673,20 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         if ("error" in res) return;
         setAssignedMechanics((prev) => [
           ...prev,
-          { assignmentId: res.assignmentId, mechanicId, name: mechanic.name, role },
+          { assignmentId: res.assignmentId, mechanicId, name: mechanic.name, role, hasComplaint: false },
         ]);
       });
     }
+  }
+
+  function handleToggleComplaint() {
+    if (!isEdit || displayStatus !== "completed") return;
+    const next = !hasComplaint;
+    startTransition(async () => {
+      const res = await setInvoiceComplaintStatus(editInvoice!.id, next, props.basePath);
+      if (res.error) return;
+      setAssignedMechanics((prev) => prev.map((m) => ({ ...m, hasComplaint: next })));
+    });
   }
 
   function handleRemoveMechanic(assignmentId: string) {
@@ -1003,6 +1017,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   >
                     {m.role === "lead" ? "L" : "H"}
                   </span>
+                  {m.hasComplaint && (
+                    <span className="rounded bg-red-500 px-1 py-0 text-[9px] font-bold text-white">K</span>
+                  )}
                   {canEdit && (
                     <button
                       type="button"
@@ -1688,6 +1705,20 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     className="w-full rounded-md border border-amber-300 px-3 py-2 text-xs font-medium text-amber-700 transition-colors hover:bg-amber-50 disabled:opacity-50"
                   >
                     ↩ Kembalikan Status
+                  </button>
+                )}
+                {displayStatus === "completed" && (
+                  <button
+                    type="button"
+                    disabled={isPending || assignedMechanics.length === 0}
+                    onClick={handleToggleComplaint}
+                    className={`w-full rounded-md px-3 py-2 text-xs font-medium transition-colors disabled:opacity-50 ${
+                      hasComplaint
+                        ? "border border-emerald-400 text-emerald-600 hover:bg-emerald-50"
+                        : "border border-red-400 text-red-600 hover:bg-red-50"
+                    }`}
+                  >
+                    {hasComplaint ? "Selesai Komplain" : "Komplain"}
                   </button>
                 )}
               </div>

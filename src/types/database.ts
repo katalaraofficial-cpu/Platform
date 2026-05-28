@@ -154,6 +154,9 @@ export interface InvoiceMechanic {
   mechanic_id: string;
   tenant_id: string;
   mechanic_role: MechanicRoleInInvoice;
+  is_complaint: boolean;
+  complaint_at: string | null;
+  complaint_resolved_at: string | null;
   assigned_at: string;
 }
 
@@ -298,7 +301,8 @@ export interface Database {
       };
       invoice_mechanics: {
         Row: InvoiceMechanic & Record<string, unknown>;
-        Insert: Omit<InvoiceMechanic, "id" | "assigned_at">;
+        Insert: Omit<InvoiceMechanic, "id" | "assigned_at" | "is_complaint" | "complaint_at" | "complaint_resolved_at"> &
+          Partial<Pick<InvoiceMechanic, "is_complaint" | "complaint_at" | "complaint_resolved_at">>;
         Update: Partial<Omit<InvoiceMechanic, "id">>;
         Relationships: never[];
       };

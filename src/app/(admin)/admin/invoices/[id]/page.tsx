@@ -47,7 +47,7 @@ export default async function AdminInvoiceDetailPage({
       .order("created_at", { ascending: true }),
     supabase
       .from("invoice_mechanics")
-      .select("id, mechanic_id, mechanic_role")
+      .select("id, mechanic_id, mechanic_role, is_complaint")
       .eq("invoice_id", id)
       .order("assigned_at", { ascending: true }),
     supabase
@@ -106,6 +106,7 @@ export default async function AdminInvoiceDetailPage({
         mechanicId: am.mechanic_id,
         name: mechanicNameMap[am.mechanic_id] ?? am.mechanic_id,
         role: am.mechanic_role as MechanicRoleInInvoice,
+        hasComplaint: Boolean((am as Record<string, unknown>)["is_complaint"]),
       }))}
     />
   );

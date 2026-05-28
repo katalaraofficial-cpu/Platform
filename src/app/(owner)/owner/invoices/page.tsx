@@ -124,6 +124,18 @@ export default async function OwnerInvoicesPage({
   const mechanicNameMap = Object.fromEntries(
     (mechanicProfiles ?? []).map((p) => [p.id, p.full_name ?? "?"])
   );
+
+  const { data: complaintAssignments } = invoiceIds.length
+    ? await supabase
+        .from("invoice_mechanics")
+        .select("invoice_id, is_complaint")
+        .in("invoice_id", invoiceIds)
+    : { data: [] as { invoice_id: string; is_complaint: boolean }[] };
+
+  const complaintMap: Record<string, boolean> = {};
+  for (const row of complaintAssignments ?? []) {
+    complaintMap[row.invoice_id] = complaintMap[row.invoice_id] || Boolean(row.is_complaint);
+  }
   const invMechanicsMap: Record<string, string[]> = {};
   for (const im of invMechanics ?? []) {
     invMechanicsMap[im.invoice_id] = [
@@ -230,7 +242,7 @@ export default async function OwnerInvoicesPage({
                           {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                         </p>
                       </div>
-                      <StatusBadge status={inv.status as InvoiceStatus} />
+                      <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 text-xs">
@@ -311,7 +323,7 @@ export default async function OwnerInvoicesPage({
                           {customer?.name ?? "-"}
                         </td>
                         <td className={TD}>
-                          <StatusBadge status={inv.status as InvoiceStatus} />
+                          <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                         </td>
                         <td className={`${TD} whitespace-nowrap text-right font-medium text-gray-900`}>
                           {fmt(invTotal)}

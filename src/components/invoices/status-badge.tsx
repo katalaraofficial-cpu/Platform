@@ -9,7 +9,14 @@ const STATUS_CONFIG: Record<InvoiceStatus, { label: string; cls: string }> = {
   cancelled: { label: "Dibatalkan", cls: "bg-red-100 text-red-600" },
 };
 
-export function StatusBadge({ status }: { status: InvoiceStatus }) {
+export function StatusBadge({ status, complaint = false }: { status: InvoiceStatus; complaint?: boolean }) {
+  if (complaint && status === "completed") {
+    return (
+      <span className={cn("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium", "bg-red-100 text-red-700")}>
+        Komplain
+      </span>
+    );
+  }
   const cfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.draft;
   return (
     <span

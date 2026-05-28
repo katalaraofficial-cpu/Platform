@@ -3,6 +3,7 @@ import { getUserContext } from "@/lib/get-user-context";
 import { notFound } from "next/navigation";
 import { AddUserForm } from "@/components/super-admin/add-user-form";
 import { TenantUserTable } from "@/components/super-admin/tenant-user-table";
+import { addUserToOwnTenant } from "@/lib/actions/tenant";
 
 const OWNER_ROLE_OPTIONS = [
   { value: "admin", label: "Admin / Kasir" },
@@ -41,7 +42,7 @@ export default async function OwnerUsersPage() {
             Undang dan kelola pengguna di bengkel ini
           </p>
         </div>
-        <AddUserForm tenantId={ctx.tenantId} roleOptions={OWNER_ROLE_OPTIONS} />
+        <AddUserForm tenantId={ctx.tenantId} roleOptions={OWNER_ROLE_OPTIONS} action={addUserToOwnTenant} />
       </div>
 
       {/* User table */}

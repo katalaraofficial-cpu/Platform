@@ -78,6 +78,23 @@ async function assertSuperAdmin() {
   return supabase;
 }
 
+async function assertOwnerOrSuperAdmin() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role, tenant_id")
+    .eq("id", user.id)
+    .single();
+  if (!profile || !["owner", "super_admin"].includes(profile.role)) {
+    throw new Error("Forbidden");
+  }
+  return { supabase, role: profile.role as "owner" | "super_admin", tenantId: profile.tenant_id as string | null };
+}
+
 // ── Create new tenant (+ settings row) ──────────────────────
 export async function createTenant(
   _prev: ActionState,
@@ -231,6 +248,60 @@ export async function addUserToTenant(
       : `Link undangan siap. Email gagal — salin link di bawah dan kirim manual.`,
     invite_link: inviteLink,
   };
+}
+
+// ── Tambah user untuk owner (tenant sendiri) ─────────────────────
+export async function addUserToOwnTenant(
+  _prev: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const { role, tenantId: currentTenantId } = await assertOwnerOrSuperAdmin();
+  const adminClient = createAdminClient();
+
+  const tenantId = String(formData.get("tenant_id") ?? "").trim();
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const userRole = formData.get("role") as UserRole;
+
+  if (!tenantId || !fullName || !email || !userRole) {
+    return { error: "Semua field wajib diisi" };
+  }
+  if (!currentTenantId || tenantId !== currentTenantId) {
+    return { error: "Tenant tidak valid" };
+  }
+  if (role !== "super_admin" && userRole === "owner") {
+    return { error: "Owner hanya bisa mengundang admin atau engineer" };
+  }
+  if (!ownerRoleAllowed(userRole)) return { error: "Role tidak valid" };
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
+  const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
+    type: "invite",
+    email,
+    options: {
+      data: { full_name: fullName, role: userRole, tenant_id: tenantId },
+      redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password`,
+    },
+  });
+  if (linkErr || !linkData?.properties?.action_link) {
+    return { error: "Gagal membuat link undangan: " + (linkErr?.message ?? "unknown") };
+  }
+
+  const inviteLink = linkData.properties.action_link;
+  const emailSent = await sendInviteEmail(email, fullName, userRole, inviteLink);
+
+  revalidatePath(`/owner/users`);
+  if (currentTenantId) revalidatePath(`/super-admin/tenants/${currentTenantId}`);
+  return {
+    success: emailSent
+      ? `Email undangan terkirim ke ${email}`
+      : `Link undangan siap. Email gagal — salin link di bawah dan kirim manual.`,
+    invite_link: inviteLink,
+  };
+}
+
+function ownerRoleAllowed(role: UserRole) {
+  return ["admin", "mechanic"].includes(role);
 }
 
 // ── Setujui pendaftaran tenant ────────────────────────────────

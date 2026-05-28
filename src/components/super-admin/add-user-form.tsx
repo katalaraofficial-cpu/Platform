@@ -8,6 +8,7 @@ import { UserPlus, X, Copy, Check } from "lucide-react";
 interface Props {
   tenantId: string;
   roleOptions?: Array<{ value: string; label: string }>;
+  action?: (prev: ActionState, formData: FormData) => Promise<ActionState>;
 }
 
 const DEFAULT_ROLE_OPTIONS = [
@@ -18,10 +19,20 @@ const DEFAULT_ROLE_OPTIONS = [
 
 // Sub-komponen yang di-mount hanya saat modal terbuka.
 // Saat modal ditutup → unmount → useActionState reset otomatis.
-function ModalContent({ tenantId, roleOptions, onClose }: { tenantId: string; roleOptions: Array<{ value: string; label: string }>; onClose: () => void }) {
+function ModalContent({
+  tenantId,
+  roleOptions,
+  onClose,
+  action = addUserToTenant,
+}: {
+  tenantId: string;
+  roleOptions: Array<{ value: string; label: string }>;
+  onClose: () => void;
+  action?: (prev: ActionState, formData: FormData) => Promise<ActionState>;
+}) {
   const [copied, setCopied] = useState(false);
   const [state, formAction, pending] = useActionState<ActionState, FormData>(
-    addUserToTenant,
+    action,
     {}
   );
 
@@ -193,7 +204,7 @@ function ModalContent({ tenantId, roleOptions, onClose }: { tenantId: string; ro
   );
 }
 
-export function AddUserForm({ tenantId, roleOptions = DEFAULT_ROLE_OPTIONS }: Props) {
+export function AddUserForm({ tenantId, roleOptions = DEFAULT_ROLE_OPTIONS, action = addUserToTenant }: Props) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -208,7 +219,14 @@ export function AddUserForm({ tenantId, roleOptions = DEFAULT_ROLE_OPTIONS }: Pr
       </button>
 
       {/* Mount ModalContent hanya saat open=true → unmount saat ditutup → state reset */}
-      {open && <ModalContent tenantId={tenantId} roleOptions={roleOptions} onClose={() => setOpen(false)} />}
+      {open && (
+        <ModalContent
+          tenantId={tenantId}
+          roleOptions={roleOptions}
+          onClose={() => setOpen(false)}
+          action={action}
+        />
+      )}
     </div>
   );
 }

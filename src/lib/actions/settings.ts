@@ -166,8 +166,9 @@ export async function saveRewardSettings(data: {
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
-    const supabase = await createClient();
+    const admin = createAdminClient();
     const payload = {
+      tenant_id: ctx.tenantId,
       reward_employee_enabled: data.enabled,
       reward_spend_per_point: data.spendPerPoint,
       reward_point_value: data.pointValue,
@@ -177,22 +178,18 @@ export async function saveRewardSettings(data: {
       reward_helper_multiplier: data.helperMultiplier,
     };
 
-    const { data: updatedRows, error } = await supabase
+    const { error } = await admin
       .from("settings")
-      .update(payload)
-      .eq("tenant_id", ctx.tenantId)
-      .select("id")
-      .limit(1);
+      .upsert(payload, { onConflict: "tenant_id" });
     if (error) return { error: error.message };
 
-    // Some tenants can miss the settings row (legacy data), so create it once.
-    if (!updatedRows || updatedRows.length === 0) {
-      const admin = createAdminClient();
-      const { error: insertErr } = await admin.from("settings").insert({
-        tenant_id: ctx.tenantId,
-        ...payload,
-      });
-      if (insertErr) return { error: insertErr.message };
+    const { data: verify } = await admin
+      .from("settings")
+      .select("reward_employee_enabled")
+      .eq("tenant_id", ctx.tenantId)
+      .single();
+    if (!verify || Boolean(verify.reward_employee_enabled) !== Boolean(data.enabled)) {
+      return { error: "Pengaturan reward belum tersimpan konsisten. Coba simpan ulang." };
     }
 
     revalidatePath("/owner/settings");

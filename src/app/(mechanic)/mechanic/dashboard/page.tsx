@@ -2,7 +2,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
-import type { Invoice, Customer, InvoiceStatus, MechanicRoleInInvoice, EmployeePoints, EmployeePointTransaction } from "@/types/database";
+import { SubmitPointClaimCard } from "@/components/mechanics/submit-point-claim-card";
+import type {
+  Invoice,
+  Customer,
+  InvoiceStatus,
+  MechanicRoleInInvoice,
+  EmployeePoints,
+  EmployeePointTransaction,
+  PointRedemptionRequest,
+} from "@/types/database";
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
   draft: "Menunggu",
@@ -103,8 +112,11 @@ export default async function MechanicDashboard({
   // 7. Fetch employee points data if Point tab is active
   let employeePoints: EmployeePoints | null = null;
   let pointTransactions: EmployeePointTransaction[] = [];
+  let claimRequests: PointRedemptionRequest[] = [];
+  let rewardMinRedeem = 50;
+  let rewardPointValue = 1000;
   if (activeTab === "point" && ctx.id && ctx.tenantId) {
-    const [{ data: epData }, { data: txData }] = await Promise.all([
+    const [{ data: epData }, { data: txData }, { data: claimData }, { data: settingsData }] = await Promise.all([
       supabase
         .from("employee_points")
         .select("*")
@@ -118,9 +130,24 @@ export default async function MechanicDashboard({
         .eq("profile_id", ctx.id)
         .order("created_at", { ascending: false })
         .limit(50),
+      supabase
+        .from("point_redemption_requests")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("profile_id", ctx.id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("settings")
+        .select("reward_point_value, reward_min_redeem")
+        .eq("tenant_id", ctx.tenantId)
+        .single(),
     ]);
     employeePoints = epData as EmployeePoints | null;
     pointTransactions = (txData as EmployeePointTransaction[] | null) ?? [];
+    claimRequests = (claimData as PointRedemptionRequest[] | null) ?? [];
+    rewardMinRedeem = Number(settingsData?.reward_min_redeem ?? 50);
+    rewardPointValue = Number(settingsData?.reward_point_value ?? 1000);
   }
 
   return (
@@ -305,6 +332,61 @@ export default async function MechanicDashboard({
               <li>Point bisa ditukar saat melakukan pengajuan klaim/redeem.</li>
               <li>Approval pencairan dilakukan oleh Owner.</li>
             </ul>
+          </div>
+
+          <SubmitPointClaimCard
+            currentBalance={Number(employeePoints?.points_balance ?? 0)}
+            minRedeem={rewardMinRedeem}
+            pointValue={rewardPointValue}
+          />
+
+          <div>
+            <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-gray-700">
+              Status Pengajuan Klaim
+            </h2>
+            {claimRequests.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-gray-200 bg-white px-4 py-5 text-center text-xs text-gray-400">
+                Belum ada pengajuan klaim point.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {claimRequests.map((req) => {
+                  const statusClass =
+                    req.status === "approved"
+                      ? "bg-emerald-100 text-emerald-700"
+                      : req.status === "rejected"
+                        ? "bg-red-100 text-red-700"
+                        : "bg-amber-100 text-amber-700";
+
+                  return (
+                    <div
+                      key={req.id}
+                      className="rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-800">
+                          {req.points} point · Rp {Math.round(Number(req.payout_amount)).toLocaleString("id-ID")}
+                        </p>
+                        <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase ${statusClass}`}>
+                          {req.status}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-gray-400">
+                        {new Date(req.created_at).toLocaleDateString("id-ID", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </p>
+                      {req.notes && <p className="mt-1 text-xs text-gray-500">{req.notes}</p>}
+                      {req.review_note && (
+                        <p className="mt-1 text-xs text-gray-500">Catatan owner: {req.review_note}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Transaction history */}

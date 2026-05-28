@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 27 Mei 2026 — commit `3cdbd1c`
+> **Last updated:** 28 Mei 2026 — local workspace update phase 2 point-claim
 
 ---
 
@@ -38,6 +38,13 @@
   - Panel totals: collapsible rincian biaya (PPN/PPh/Diskon/Kirim) di mobile
   - Sticky save bar: fixed bar di atas bottom nav, tampilkan Grand Total + Reset + Simpan
   - Left panel: `overflow-y-auto` di mobile supaya form Barang (lebih banyak field) bisa di-scroll
+
+### Update HR Point Claim (28 Mei 2026)
+- Fase 2 klaim point sudah terpasang:
+  - Mechanic submit klaim via tab Point (`pending`)
+  - Owner review klaim dari halaman Engineer (`approve` / `reject`)
+  - Approval memotong saldo point, membuat transaksi `employee_point_transactions` (redeem), dan mencatat `ledger` `kas_keluar`
+- Migration baru: `026_point_redemption_requests.sql`
 
 ### Update Settings & Print (sebelumnya)
 - field di tab Nota & Printer (judul nota, jabatan, toggle watermark)

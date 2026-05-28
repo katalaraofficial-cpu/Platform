@@ -1,6 +1,6 @@
 # Development Progress Log
 
-Last updated: 27 Mei 2026 (commit `3cdbd1c`)
+Last updated: 28 Mei 2026 (local workspace)
 
 ## Ringkasan Status Saat Ini
 
@@ -13,6 +13,7 @@ Last updated: 27 Mei 2026 (commit `3cdbd1c`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `local` | feat | Phase 2 point claim workflow: mechanic submit claim, owner approve/reject, payout ledger + point transaction, UI status panel |
 | `3cdbd1c` | fix | Mobile invoice editor: field strip full-width, toggle rata tengah, fix overflow form Barang |
 | `f79681f` | feat | Polish mobile invoice editor: sticky save bar + collapsible totals panel |
 | `98aab12` | feat | Owner mobile bottom nav: FAB invoice, drawer menu, 4 fixed slot (Dashboard/Kas/Pengaturan/Menu) |
@@ -35,6 +36,7 @@ Last updated: 27 Mei 2026 (commit `3cdbd1c`)
 - `023_invoice_new_fields.sql` -> wajib untuk due_date, shipping_cost, unit_label
 - `024_settings_nota_config.sql` -> wajib untuk nota_title, nota_jabatan, nota_show_watermark
 - `025_settings_nota_title_size.sql` -> wajib untuk kontrol ukuran judul nota/invoice
+- `026_point_redemption_requests.sql` -> wajib untuk workflow pengajuan klaim point (pending/approved/rejected)
 
 ## Checklist Verifikasi Setelah Deploy
 
@@ -47,6 +49,9 @@ Last updated: 27 Mei 2026 (commit `3cdbd1c`)
 7. Nilai form Nota & Printer tetap konsisten setelah save dan reload.
 8. Navigasi owner terasa lebih cepat pada perpindahan via sidebar/bottom nav.
 9. Build Vercel lolos tanpa error TypeScript pada `sidebar.tsx`.
+10. Mekanik bisa submit klaim point dari tab Point (status: pending).
+11. Owner bisa approve/reject klaim point dari halaman Engineer (tab Performa).
+12. Approval sukses membuat `employee_point_transactions(redeem)` + `ledger(kas_keluar)` + update status request.
 
 ## Checklist Mobile UX (Per Halaman Owner — 27 Mei 2026)
 

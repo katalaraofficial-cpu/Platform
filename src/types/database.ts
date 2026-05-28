@@ -196,6 +196,7 @@ export interface PettyCashTransaction {
 }
 
 export type PointTransactionType = "earn" | "redeem" | "expire" | "adjust";
+export type PointRedemptionStatus = "pending" | "approved" | "rejected";
 
 export interface EmployeePoints {
   id: string;
@@ -216,6 +217,24 @@ export interface EmployeePointTransaction {
   reference_id: string | null;
   notes: string | null;
   expires_at: string | null;
+  created_at: string;
+}
+
+export interface PointRedemptionRequest {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  requested_by: string;
+  points: number;
+  point_value: number;
+  payout_amount: number;
+  notes: string | null;
+  status: PointRedemptionStatus;
+  reviewed_by: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  point_transaction_id: string | null;
+  ledger_id: string | null;
   created_at: string;
 }
 
@@ -311,6 +330,13 @@ export interface Database {
         Row: EmployeePointTransaction & Record<string, unknown>;
         Insert: Omit<EmployeePointTransaction, "id" | "created_at" | "reference_id" | "notes" | "expires_at"> & Partial<Pick<EmployeePointTransaction, "reference_id" | "notes" | "expires_at">>;
         Update: never;
+        Relationships: never[];
+      };
+      point_redemption_requests: {
+        Row: PointRedemptionRequest & Record<string, unknown>;
+        Insert: Omit<PointRedemptionRequest, "id" | "created_at" | "status" | "reviewed_by" | "review_note" | "reviewed_at" | "point_transaction_id" | "ledger_id"> &
+          Partial<Pick<PointRedemptionRequest, "status" | "reviewed_by" | "review_note" | "reviewed_at" | "point_transaction_id" | "ledger_id">>;
+        Update: Partial<Omit<PointRedemptionRequest, "id" | "created_at">>;
         Relationships: never[];
       };
       tenant_requests: {

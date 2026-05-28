@@ -23,7 +23,7 @@ import {
   DebtHistoryTable,
   type MechanicInfo,
 } from "@/components/mechanics/debt-history-table";
-import { RedeemPointButton } from "@/components/mechanics/redeem-point-button";
+import { PointClaimReviewList } from "@/components/mechanics/point-claim-review-list";
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -79,6 +79,7 @@ export default async function MechanicsPage({
     { data: debtHistoryRaw },
     { data: employeePointsRaw },
     { data: settingsRaw },
+    { data: pendingClaimsRaw },
   ] = await Promise.all([
     supabase
       .from("profiles")
@@ -115,12 +116,38 @@ export default async function MechanicsPage({
       .select("reward_employee_enabled, reward_point_value, reward_min_redeem")
       .eq("tenant_id", tenantId)
       .single(),
+
+    supabase
+      .from("point_redemption_requests")
+      .select("id, profile_id, points, payout_amount, notes, created_at")
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: true })
+      .limit(100),
   ]);
 
   // ── Derived data ─────────────────────────────────────────────
   const mechanics: MechanicOption[] = (mechanicsRaw ?? []).map((m) => ({
     id: m.id,
     full_name: m.full_name ?? "—",
+  }));
+  const mechanicNameMap = new Map(mechanics.map((m) => [m.id, m.full_name]));
+
+  const pendingClaims = ((pendingClaimsRaw as {
+    id: string;
+    profile_id: string;
+    points: number;
+    payout_amount: number;
+    notes: string | null;
+    created_at: string;
+  }[] | null) ?? []).map((c) => ({
+    id: c.id,
+    profileId: c.profile_id,
+    mechanicName: mechanicNameMap.get(c.profile_id) ?? "Engineer",
+    points: Number(c.points ?? 0),
+    payoutAmount: Number(c.payout_amount ?? 0),
+    notes: c.notes,
+    createdAt: c.created_at,
   }));
 
   // Points data
@@ -130,8 +157,6 @@ export default async function MechanicsPage({
     pointsMap.set(ep.profile_id, ep);
   }
   const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
-  const pointValue = Number(settingsRaw?.reward_point_value ?? 1000);
-  const minRedeem = Number(settingsRaw?.reward_min_redeem ?? 10);
 
   type DebtSummaryRow = {
     mechanic_id: string;
@@ -320,6 +345,8 @@ export default async function MechanicsPage({
         ))}
       </div>
 
+      {tab === "performa" && <PointClaimReviewList claims={pendingClaims} />}
+
       {/* ── TAB: Performa Mekanik ─────────────────────────────── */}
       {tab === "performa" && (
         <div>
@@ -448,7 +475,7 @@ export default async function MechanicsPage({
                       const ep = pointsMap.get(mechanic.id);
                       const balance = ep?.points_balance ?? 0;
                       return (
-                        <div className="mt-3 flex items-center justify-between rounded-xl bg-amber-50 px-3 py-2">
+                        <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2">
                           <div className="flex items-center gap-2">
                             <Gift className="h-4 w-4 text-amber-500" />
                             <div>
@@ -458,13 +485,6 @@ export default async function MechanicsPage({
                               </p>
                             </div>
                           </div>
-                          <RedeemPointButton
-                            profileId={mechanic.id}
-                            mechanicName={mechanic.full_name}
-                            currentBalance={balance}
-                            pointValue={pointValue}
-                            minRedeem={minRedeem}
-                          />
                         </div>
                       );
                     })()}

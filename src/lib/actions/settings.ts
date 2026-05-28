@@ -167,19 +167,34 @@ export async function saveRewardSettings(data: {
   try {
     const ctx = await ownerGuard();
     const supabase = await createClient();
-    const { error } = await supabase
+    const payload = {
+      reward_employee_enabled: data.enabled,
+      reward_spend_per_point: data.spendPerPoint,
+      reward_point_value: data.pointValue,
+      reward_min_redeem: data.minRedeem,
+      reward_point_validity_days: data.validityDays,
+      reward_lead_multiplier: data.leadMultiplier,
+      reward_helper_multiplier: data.helperMultiplier,
+    };
+
+    const { data: updatedRows, error } = await supabase
       .from("settings")
-      .update({
-        reward_employee_enabled: data.enabled,
-        reward_spend_per_point: data.spendPerPoint,
-        reward_point_value: data.pointValue,
-        reward_min_redeem: data.minRedeem,
-        reward_point_validity_days: data.validityDays,
-        reward_lead_multiplier: data.leadMultiplier,
-        reward_helper_multiplier: data.helperMultiplier,
-      })
-      .eq("tenant_id", ctx.tenantId);
+      .update(payload)
+      .eq("tenant_id", ctx.tenantId)
+      .select("id")
+      .limit(1);
     if (error) return { error: error.message };
+
+    // Some tenants can miss the settings row (legacy data), so create it once.
+    if (!updatedRows || updatedRows.length === 0) {
+      const admin = createAdminClient();
+      const { error: insertErr } = await admin.from("settings").insert({
+        tenant_id: ctx.tenantId,
+        ...payload,
+      });
+      if (insertErr) return { error: insertErr.message };
+    }
+
     revalidatePath("/owner/settings");
     revalidatePath("/owner/mechanics");
     return { success: "Pengaturan reward disimpan" };

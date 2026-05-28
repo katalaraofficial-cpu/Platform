@@ -1,6 +1,5 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
@@ -8,6 +7,15 @@ import { revalidatePath } from "next/cache";
 export type SettingsActionState = { error?: string; success?: string };
 
 const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
+
+async function ensureSettingsRow(tenantId: string): Promise<{ error?: string }> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("settings")
+    .upsert({ tenant_id: tenantId }, { onConflict: "tenant_id" });
+  if (error) return { error: error.message };
+  return {};
+}
 
 function encodeNotaHeader(header: string, config: Record<string, unknown>) {
   const cleanHeader = header.trim();
@@ -32,8 +40,11 @@ export async function saveStoreInfo(data: {
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
-    const supabase = await createClient();
-    const { error } = await supabase
+    const ensured = await ensureSettingsRow(ctx.tenantId);
+    if (ensured.error) return { error: ensured.error };
+
+    const admin = createAdminClient();
+    const { error } = await admin
       .from("settings")
       .update({
         store_name: data.storeName.trim(),
@@ -60,8 +71,11 @@ export async function savePlatformSettings(data: {
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
-    const supabase = await createClient();
-    const { error } = await supabase
+    const ensured = await ensureSettingsRow(ctx.tenantId);
+    if (ensured.error) return { error: ensured.error };
+
+    const admin = createAdminClient();
+    const { error } = await admin
       .from("settings")
       .update({
         default_markup_pct: data.defaultMarkupPct,
@@ -98,8 +112,11 @@ export async function saveNotaSettings(data: {
     return { error: "Format nota tidak valid" };
   try {
     const ctx = await ownerGuard();
-    const supabase = await createClient();
-    const { error } = await supabase
+    const ensured = await ensureSettingsRow(ctx.tenantId);
+    if (ensured.error) return { error: ensured.error };
+
+    const admin = createAdminClient();
+    const { error } = await admin
       .from("settings")
       .update({
         nota_title: data.notaTitle.trim() || null,
@@ -119,7 +136,7 @@ export async function saveNotaSettings(data: {
     if (error) {
       const message = error.message.toLowerCase();
       if (message.includes("schema cache") || message.includes("nota_customer_layout") || message.includes("nota_signature_layout") || message.includes("nota_title_size")) {
-        const legacyUpdate = await supabase
+        const legacyUpdate = await admin
           .from("settings")
           .update({
             nota_header: encodeNotaHeader(data.notaHeader, {
@@ -166,6 +183,9 @@ export async function saveRewardSettings(data: {
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
+    const ensured = await ensureSettingsRow(ctx.tenantId);
+    if (ensured.error) return { error: ensured.error };
+
     const admin = createAdminClient();
     const payload = {
       tenant_id: ctx.tenantId,

@@ -7,6 +7,7 @@ type CustomerRow = {
   id: string;
   name: string;
   phone: string | null;
+  notes: string | null;
   vehicle_info: { plate?: string; brand?: string; model?: string } | null;
   created_at: string;
 };
@@ -25,10 +26,15 @@ function fmt(n: number) {
   }).format(n);
 }
 
-function plateRegion(plate?: string) {
-  if (!plate) return "Tidak diketahui";
-  const prefix = plate.trim().toUpperCase().match(/^[A-Z]{1,2}/)?.[0];
-  return prefix ?? "Tidak diketahui";
+function addressRegion(address?: string | null) {
+  if (!address) return "Tidak diketahui";
+  const parts = address
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return "Tidak diketahui";
+  const pick = parts[parts.length - 1] || parts[0];
+  return pick.length > 32 ? `${pick.slice(0, 32)}...` : pick;
 }
 
 function DonutChart({
@@ -99,7 +105,7 @@ export default async function OwnerCustomersPage() {
   const [{ data: customersRaw }, { data: invoicesRaw }] = await Promise.all([
     supabase
       .from("customers")
-      .select("id, name, phone, vehicle_info, created_at")
+      .select("id, name, phone, notes, vehicle_info, created_at")
       .eq("tenant_id", ctx.tenantId)
       .order("created_at", { ascending: false }),
     supabase
@@ -131,7 +137,7 @@ export default async function OwnerCustomersPage() {
 
   const locationMap = new Map<string, number>();
   for (const c of customers) {
-    const region = plateRegion(c.vehicle_info?.plate);
+    const region = addressRegion(c.notes);
     locationMap.set(region, (locationMap.get(region) ?? 0) + 1);
   }
 
@@ -148,7 +154,7 @@ export default async function OwnerCustomersPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Pelanggan</h1>
-        <p className="mt-1 text-sm text-gray-500">Daftar pelanggan dan ringkasan distribusi lokasi</p>
+        <p className="mt-1 text-sm text-gray-500">Daftar pelanggan dan ringkasan distribusi alamat</p>
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
@@ -170,7 +176,7 @@ export default async function OwnerCustomersPage() {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-gray-800">Sebaran Lokasi Pelanggan (berdasarkan prefix plat)</h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-800">Sebaran Lokasi Pelanggan (berdasarkan alamat/catatan pelanggan)</h2>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <DonutChart segments={locationSegments} />
           <div className="flex-1 space-y-2">
@@ -203,21 +209,18 @@ export default async function OwnerCustomersPage() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Nama</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Alamat</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Telepon</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Kendaraan</th>
                   <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Omzet</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 bg-white">
                 {customers.map((c) => {
-                  const vehicle = [c.vehicle_info?.brand, c.vehicle_info?.model, c.vehicle_info?.plate]
-                    .filter(Boolean)
-                    .join(" · ");
                   return (
                     <tr key={c.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name}</td>
+                      <td className="px-4 py-3 text-sm text-gray-600">{c.notes?.trim() || "-"}</td>
                       <td className="px-4 py-3 text-sm text-gray-600">{c.phone ?? "-"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{vehicle || "-"}</td>
                       <td className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">
                         {fmt(revenueByCustomer.get(c.id) ?? 0)}
                       </td>

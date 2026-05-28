@@ -20,6 +20,7 @@ import {
   savePlatformSettings,
   saveNotaSettings,
   saveRewardSettings,
+  syncEngineerPoints,
   resetAllData,
 } from "@/lib/actions/settings";
 import { toast } from "sonner";
@@ -914,6 +915,7 @@ function TabReward({ s }: { s: Settings | null }) {
   const [leadMult, setLeadMult] = useState(String(s?.reward_lead_multiplier ?? 1));
   const [helperMult, setHelperMult] = useState(String(s?.reward_helper_multiplier ?? 0.5));
   const [pending, startTransition] = useTransition();
+  const [syncPending, startSyncTransition] = useTransition();
 
   useEffect(() => {
     setEnabled(s?.reward_employee_enabled ?? false);
@@ -940,6 +942,17 @@ function TabReward({ s }: { s: Settings | null }) {
       if (res.error) {
         toast.error(res.error);
       } else {
+        toast.success(res.success);
+        router.refresh();
+      }
+    });
+  }
+
+  function handleSyncPoints() {
+    startSyncTransition(async () => {
+      const res = await syncEngineerPoints();
+      if (res.error) toast.error(res.error);
+      else {
         toast.success(res.success);
         router.refresh();
       }
@@ -986,6 +999,22 @@ function TabReward({ s }: { s: Settings | null }) {
       </div>
       <div className="flex justify-end">
         <SaveButton pending={pending} />
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <p className="text-sm font-semibold text-amber-800">Sinkron Ulang Point Engineer</p>
+        <p className="mt-1 text-xs text-amber-700">
+          Gunakan ini jika ada point lama yang masih terakumulasi setelah invoice di-rollback. Sistem akan hitung ulang saldo dari histori transaksi point.
+        </p>
+        <div className="mt-3 flex justify-end">
+          <button
+            type="button"
+            onClick={handleSyncPoints}
+            disabled={syncPending}
+            className="rounded-xl border border-amber-300 bg-white px-4 py-2 text-sm font-semibold text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+          >
+            {syncPending ? "Menyinkronkan..." : "Sinkron Ulang Point"}
+          </button>
+        </div>
       </div>
     </form>
   );

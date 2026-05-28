@@ -235,6 +235,75 @@ export async function saveRewardSettings(data: {
   }
 }
 
+export async function syncEngineerPoints(): Promise<SettingsActionState> {
+  try {
+    const ctx = await ownerGuard();
+    const tenantId = ctx.tenantId;
+    const admin = createAdminClient();
+
+    const [{ data: mechanics }, { data: transactions }, { data: existingRows }] = await Promise.all([
+      admin
+        .from("profiles")
+        .select("id")
+        .eq("tenant_id", tenantId)
+        .eq("role", "mechanic"),
+      admin
+        .from("employee_point_transactions")
+        .select("profile_id, transaction_type, points")
+        .eq("tenant_id", tenantId),
+      admin
+        .from("employee_points")
+        .select("id, profile_id")
+        .eq("tenant_id", tenantId),
+    ]);
+
+    const summary = new Map<string, { balance: number; earned: number; redeemed: number }>();
+    for (const mechanic of mechanics ?? []) {
+      summary.set(mechanic.id, { balance: 0, earned: 0, redeemed: 0 });
+    }
+
+    for (const tx of transactions ?? []) {
+      const current = summary.get(tx.profile_id) ?? { balance: 0, earned: 0, redeemed: 0 };
+      const points = Number(tx.points ?? 0);
+      current.balance += points;
+      if (tx.transaction_type === "earn" || tx.transaction_type === "adjust") {
+        current.earned = Math.max(0, current.earned + points);
+      }
+      if (tx.transaction_type === "redeem") {
+        current.redeemed += Math.abs(points);
+      }
+      summary.set(tx.profile_id, current);
+    }
+
+    for (const mechanic of mechanics ?? []) {
+      const totals = summary.get(mechanic.id) ?? { balance: 0, earned: 0, redeemed: 0 };
+      const existing = (existingRows ?? []).find((row) => row.profile_id === mechanic.id);
+      const payload = {
+        tenant_id: tenantId,
+        profile_id: mechanic.id,
+        points_balance: Math.max(0, totals.balance),
+        total_earned: Math.max(0, totals.earned),
+        total_redeemed: Math.max(0, totals.redeemed),
+      };
+
+      if (existing) {
+        const { error } = await admin.from("employee_points").update(payload).eq("id", existing.id);
+        if (error) return { error: `Gagal sinkron point engineer: ${error.message}` };
+      } else {
+        const { error } = await admin.from("employee_points").insert(payload);
+        if (error) return { error: `Gagal membuat saldo point engineer: ${error.message}` };
+      }
+    }
+
+    revalidatePath("/owner/settings");
+    revalidatePath("/owner/mechanics");
+    revalidatePath("/mechanic/dashboard");
+    return { success: "Saldo point engineer berhasil disinkron ulang dari histori transaksi" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 // ── Tab 5: Reset Data ────────────────────────────────────────
 // Deletes all business data for the tenant (invoices, customers, ledger,
 // etc.) but keeps tenant/profile/settings rows intact.

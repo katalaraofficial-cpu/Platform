@@ -3,6 +3,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
+import { summarizeEmployeePointsByProfile, type PointTransactionSummaryRow } from "@/lib/employee-point-summary";
 
 export type SettingsActionState = { error?: string; success?: string };
 
@@ -241,7 +242,7 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
     const tenantId = ctx.tenantId;
     const admin = createAdminClient();
 
-    const [{ data: mechanics }, { data: transactions }, { data: existingRows }] = await Promise.all([
+    const [{ data: mechanics }, { data: transactions }, { data: existingRows }, { data: invoices }] = await Promise.all([
       admin
         .from("profiles")
         .select("id")
@@ -249,41 +250,85 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
         .eq("role", "mechanic"),
       admin
         .from("employee_point_transactions")
-        .select("profile_id, transaction_type, points")
+        .select("profile_id, transaction_type, points, reference_id")
         .eq("tenant_id", tenantId),
       admin
         .from("employee_points")
         .select("id, profile_id")
         .eq("tenant_id", tenantId),
+      admin
+        .from("invoices")
+        .select("id, status")
+        .eq("tenant_id", tenantId),
     ]);
 
-    const summary = new Map<string, { balance: number; earned: number; redeemed: number }>();
-    for (const mechanic of mechanics ?? []) {
-      summary.set(mechanic.id, { balance: 0, earned: 0, redeemed: 0 });
+    const invoiceStatusById = new Map<string, string>();
+    for (const invoice of invoices ?? []) {
+      invoiceStatusById.set(invoice.id, invoice.status);
     }
 
+    const invoiceNetByProfile = new Map<string, number>();
     for (const tx of transactions ?? []) {
-      const current = summary.get(tx.profile_id) ?? { balance: 0, earned: 0, redeemed: 0 };
-      const points = Number(tx.points ?? 0);
-      current.balance += points;
-      if (tx.transaction_type === "earn" || tx.transaction_type === "adjust") {
-        current.earned = Math.max(0, current.earned + points);
+      const referenceId = tx.reference_id ?? "";
+      if (!invoiceStatusById.has(referenceId)) continue;
+      if (!["earn", "adjust"].includes(tx.transaction_type)) continue;
+      const key = `${referenceId}:${tx.profile_id}`;
+      invoiceNetByProfile.set(key, (invoiceNetByProfile.get(key) ?? 0) + Number(tx.points ?? 0));
+    }
+
+    for (const [key, netPoints] of invoiceNetByProfile.entries()) {
+      if (netPoints === 0) continue;
+      const [invoiceId, profileId] = key.split(":");
+      if (invoiceStatusById.get(invoiceId) === "paid") continue;
+
+      const { error: adjustErr } = await admin.from("employee_point_transactions").insert({
+        tenant_id: tenantId,
+        profile_id: profileId,
+        transaction_type: "adjust",
+        points: -netPoints,
+        reference_id: invoiceId,
+        notes: `Sync rollback cleanup for invoice ${invoiceId}`,
+        expires_at: null,
+      });
+      if (adjustErr) {
+        return { error: `Gagal menormalkan histori point invoice: ${adjustErr.message}` };
       }
-      if (tx.transaction_type === "redeem") {
-        current.redeemed += Math.abs(points);
+    }
+
+    const refreshedTransactions = await admin
+      .from("employee_point_transactions")
+      .select("profile_id, transaction_type, points")
+      .eq("tenant_id", tenantId);
+    if (refreshedTransactions.error) {
+      return { error: `Gagal memuat ulang histori point: ${refreshedTransactions.error.message}` };
+    }
+
+    const summary = summarizeEmployeePointsByProfile(
+      ((refreshedTransactions.data as PointTransactionSummaryRow[] | null) ?? [])
+    );
+    for (const mechanic of mechanics ?? []) {
+      if (!summary.has(mechanic.id)) {
+        summary.set(mechanic.id, {
+          points_balance: 0,
+          total_earned: 0,
+          total_redeemed: 0,
+        });
       }
-      summary.set(tx.profile_id, current);
     }
 
     for (const mechanic of mechanics ?? []) {
-      const totals = summary.get(mechanic.id) ?? { balance: 0, earned: 0, redeemed: 0 };
+      const totals = summary.get(mechanic.id) ?? {
+        points_balance: 0,
+        total_earned: 0,
+        total_redeemed: 0,
+      };
       const existing = (existingRows ?? []).find((row) => row.profile_id === mechanic.id);
       const payload = {
         tenant_id: tenantId,
         profile_id: mechanic.id,
-        points_balance: Math.max(0, totals.balance),
-        total_earned: Math.max(0, totals.earned),
-        total_redeemed: Math.max(0, totals.redeemed),
+        points_balance: Math.max(0, totals.points_balance),
+        total_earned: Math.max(0, totals.total_earned),
+        total_redeemed: Math.max(0, totals.total_redeemed),
       };
 
       if (existing) {

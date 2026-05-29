@@ -417,22 +417,62 @@ export async function removeUsersFromTenant(
   userIds: string[],
   tenantId: string
 ): Promise<ActionState> {
-  await assertSuperAdmin();
-  const adminClient = createAdminClient();
+  try {
+    const { role, tenantId: currentTenantId } = await assertOwnerOrSuperAdmin();
+    const adminClient = createAdminClient();
 
-  if (!userIds.length) return { error: "Tidak ada pengguna yang dipilih" };
+    if (!userIds.length) return { error: "Tidak ada pengguna yang dipilih" };
 
-  const failed: string[] = [];
-  for (const uid of userIds) {
-    const { error } = await adminClient.auth.admin.deleteUser(uid);
-    if (error) failed.push(error.message);
+    const uniqueIds = [...new Set(userIds.filter(Boolean))];
+    const {
+      data: { user },
+    } = await adminClient.auth.getUser();
+
+    const { data: targets, error: targetsErr } = await adminClient
+      .from("profiles")
+      .select("id, tenant_id, role")
+      .in("id", uniqueIds);
+
+    if (targetsErr) return { error: `Gagal memuat pengguna: ${targetsErr.message}` };
+    if (!targets || targets.length !== uniqueIds.length) {
+      return { error: "Sebagian pengguna tidak ditemukan" };
+    }
+
+    if (role !== "super_admin") {
+      if (!currentTenantId || currentTenantId !== tenantId) {
+        return { error: "Forbidden" };
+      }
+
+      const crossTenant = targets.find((target) => target.tenant_id !== currentTenantId);
+      if (crossTenant) return { error: "Ada pengguna di tenant lain yang tidak bisa dihapus" };
+
+      if (targets.some((target) => target.role === "owner")) {
+        return { error: "Owner tidak bisa menghapus akun owner melalui menu ini" };
+      }
+
+      if (user && uniqueIds.includes(user.id)) {
+        return { error: "Anda tidak dapat menghapus akun Anda sendiri" };
+      }
+    }
+
+    const failed: string[] = [];
+    for (const uid of uniqueIds) {
+      const { error } = await adminClient.auth.admin.deleteUser(uid);
+      if (error) failed.push(error.message);
+    }
+
+    if (failed.length > 0) {
+      return { error: `${failed.length} pengguna gagal dihapus: ${failed[0]}` };
+    }
+
+    revalidatePath(`/super-admin/tenants/${tenantId}`);
+    revalidatePath("/owner/users");
+    revalidatePath("/owner/mechanics");
+    revalidatePath("/owner/invoices");
+    return { success: `${uniqueIds.length} pengguna berhasil dihapus` };
+  } catch (e) {
+    return { error: (e as Error).message };
   }
-
-  if (failed.length > 0)
-    return { error: `${failed.length} pengguna gagal dihapus: ${failed[0]}` };
-
-  revalidatePath(`/super-admin/tenants/${tenantId}`);
-  return { success: `${userIds.length} pengguna berhasil dihapus` };
 }
 
 // ── Update profil pengguna (nama + telepon) — owner/admin dalam tenant sendiri ──

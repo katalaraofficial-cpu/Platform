@@ -1,6 +1,6 @@
 # AI Agent Framework - Katalara POS
 
-Last updated: 29 Mei 2026 (commit `7179bd1`)
+Last updated: 29 Mei 2026 (commit `1fd746d`)
 
 ## Tujuan Dokumen
 
@@ -39,6 +39,8 @@ Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa
    - `processPayment()` (earn)
    - `rollbackInvoiceStatus()` (reverse/adjust)
 5. Rollback point harus menghitung net transaksi per invoice (`earn + adjust`) agar idempotent.
+6. Ringkasan point (`saldo`, `total earned`, `total redeemed`) harus order-agnostic terhadap histori transaksi.
+7. Untuk owner users delete, gunakan guard tenant + role (owner tidak boleh hapus diri sendiri/owner lain).
 6. Setelah edit file inti, wajib jalankan build.
 
 ## 4) Guardrail Produksi (Berdasarkan Insiden Sebelumnya)
@@ -47,6 +49,7 @@ Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa
 - Undangan user owner jangan memakai action yang khusus super-admin.
 - Badge status invoice list harus complaint-aware, tidak hanya `inv.status` mentah.
 - Perubahan cache-sensitive wajib `revalidatePath` ke halaman consumer (owner/mechanic).
+- Wording riwayat transaksi point harus bahasa bisnis yang jelas untuk user operasional, hindari teks teknis internal.
 
 ## 5) Baseline Performa yang Harus Dipertahankan
 
@@ -56,6 +59,10 @@ Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa
 
 ## 6) Build Log Ringkas Terbaru
 
+- `1fd746d`: stabilkan total point engineer + profesionalisasi teks riwayat rollback
+- `35173a0`: aktivasi PWA install support
+- `b919b08`: owner user deletion fix + sync cleanup stale point
+- `1c998e7`: alamat pelanggan terstruktur + point summary by history
 - `7179bd1`: owner customers page + mechanic 4-tab scaffold + sinkron rollback point card
 - `e9a788b`: reverse point mekanik saat invoice paid di-rollback
 - `0e5b6ad`: complaint badge invoice list owner + owner invite flow fix
@@ -64,7 +71,7 @@ Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa
 
 ## 7) Fokus Fase Berikutnya
 
-1. Finalisasi CRUD pelanggan owner/admin di atas halaman dasar `/owner/customers`.
-2. Integrasi data riil tab `Kehadiran` dan `Payroll` mekanik.
+1. Integrasi data riil tab `Kehadiran` dan `Payroll` mekanik.
+2. Tambahkan parity modul pelanggan untuk role admin.
 3. Perbaikan akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
-4. Validasi persistence settings owner pada production dengan logging yang cukup.
+4. Tambahkan observability (audit log) untuk rollback invoice, sinkron point, dan delete user owner.

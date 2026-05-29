@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 29 Mei 2026 — sync setelah commit `7179bd1`
+> **Last updated:** 29 Mei 2026 — sync setelah commit `1fd746d`
 
 ---
 
@@ -48,8 +48,24 @@
 
 ### Update Stabilitas Point & Complaint (29 Mei 2026)
 - Rollback invoice sekarang mengembalikan point mekanik berbasis net transaksi per invoice (`earn` + `adjust`), sehingga point card sinkron setelah status diturunkan.
+- Sinkron point owner kini invoice-aware: histori invoice yang tidak lagi `paid` akan dibatalkan saat sinkronisasi, lalu saldo dibangun ulang secara konsisten.
+- Ringkasan point mechanic/owner memakai kalkulasi yang stabil terhadap urutan transaksi (menghindari mismatch saldo 0 vs total earned masih tinggi).
 - Complaint badge di owner invoice list sudah complaint-aware (`Komplain` untuk completed dengan complaint aktif).
 - Migration complaint assignment: `027_invoice_mechanics_complaint.sql`.
+
+### Update User Management Owner (29 Mei 2026)
+- Owner kini dapat menghapus akun admin/engineer dari tenant sendiri melalui menu owner users.
+- Guard tambahan:
+  - owner tidak dapat menghapus akun owner lain lewat menu ini,
+  - owner tidak dapat menghapus akun dirinya sendiri,
+  - aksi dibatasi tenant sendiri.
+
+### Update PWA Mobile Install (29 Mei 2026)
+- PWA install support aktif di production build:
+  - manifest (`/manifest.webmanifest`),
+  - icon routes (`/icon-192`, `/icon-512`, `/icon-512-maskable`, `/apple-icon`),
+  - service worker (`/sw.js`) via `next-pwa`.
+- Aplikasi kini dapat di-*Add to Home Screen* pada Android/iOS (bergantung browser support).
 
 ### Update Navigasi & Modul Owner/Mechanic (29 Mei 2026)
 - Menu owner `Pelanggan` sudah memiliki halaman dasar aktif di `/owner/customers` (KPI + pie lokasi + tabel pelanggan).
@@ -310,7 +326,7 @@ supabase/migrations/
 | Kas & Keuangan | ⚠️ Placeholder | Halaman ada, konten belum |
 | Pelanggan | ✅ Jalan (versi dasar) | Halaman `/owner/customers`: KPI omzet terbanyak, pie lokasi, tabel pelanggan |
 | Kas Kecil | ⚠️ Placeholder | |
-| Pengaturan | ⚠️ Placeholder | |
+| Pengaturan | ✅ Jalan | Termasuk sinkron ulang point engineer berbasis histori invoice-aware |
 
 ### Admin ✅ Invoice + Dashboard Fungsional
 | Halaman | Status | Catatan |
@@ -324,7 +340,7 @@ supabase/migrations/
 ### Mechanic ✅ Sebagian Besar Fungsional
 | Halaman | Status | Catatan |
 |---------|--------|---------|
-| Dashboard | ✅ Jalan | Daftar work order aktif + history |
+| Dashboard | ✅ Jalan | Daftar work order aktif + history + point tab (claim, status, history) |
 | Work Order Detail | ✅ Jalan | Tombol Mulai / Selesai Dikerjakan, update status via admin client |
 | Hutang Saya | ✅ Jalan | Daftar hutang, FIFO paid status, upload struk |
 | Upload Struk | ✅ Jalan | Upload ke Supabase Storage bucket `receipts` |

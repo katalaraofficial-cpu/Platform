@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 29 Mei 2026 — commit `7179bd1`
+**Last updated:** 29 Mei 2026 — commit `1fd746d`
 
 Referensi utama untuk kelanjutan development:
 
@@ -22,17 +22,27 @@ Fitur yang sudah stabil pada branch `main`:
 - Workflow invoice owner/admin end-to-end (draft → in_progress → completed → paid/cancelled)
 - Complaint workflow per assignment mekanik (`invoice_mechanics.is_complaint`)
 - Program point mekanik + klaim redeem + approval owner
-- Perbaikan rollback point saat status invoice diturunkan kembali
+- Perbaikan rollback point saat status invoice diturunkan kembali (deterministic + invoice-aware)
+- Ringkasan point engineer stabil (saldo/earned/redeemed konsisten setelah rollback)
 - Owner users invite flow (owner-scoped invite action)
+- Owner users delete flow sudah bisa dipakai owner (dengan guard tenant + role)
 - Owner invoice list menampilkan badge `Komplain` bila complaint aktif
-- Halaman owner pelanggan awal (`/owner/customers`) tidak lagi 404
+- Halaman owner pelanggan lengkap: pagination, bulk action, preview/edit/hapus, alamat terstruktur
 - Dashboard mekanik memiliki 4 tab scaffold: Aktivitas, Kehadiran, Insentif, Payroll
+- PWA install support sudah aktif (manifest, icon, service worker)
 
 ## Histori Commit Terbaru
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
-| `7179bd1` | feat | Owner customers page + mechanic 4-tab scaffold + sinkron rollback point card |
+| `1fd746d` | fix | Stabilkan total point engineer + wording riwayat rollback lebih profesional |
+| `35173a0` | feat | Aktivasi PWA install support (manifest, icon routes, service worker) |
+| `b919b08` | fix | Owner delete user flow + sinkron pembersihan stale point invoice non-paid |
+| `1c998e7` | feat | Alamat pelanggan terstruktur Jateng + chart scope + point summary berbasis histori |
+| `329d889` | feat | Owner customers table: pagination, bulk, preview/edit/hapus |
+| `3a9ffdb` | fix | Customer page pakai alamat + tombol sinkron point engineer |
+| `a9ceea1` | feat | Pindah tab engineer ke owner view + pembaruan docs |
+| `7179bd1` | feat | Owner customers page awal + mechanic 4-tab scaffold + sinkron rollback point card |
 | `e9a788b` | fix | Reverse mechanic points ketika invoice paid di-rollback |
 | `0e5b6ad` | fix | Badge komplain di owner invoice list + owner invite flow tanpa super admin gate |
 | `131e400` | feat | Surface complaint status pada invoice/mechanic views |
@@ -81,10 +91,10 @@ Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama
 
 ## Prioritas Kelanjutan (Untuk Agent Berikutnya)
 
-1. Finalisasi modul pelanggan (`/owner/customers`, `/admin/customers`) dari versi dasar ke CRUD + filter + pagination.
-2. Stabilkan persistence pengaturan owner lintas tab di production (verifikasi data row dan schema drift).
+1. Integrasikan data nyata untuk tab `Kehadiran` dan `Payroll` di dashboard mekanik.
+2. Tambahkan modul pelanggan admin (`/admin/customers`) agar parity dengan owner.
 3. Sempurnakan program point helper agar tidak hilang karena pembulatan `floor` pada nominal kecil.
-4. Integrasikan data nyata untuk tab `Kehadiran` dan `Payroll` di dashboard mekanik.
+4. Tambahkan observability sederhana (audit trail action penting owner: rollback, delete user, sinkron point).
 
 ## Perintah Verifikasi Standar
 
@@ -97,4 +107,6 @@ Jika build lolos, lanjutkan smoke test manual pada alur:
 - owner invoice list/detail
 - mechanic dashboard point + activity
 - owner users invite
+- owner users delete engineer
 - owner customers
+- install PWA (A2HS Android / Add to Home Screen iOS)

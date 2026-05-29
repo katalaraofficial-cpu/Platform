@@ -2,6 +2,8 @@
 
 Dokumen ini jadi checklist implementasi mobile-first untuk role owner, admin, engineer, lalu dilanjutkan PWA bertahap.
 
+Last updated: 29 Mei 2026 (commit `1fd746d`)
+
 ## 1) Prioritas Mobile (Role-Based)
 
 ### Owner (prioritas tertinggi)
@@ -10,7 +12,7 @@ Dokumen ini jadi checklist implementasi mobile-first untuk role owner, admin, en
 - [x] New/edit invoice: single-column mobile, form item responsive, sticky save bar, card item list
 - [ ] Dashboard: rapikan kartu KPI agar aman di 360px
 - [ ] Kas: mobile card list untuk transaksi (hindari horizontal scroll)
-- [ ] Settings: tata letak form jadi single-column di mobile
+- [x] Settings: tata letak form inti sudah mobile-safe (masih perlu polishing visual minor)
 
 ### Admin
 - [x] Daftar invoice: mobile card list + desktop table
@@ -21,7 +23,8 @@ Dokumen ini jadi checklist implementasi mobile-first untuk role owner, admin, en
 
 ### Engineer
 - [x] Sudah support mobile (sesuai catatan terakhir)
-- [ ] Audit ulang 5 flow utama untuk konsistensi spacing dan action
+- [x] Audit ulang flow utama point: saldo, klaim, status, riwayat
+- [ ] Audit ulang flow non-point untuk konsistensi spacing dan action
 
 ## 2) Standar UX Mobile
 - Minimal target lebar: 360px
@@ -39,13 +42,13 @@ Dokumen ini jadi checklist implementasi mobile-first untuk role owner, admin, en
 ## 4) Tahap PWA
 
 ### Tahap 1: Installable
-- [ ] Tambah web app manifest
-- [ ] Tambah icon set (192/512)
-- [ ] Atur display standalone + theme color
+- [x] Tambah web app manifest
+- [x] Tambah icon set (192/512 + maskable + apple icon)
+- [x] Atur display standalone + theme color
 
 ### Tahap 2: Basic Caching
-- [ ] Cache static assets dan app shell
-- [ ] Jangan cache agresif data tenant dinamis
+- [x] Cache static assets dan app shell (next-pwa)
+- [x] Konfigurasi tetap konservatif untuk data dinamis tenant
 
 ### Tahap 3: Offline Fallback
 - [ ] Sediakan halaman fallback saat offline

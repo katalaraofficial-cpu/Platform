@@ -66,6 +66,125 @@ async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
     .eq("id", invoiceId);
 }
 
+async function reconcileInvoiceMechanicPoints(params: {
+  tenantId: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  amount: number;
+  shouldAwardFromInvoice: boolean;
+}) {
+  const { tenantId, invoiceId, invoiceNumber, amount, shouldAwardFromInvoice } = params;
+  const admin = createAdminClient();
+
+  const [{ data: settings }, { data: mechanics }, { data: pointTxns }] = await Promise.all([
+    admin
+      .from("settings")
+      .select("reward_employee_enabled, reward_spend_per_point, reward_point_validity_days, reward_lead_multiplier, reward_helper_multiplier")
+      .eq("tenant_id", tenantId)
+      .single(),
+    admin
+      .from("invoice_mechanics")
+      .select("mechanic_id, mechanic_role")
+      .eq("invoice_id", invoiceId)
+      .eq("tenant_id", tenantId),
+    admin
+      .from("employee_point_transactions")
+      .select("profile_id, points")
+      .eq("tenant_id", tenantId)
+      .eq("reference_id", invoiceId)
+      .in("transaction_type", ["earn", "adjust"]),
+  ]);
+
+  const expectedByProfile = new Map<string, number>();
+  const canAward =
+    shouldAwardFromInvoice &&
+    Boolean(settings?.reward_employee_enabled) &&
+    amount > 0 &&
+    Number(settings?.reward_spend_per_point ?? 0) > 0;
+
+  if (canAward) {
+    const basePoints = Math.floor(amount / Number(settings?.reward_spend_per_point ?? 0));
+    if (basePoints > 0) {
+      for (const m of mechanics ?? []) {
+        const multiplier = m.mechanic_role === "lead"
+          ? Number(settings?.reward_lead_multiplier ?? 1)
+          : Number(settings?.reward_helper_multiplier ?? 0.5);
+        const earned = Math.floor(basePoints * multiplier);
+        if (earned > 0) expectedByProfile.set(m.mechanic_id, earned);
+      }
+    }
+  }
+
+  const netByProfile = new Map<string, number>();
+  for (const txn of pointTxns ?? []) {
+    netByProfile.set(
+      txn.profile_id,
+      (netByProfile.get(txn.profile_id) ?? 0) + Number(txn.points ?? 0)
+    );
+  }
+
+  const roleByProfile = new Map<string, string>();
+  for (const m of mechanics ?? []) {
+    roleByProfile.set(m.mechanic_id, m.mechanic_role ?? "mechanic");
+  }
+
+  const profileIds = new Set<string>([
+    ...expectedByProfile.keys(),
+    ...netByProfile.keys(),
+  ]);
+  if (profileIds.size === 0) return;
+
+  const expiresAt = new Date();
+  expiresAt.setDate(
+    expiresAt.getDate() + Number(settings?.reward_point_validity_days ?? 365)
+  );
+  const expiresStr = expiresAt.toISOString().split("T")[0];
+
+  for (const profileId of profileIds) {
+    const expected = Number(expectedByProfile.get(profileId) ?? 0);
+    const currentNet = Number(netByProfile.get(profileId) ?? 0);
+    const delta = expected - currentNet;
+    if (delta === 0) continue;
+
+    const { data: ep } = await admin
+      .from("employee_points")
+      .select("id, points_balance, total_earned, total_redeemed")
+      .eq("tenant_id", tenantId)
+      .eq("profile_id", profileId)
+      .maybeSingle();
+
+    if (ep) {
+      await admin
+        .from("employee_points")
+        .update({
+          points_balance: Math.max(0, Number(ep.points_balance ?? 0) + delta),
+          total_earned: Math.max(0, Number(ep.total_earned ?? 0) + delta),
+          total_redeemed: Math.max(0, Number(ep.total_redeemed ?? 0)),
+        })
+        .eq("id", ep.id);
+    } else if (delta > 0) {
+      await admin.from("employee_points").insert({
+        tenant_id: tenantId,
+        profile_id: profileId,
+        points_balance: delta,
+        total_earned: delta,
+        total_redeemed: 0,
+      });
+    }
+
+    const txType = canAward && delta > 0 ? "earn" : "adjust";
+    await admin.from("employee_point_transactions").insert({
+      tenant_id: tenantId,
+      profile_id: profileId,
+      transaction_type: txType,
+      points: delta,
+      reference_id: invoiceId,
+      expires_at: txType === "earn" ? expiresStr : null,
+      notes: `Reconcile invoice ${invoiceNumber} (${roleByProfile.get(profileId) ?? "mechanic"})`,
+    });
+  }
+}
+
 // ── Create invoice + customer ────────────────────────────────
 export async function createInvoice(
   _prev: ActionState,
@@ -580,75 +699,17 @@ export async function processPayment(
     } as never);
   }
 
-  // ── Auto-earn employee points ────────────────────────────────
+  // Keep point state equal to current invoice state (paid => expected earn).
   try {
-    const adminClient2 = createAdminClient();
-    const { data: settings } = await adminClient2
-      .from("settings")
-      .select("reward_employee_enabled, reward_spend_per_point, reward_point_validity_days, reward_lead_multiplier, reward_helper_multiplier")
-      .eq("tenant_id", ctx.tenantId)
-      .single();
-
-    if (settings?.reward_employee_enabled && amount > 0) {
-      const { data: mechanics } = await adminClient2
-        .from("invoice_mechanics")
-        .select("mechanic_id, mechanic_role")
-        .eq("invoice_id", invoiceId)
-        .eq("tenant_id", ctx.tenantId);
-
-      if (mechanics?.length) {
-        const basePoints = Math.floor(amount / Number(settings.reward_spend_per_point));
-        if (basePoints > 0) {
-          const expiresAt = new Date();
-          expiresAt.setDate(expiresAt.getDate() + (settings.reward_point_validity_days ?? 365));
-          const expiresStr = expiresAt.toISOString().split("T")[0];
-
-          for (const m of mechanics) {
-            const multiplier = m.mechanic_role === "lead"
-              ? Number(settings.reward_lead_multiplier ?? 1)
-              : Number(settings.reward_helper_multiplier ?? 0.5);
-            const earned = Math.floor(basePoints * multiplier);
-            if (earned <= 0) continue;
-
-            // Upsert or update balance
-            const { data: existing } = await adminClient2
-              .from("employee_points")
-              .select("id, points_balance, total_earned")
-              .eq("tenant_id", ctx.tenantId)
-              .eq("profile_id", m.mechanic_id)
-              .maybeSingle();
-
-            if (existing) {
-              await adminClient2.from("employee_points").update({
-                points_balance: existing.points_balance + earned,
-                total_earned: existing.total_earned + earned,
-              }).eq("id", existing.id);
-            } else {
-              await adminClient2.from("employee_points").insert({
-                tenant_id: ctx.tenantId,
-                profile_id: m.mechanic_id,
-                points_balance: earned,
-                total_earned: earned,
-                total_redeemed: 0,
-              });
-            }
-
-            // Log transaction
-            await adminClient2.from("employee_point_transactions").insert({
-              tenant_id: ctx.tenantId,
-              profile_id: m.mechanic_id,
-              transaction_type: "earn",
-              points: earned,
-              reference_id: invoiceId,
-              expires_at: expiresStr,
-              notes: `Invoice ${inv.invoice_number} (${m.mechanic_role})`,
-            });
-          }
-        }
-      }
-    }
+    await reconcileInvoiceMechanicPoints({
+      tenantId: ctx.tenantId,
+      invoiceId,
+      invoiceNumber: inv.invoice_number,
+      amount,
+      shouldAwardFromInvoice: true,
+    });
   } catch {
-    // Point earning is non-critical — do not fail the payment
+    // Point sync is non-critical — do not fail the payment
   }
 
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
@@ -666,72 +727,25 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
 
   const { data: inv } = await supabase
     .from("invoices")
-    .select("status")
+    .select("status, grand_total, invoice_number")
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId)
     .single();
   if (!inv) return;
 
-  try {
-    const adminClient = createAdminClient();
-    const { data: mechanics } = await adminClient
-      .from("invoice_mechanics")
-      .select("mechanic_id, mechanic_role")
-      .eq("tenant_id", ctx.tenantId)
-      .eq("invoice_id", invoiceId);
-
-    const { data: pointTxns } = await adminClient
-      .from("employee_point_transactions")
-      .select("profile_id, points, transaction_type")
-      .eq("tenant_id", ctx.tenantId)
-      .eq("reference_id", invoiceId)
-      .in("transaction_type", ["earn", "adjust"]);
-
-    const roleByProfile = new Map<string, string>();
-    for (const mechanic of mechanics ?? []) {
-      roleByProfile.set(mechanic.mechanic_id, mechanic.mechanic_role ?? "mechanic");
-    }
-
-    const netByProfile = new Map<string, number>();
-    for (const txn of pointTxns ?? []) {
-      netByProfile.set(
-        txn.profile_id,
-        (netByProfile.get(txn.profile_id) ?? 0) + Number(txn.points ?? 0)
-      );
-    }
-
-    for (const [profileId, netPoints] of netByProfile.entries()) {
-      const pointsToReverse = Math.max(0, netPoints);
-      if (pointsToReverse <= 0) continue;
-
-      const { data: existing } = await adminClient
-        .from("employee_points")
-        .select("id, points_balance, total_earned")
-        .eq("tenant_id", ctx.tenantId)
-        .eq("profile_id", profileId)
-        .maybeSingle();
-
-      if (existing) {
-        await adminClient
-          .from("employee_points")
-          .update({
-            points_balance: Math.max(0, Number(existing.points_balance ?? 0) - pointsToReverse),
-            total_earned: Math.max(0, Number(existing.total_earned ?? 0) - pointsToReverse),
-          })
-          .eq("id", existing.id);
-      }
-
-      await adminClient.from("employee_point_transactions").insert({
-        tenant_id: ctx.tenantId,
-        profile_id: profileId,
-        transaction_type: "adjust",
-        points: -pointsToReverse,
-        reference_id: invoiceId,
-        notes: `Reversal invoice ${invoiceId} (${roleByProfile.get(profileId) ?? "mechanic"})`,
+  // Points are earned only at paid state; rollback from paid must bring them back to zero.
+  if (inv.status === "paid") {
+    try {
+      await reconcileInvoiceMechanicPoints({
+        tenantId: ctx.tenantId,
+        invoiceId,
+        invoiceNumber: inv.invoice_number,
+        amount: Number(inv.grand_total ?? 0),
+        shouldAwardFromInvoice: false,
       });
+    } catch {
+      // Point sync is non-critical; invoice rollback should still proceed.
     }
-  } catch {
-    // Point reversal is non-critical; invoice rollback should still proceed.
   }
 
   const prevMap: Partial<Record<string, string>> = {

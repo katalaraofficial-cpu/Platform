@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import { redirect } from "next/navigation";
 import { Users, Trophy } from "lucide-react";
+import { OwnerCustomerListTable, type OwnerCustomerTableRow } from "@/components/owner/customer-list-table";
 
 type CustomerRow = {
   id: string;
@@ -150,6 +151,15 @@ export default async function OwnerCustomersPage() {
       color: PIE_COLORS[idx % PIE_COLORS.length],
     }));
 
+  const tableRows: OwnerCustomerTableRow[] = customers.map((c) => ({
+    id: c.id,
+    name: c.name,
+    address: c.notes?.trim() || "-",
+    phone: c.phone?.trim() || "-",
+    omzet: revenueByCustomer.get(c.id) ?? 0,
+    createdAt: c.created_at,
+  }));
+
   return (
     <div className="space-y-5">
       <div>
@@ -201,36 +211,7 @@ export default async function OwnerCustomersPage() {
         <div className="border-b border-gray-100 px-4 py-3">
           <p className="text-sm font-semibold text-gray-800">List Pelanggan</p>
         </div>
-        {customers.length === 0 ? (
-          <div className="px-4 py-12 text-center text-sm text-gray-400">Belum ada pelanggan terdaftar.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Nama</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Alamat</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Telepon</th>
-                  <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Omzet</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {customers.map((c) => {
-                  return (
-                    <tr key={c.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.notes?.trim() || "-"}</td>
-                      <td className="px-4 py-3 text-sm text-gray-600">{c.phone ?? "-"}</td>
-                      <td className="px-4 py-3 text-right text-sm font-semibold text-emerald-600">
-                        {fmt(revenueByCustomer.get(c.id) ?? 0)}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <OwnerCustomerListTable rows={tableRows} />
       </div>
     </div>
   );

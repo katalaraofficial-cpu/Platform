@@ -2,12 +2,23 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
+import { revalidatePath } from "next/cache";
 
 export interface CustomerResult {
   id: string;
   name: string;
   phone: string | null;
   vehicle_plate: string | null;
+}
+
+export type CustomerActionState = { error?: string; success?: string };
+
+async function ownerTenantGuard() {
+  const ctx = await getUserContext();
+  if (!ctx.tenantId || ctx.role !== "owner") {
+    throw new Error("Hanya owner yang dapat mengelola data pelanggan");
+  }
+  return ctx.tenantId;
 }
 
 export async function searchCustomers(query: string): Promise<CustomerResult[]> {
@@ -54,4 +65,88 @@ export async function quickCreateCustomer(
     .single();
   if (error || !data) return { error: error?.message ?? "Gagal buat pelanggan" };
   return { id: data.id, name: data.name };
+}
+
+export async function updateOwnerCustomer(
+  customerId: string,
+  payload: { name: string; phone: string; address: string }
+): Promise<CustomerActionState> {
+  try {
+    if (!customerId) return { error: "ID pelanggan tidak valid" };
+    const tenantId = await ownerTenantGuard();
+    const supabase = await createClient();
+
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        name: payload.name.trim(),
+        phone: payload.phone.trim() || null,
+        notes: payload.address.trim() || null,
+      })
+      .eq("tenant_id", tenantId)
+      .eq("id", customerId);
+
+    if (error) return { error: `Gagal memperbarui pelanggan: ${error.message}` };
+    revalidatePath("/owner/customers");
+    revalidatePath("/owner/invoices");
+    return { success: "Data pelanggan berhasil diperbarui" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function deleteOwnerCustomer(customerId: string): Promise<CustomerActionState> {
+  try {
+    if (!customerId) return { error: "ID pelanggan tidak valid" };
+    const tenantId = await ownerTenantGuard();
+    const supabase = await createClient();
+
+    await supabase
+      .from("invoices")
+      .update({ customer_id: null })
+      .eq("tenant_id", tenantId)
+      .eq("customer_id", customerId);
+
+    const { error } = await supabase
+      .from("customers")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("id", customerId);
+
+    if (error) return { error: `Gagal menghapus pelanggan: ${error.message}` };
+    revalidatePath("/owner/customers");
+    revalidatePath("/owner/invoices");
+    return { success: "Pelanggan berhasil dihapus" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+export async function bulkDeleteOwnerCustomers(customerIds: string[]): Promise<CustomerActionState> {
+  try {
+    const ids = [...new Set(customerIds.filter(Boolean))];
+    if (ids.length === 0) return { error: "Pilih pelanggan yang ingin dihapus" };
+
+    const tenantId = await ownerTenantGuard();
+    const supabase = await createClient();
+
+    await supabase
+      .from("invoices")
+      .update({ customer_id: null })
+      .eq("tenant_id", tenantId)
+      .in("customer_id", ids);
+
+    const { error } = await supabase
+      .from("customers")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", ids);
+
+    if (error) return { error: `Gagal bulk hapus pelanggan: ${error.message}` };
+    revalidatePath("/owner/customers");
+    revalidatePath("/owner/invoices");
+    return { success: `${ids.length} pelanggan berhasil dihapus` };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }

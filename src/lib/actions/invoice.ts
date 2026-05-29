@@ -180,7 +180,10 @@ async function reconcileInvoiceMechanicPoints(params: {
       points: delta,
       reference_id: invoiceId,
       expires_at: txType === "earn" ? expiresStr : null,
-      notes: `Reconcile invoice ${invoiceNumber} (${roleByProfile.get(profileId) ?? "mechanic"})`,
+      notes:
+        txType === "earn"
+          ? `Point diberikan dari nota ${invoiceNumber} (${roleByProfile.get(profileId) ?? "mechanic"}) setelah status lunas.`
+          : `Penyesuaian point: nota ${invoiceNumber} tidak lagi berstatus lunas, sehingga point dibatalkan.`,
     });
   }
 }

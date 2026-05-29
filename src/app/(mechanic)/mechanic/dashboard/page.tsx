@@ -29,6 +29,22 @@ const STATUS_COLORS: Record<InvoiceStatus, string> = {
   cancelled: "bg-red-100 text-red-600",
 };
 
+function formatPointHistoryNote(note: string | null, txType: string, referenceId?: string | null) {
+  const fallback = txType === "adjust"
+    ? "Penyesuaian point karena perubahan status nota"
+    : txType;
+  if (!note) return fallback;
+
+  if (note.startsWith("Sync rollback cleanup for invoice")) {
+    return "Penyesuaian point: nota tidak berstatus lunas, sehingga point dibatalkan saat sinkronisasi.";
+  }
+  if (note.startsWith("Reconcile invoice") || note.startsWith("Reversal invoice")) {
+    return `Penyesuaian point: nota${referenceId ? ` ${referenceId}` : ""} tidak lagi berstatus lunas, sehingga point dibatalkan.`;
+  }
+
+  return note;
+}
+
 type WorkOrderRow = {
   assignmentId: string;
   mechanicRole: MechanicRoleInInvoice;
@@ -421,7 +437,9 @@ export default async function MechanicDashboard({
                     className="flex items-center justify-between rounded-xl border border-gray-100 bg-white px-4 py-3 shadow-sm"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-gray-800">{tx.notes ?? tx.transaction_type}</p>
+                      <p className="truncate text-sm font-semibold text-gray-800">
+                        {formatPointHistoryNote(tx.notes, tx.transaction_type, tx.reference_id)}
+                      </p>
                       <p className="text-xs text-gray-400">
                         {new Date(tx.created_at).toLocaleDateString("id-ID", {
                           day: "numeric", month: "short", year: "numeric",

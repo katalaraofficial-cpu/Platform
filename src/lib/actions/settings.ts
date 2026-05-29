@@ -287,7 +287,7 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
         transaction_type: "adjust",
         points: -netPoints,
         reference_id: invoiceId,
-        notes: `Sync rollback cleanup for invoice ${invoiceId}`,
+        notes: "Penyesuaian point: nota tidak berstatus lunas, maka point dibatalkan saat sinkronisasi.",
         expires_at: null,
       });
       if (adjustErr) {

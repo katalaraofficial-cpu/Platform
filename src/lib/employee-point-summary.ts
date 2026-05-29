@@ -11,6 +11,7 @@ export type EmployeePointSummary = {
 };
 
 export function summarizeEmployeePoints(rows: PointTransactionSummaryRow[]): EmployeePointSummary {
+  let earnedNet = 0;
   const summary: EmployeePointSummary = {
     points_balance: 0,
     total_earned: 0,
@@ -21,7 +22,7 @@ export function summarizeEmployeePoints(rows: PointTransactionSummaryRow[]): Emp
     const points = Number(row.points ?? 0);
     summary.points_balance += points;
     if (row.transaction_type === "earn" || row.transaction_type === "adjust") {
-      summary.total_earned = Math.max(0, summary.total_earned + points);
+      earnedNet += points;
     }
     if (row.transaction_type === "redeem") {
       summary.total_redeemed += Math.abs(points);
@@ -29,10 +30,12 @@ export function summarizeEmployeePoints(rows: PointTransactionSummaryRow[]): Emp
   }
 
   summary.points_balance = Math.max(0, summary.points_balance);
+  summary.total_earned = Math.max(0, earnedNet);
   return summary;
 }
 
 export function summarizeEmployeePointsByProfile(rows: PointTransactionSummaryRow[]) {
+  const earnedNetByProfile = new Map<string, number>();
   const summaryMap = new Map<string, EmployeePointSummary>();
 
   for (const row of rows) {
@@ -45,7 +48,10 @@ export function summarizeEmployeePointsByProfile(rows: PointTransactionSummaryRo
     const points = Number(row.points ?? 0);
     current.points_balance += points;
     if (row.transaction_type === "earn" || row.transaction_type === "adjust") {
-      current.total_earned = Math.max(0, current.total_earned + points);
+      earnedNetByProfile.set(
+        row.profile_id,
+        (earnedNetByProfile.get(row.profile_id) ?? 0) + points
+      );
     }
     if (row.transaction_type === "redeem") {
       current.total_redeemed += Math.abs(points);
@@ -53,6 +59,10 @@ export function summarizeEmployeePointsByProfile(rows: PointTransactionSummaryRo
 
     current.points_balance = Math.max(0, current.points_balance);
     summaryMap.set(row.profile_id, current);
+  }
+
+  for (const [profileId, current] of summaryMap.entries()) {
+    current.total_earned = Math.max(0, earnedNetByProfile.get(profileId) ?? 0);
   }
 
   return summaryMap;

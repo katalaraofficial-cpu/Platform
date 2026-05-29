@@ -24,6 +24,7 @@ import {
   type MechanicInfo,
 } from "@/components/mechanics/debt-history-table";
 import { PointClaimReviewList } from "@/components/mechanics/point-claim-review-list";
+import { summarizeEmployeePointsByProfile, type PointTransactionSummaryRow } from "@/lib/employee-point-summary";
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n: number) {
@@ -85,7 +86,7 @@ export default async function MechanicsPage({
     { data: debtSummaryRaw },
     { data: invoiceMechanicsRaw },
     { data: debtHistoryRaw },
-    { data: employeePointsRaw },
+    { data: employeePointTransactionsRaw },
     { data: settingsRaw },
     { data: pendingClaimsRaw },
   ] = await Promise.all([
@@ -115,8 +116,8 @@ export default async function MechanicsPage({
       .limit(500),
 
     supabase
-      .from("employee_points")
-      .select("profile_id, points_balance, total_earned, total_redeemed")
+      .from("employee_point_transactions")
+      .select("profile_id, points, transaction_type")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -159,11 +160,9 @@ export default async function MechanicsPage({
   }));
 
   // Points data
-  type EpRow = { profile_id: string; points_balance: number; total_earned: number; total_redeemed: number };
-  const pointsMap = new Map<string, EpRow>();
-  for (const ep of (employeePointsRaw as EpRow[] | null) ?? []) {
-    pointsMap.set(ep.profile_id, ep);
-  }
+  const pointsMap = summarizeEmployeePointsByProfile(
+    ((employeePointTransactionsRaw as PointTransactionSummaryRow[] | null) ?? [])
+  );
   const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
 
   type DebtSummaryRow = {

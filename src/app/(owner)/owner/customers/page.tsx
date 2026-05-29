@@ -3,6 +3,11 @@ import { getUserContext } from "@/lib/get-user-context";
 import { redirect } from "next/navigation";
 import { Users, Trophy } from "lucide-react";
 import { OwnerCustomerListTable, type OwnerCustomerTableRow } from "@/components/owner/customer-list-table";
+import {
+  getCustomerRegionLabel,
+  type CustomerRegionScope,
+} from "@/lib/customer-address";
+import { getCentralJavaRegionCatalog } from "@/lib/central-java-regions";
 
 type CustomerRow = {
   id: string;
@@ -25,17 +30,6 @@ function fmt(n: number) {
     currency: "IDR",
     maximumFractionDigits: 0,
   }).format(n);
-}
-
-function addressRegion(address?: string | null) {
-  if (!address) return "Tidak diketahui";
-  const parts = address
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return "Tidak diketahui";
-  const pick = parts[parts.length - 1] || parts[0];
-  return pick.length > 32 ? `${pick.slice(0, 32)}...` : pick;
 }
 
 function DonutChart({
@@ -97,11 +91,32 @@ function DonutChart({
 
 const PIE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6"];
 
-export default async function OwnerCustomersPage() {
+const REGION_SCOPE_OPTIONS: { value: CustomerRegionScope; label: string }[] = [
+  { value: "district", label: "Kecamatan" },
+  { value: "regency", label: "Kabupaten" },
+  { value: "province", label: "Provinsi" },
+];
+
+type SearchParams = Promise<{ scope?: string }>;
+
+export default async function OwnerCustomersPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const ctx = await getUserContext();
   if (!ctx.tenantId || ctx.role !== "owner") redirect("/owner/dashboard");
 
+  const sp = await searchParams;
+  const regionScope: CustomerRegionScope =
+    sp.scope === "district"
+      ? "district"
+      : sp.scope === "province"
+        ? "province"
+        : "regency";
+
   const supabase = await createClient();
+  const regionCatalog = getCentralJavaRegionCatalog();
 
   const [{ data: customersRaw }, { data: invoicesRaw }] = await Promise.all([
     supabase
@@ -138,7 +153,7 @@ export default async function OwnerCustomersPage() {
 
   const locationMap = new Map<string, number>();
   for (const c of customers) {
-    const region = addressRegion(c.notes);
+    const region = getCustomerRegionLabel(c.notes, regionScope, regionCatalog);
     locationMap.set(region, (locationMap.get(region) ?? 0) + 1);
   }
 
@@ -186,7 +201,26 @@ export default async function OwnerCustomersPage() {
       </div>
 
       <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <h2 className="mb-3 text-sm font-semibold text-gray-800">Sebaran Lokasi Pelanggan (berdasarkan alamat/catatan pelanggan)</h2>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-sm font-semibold text-gray-800">
+            Sebaran Lokasi Pelanggan (default {REGION_SCOPE_OPTIONS.find((opt) => opt.value === regionScope)?.label.toLowerCase()})
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {REGION_SCOPE_OPTIONS.map((option) => (
+              <a
+                key={option.value}
+                href={`/owner/customers?scope=${option.value}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition-colors ${
+                  regionScope === option.value
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300 hover:text-gray-700"
+                }`}
+              >
+                {option.label}
+              </a>
+            ))}
+          </div>
+        </div>
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
           <DonutChart segments={locationSegments} />
           <div className="flex-1 space-y-2">
@@ -211,7 +245,7 @@ export default async function OwnerCustomersPage() {
         <div className="border-b border-gray-100 px-4 py-3">
           <p className="text-sm font-semibold text-gray-800">List Pelanggan</p>
         </div>
-        <OwnerCustomerListTable rows={tableRows} />
+        <OwnerCustomerListTable rows={tableRows} regionCatalog={regionCatalog} />
       </div>
     </div>
   );

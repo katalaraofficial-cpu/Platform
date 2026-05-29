@@ -6,6 +6,11 @@ import { Eye, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
+  formatCustomerAddress,
+  parseCustomerAddress,
+  type CustomerRegionCatalog,
+} from "@/lib/customer-address";
+import {
   bulkDeleteOwnerCustomers,
   deleteOwnerCustomer,
   updateOwnerCustomer,
@@ -22,6 +27,7 @@ export type OwnerCustomerTableRow = {
 
 type Props = {
   rows: OwnerCustomerTableRow[];
+  regionCatalog: CustomerRegionCatalog;
 };
 
 const PAGE_SIZE_OPTIONS = [5, 10, 25, 50] as const;
@@ -42,7 +48,7 @@ function fmtDate(iso: string) {
   });
 }
 
-export function OwnerCustomerListTable({ rows }: Props) {
+export function OwnerCustomerListTable({ rows, regionCatalog }: Props) {
   const router = useRouter();
   const [pageSize, setPageSize] = useState<number>(10);
   const [page, setPage] = useState(1);
@@ -51,7 +57,10 @@ export function OwnerCustomerListTable({ rows }: Props) {
   const [previewRow, setPreviewRow] = useState<OwnerCustomerTableRow | null>(null);
   const [editRow, setEditRow] = useState<OwnerCustomerTableRow | null>(null);
   const [editName, setEditName] = useState("");
-  const [editAddress, setEditAddress] = useState("");
+  const [editStreet, setEditStreet] = useState("");
+  const [editDistrict, setEditDistrict] = useState("");
+  const [editRegency, setEditRegency] = useState("");
+  const [editProvince, setEditProvince] = useState(regionCatalog.province);
   const [editPhone, setEditPhone] = useState("");
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
@@ -67,6 +76,17 @@ export function OwnerCustomerListTable({ rows }: Props) {
     const start = (page - 1) * pageSize;
     return rows.slice(start, start + pageSize);
   }, [rows, page, pageSize]);
+
+  const districtOptions = useMemo(
+    () => (editRegency ? regionCatalog.districtsByRegency[editRegency] ?? [] : []),
+    [editRegency, regionCatalog]
+  );
+
+  useEffect(() => {
+    if (editDistrict && districtOptions.length > 0 && !districtOptions.includes(editDistrict)) {
+      setEditDistrict("");
+    }
+  }, [districtOptions, editDistrict]);
 
   const allOnPageSelected =
     pagedRows.length > 0 && pagedRows.every((row) => selectedIds.has(row.id));
@@ -94,9 +114,13 @@ export function OwnerCustomerListTable({ rows }: Props) {
   }
 
   function openEdit(row: OwnerCustomerTableRow) {
+    const parsed = parseCustomerAddress(row.address === "-" ? "" : row.address, regionCatalog);
     setEditRow(row);
     setEditName(row.name);
-    setEditAddress(row.address === "-" ? "" : row.address);
+    setEditStreet(parsed.street);
+    setEditDistrict(parsed.district);
+    setEditRegency(parsed.regency);
+    setEditProvince(parsed.province || regionCatalog.province);
     setEditPhone(row.phone === "-" ? "" : row.phone);
   }
 
@@ -105,7 +129,12 @@ export function OwnerCustomerListTable({ rows }: Props) {
     startTransition(async () => {
       const res = await updateOwnerCustomer(editRow.id, {
         name: editName,
-        address: editAddress,
+        address: formatCustomerAddress({
+          street: editStreet,
+          district: editDistrict,
+          regency: editRegency,
+          province: editProvince || regionCatalog.province,
+        }),
         phone: editPhone,
       });
       if (res.error) {
@@ -330,12 +359,56 @@ export function OwnerCustomerListTable({ rows }: Props) {
                 />
               </div>
               <div>
-                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Alamat</label>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Alamat Jalan</label>
                 <textarea
-                  value={editAddress}
-                  onChange={(e) => setEditAddress(e.target.value)}
+                  value={editStreet}
+                  onChange={(e) => setEditStreet(e.target.value)}
                   rows={3}
                   className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Kabupaten/Kota</label>
+                  <select
+                    value={editRegency}
+                    onChange={(e) => {
+                      setEditRegency(e.target.value);
+                      setEditDistrict("");
+                    }}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm"
+                  >
+                    <option value="">Pilih kabupaten/kota</option>
+                    {regionCatalog.regencies.map((regency) => (
+                      <option key={regency} value={regency}>
+                        {regency}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Kecamatan</label>
+                  <select
+                    value={editDistrict}
+                    onChange={(e) => setEditDistrict(e.target.value)}
+                    disabled={!editRegency}
+                    className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm disabled:bg-gray-50 disabled:text-gray-400"
+                  >
+                    <option value="">Pilih kecamatan</option>
+                    {districtOptions.map((district) => (
+                      <option key={district} value={district}>
+                        {district}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Provinsi</label>
+                <input
+                  value={editProvince}
+                  readOnly
+                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-500"
                 />
               </div>
               <div>

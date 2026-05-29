@@ -3,12 +3,12 @@ import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
 import { SubmitPointClaimCard } from "@/components/mechanics/submit-point-claim-card";
+import { summarizeEmployeePoints } from "@/lib/employee-point-summary";
 import type {
   Invoice,
   Customer,
   InvoiceStatus,
   MechanicRoleInInvoice,
-  EmployeePoints,
   EmployeePointTransaction,
   PointRedemptionRequest,
 } from "@/types/database";
@@ -114,19 +114,12 @@ export default async function MechanicDashboard({
   ).length;
 
   // 7. Fetch employee points data if Point tab is active
-  let employeePoints: EmployeePoints | null = null;
   let pointTransactions: EmployeePointTransaction[] = [];
   let claimRequests: PointRedemptionRequest[] = [];
   let rewardMinRedeem = 50;
   let rewardPointValue = 1000;
   if (activeTab === "point" && ctx.id && ctx.tenantId) {
-    const [{ data: epData }, { data: txData }, { data: claimData }, { data: settingsData }] = await Promise.all([
-      supabase
-        .from("employee_points")
-        .select("*")
-        .eq("tenant_id", ctx.tenantId)
-        .eq("profile_id", ctx.id)
-        .single(),
+    const [{ data: txData }, { data: claimData }, { data: settingsData }] = await Promise.all([
       supabase
         .from("employee_point_transactions")
         .select("*")
@@ -147,12 +140,19 @@ export default async function MechanicDashboard({
         .eq("tenant_id", ctx.tenantId)
         .single(),
     ]);
-    employeePoints = epData as EmployeePoints | null;
     pointTransactions = (txData as EmployeePointTransaction[] | null) ?? [];
     claimRequests = (claimData as PointRedemptionRequest[] | null) ?? [];
     rewardMinRedeem = Number(settingsData?.reward_min_redeem ?? 50);
     rewardPointValue = Number(settingsData?.reward_point_value ?? 1000);
   }
+
+  const pointSummary = summarizeEmployeePoints(
+    pointTransactions.map((row) => ({
+      profile_id: row.profile_id,
+      transaction_type: row.transaction_type,
+      points: row.points,
+    }))
+  );
 
   return (
     <div>
@@ -319,7 +319,7 @@ export default async function MechanicDashboard({
               <Gift className="h-5 w-5 opacity-80" />
               <span className="text-sm font-semibold opacity-80">Saldo Point Kamu</span>
             </div>
-            <p className="text-4xl font-bold">{employeePoints?.points_balance ?? 0} pt</p>
+            <p className="text-4xl font-bold">{pointSummary.points_balance} pt</p>
           </div>
 
           {/* Stats row */}
@@ -329,14 +329,14 @@ export default async function MechanicDashboard({
                 <TrendingUp className="h-4 w-4 text-emerald-400" />
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Diperoleh</span>
               </div>
-              <p className="text-2xl font-bold text-emerald-600">{employeePoints?.total_earned ?? 0} pt</p>
+              <p className="text-2xl font-bold text-emerald-600">{pointSummary.total_earned} pt</p>
             </div>
             <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-1">
                 <ArrowDownLeft className="h-4 w-4 text-violet-400" />
                 <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Ditukar</span>
               </div>
-              <p className="text-2xl font-bold text-violet-600">{employeePoints?.total_redeemed ?? 0} pt</p>
+              <p className="text-2xl font-bold text-violet-600">{pointSummary.total_redeemed} pt</p>
             </div>
           </div>
 
@@ -350,7 +350,7 @@ export default async function MechanicDashboard({
           </div>
 
           <SubmitPointClaimCard
-            currentBalance={Number(employeePoints?.points_balance ?? 0)}
+            currentBalance={pointSummary.points_balance}
             minRedeem={rewardMinRedeem}
             pointValue={rewardPointValue}
           />

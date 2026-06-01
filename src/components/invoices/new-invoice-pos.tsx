@@ -97,7 +97,13 @@ function QuickAddCustomerModal({
         setErr(res.error);
         return;
       }
-      onCreated({ id: res.id, name: res.name, phone: phone || null, vehicle_plate: null });
+      onCreated({
+        id: res.id,
+        name: res.name,
+        phone: phone || null,
+        vehicle_plate: null,
+        address: address || null,
+      });
     });
   }
 

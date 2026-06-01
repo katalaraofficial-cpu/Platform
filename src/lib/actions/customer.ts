@@ -9,6 +9,7 @@ export interface CustomerResult {
   name: string;
   phone: string | null;
   vehicle_plate: string | null;
+  address: string | null;
 }
 
 export type CustomerActionState = { error?: string; success?: string };
@@ -28,7 +29,7 @@ export async function searchCustomers(query: string): Promise<CustomerResult[]> 
   const supabase = await createClient();
   const { data } = await supabase
     .from("customers")
-    .select("id, name, phone, vehicle_info")
+    .select("id, name, phone, notes, vehicle_info")
     .eq("tenant_id", ctx.tenantId)
     .or(`name.ilike.%${query}%,phone.ilike.%${query}%`)
     .limit(8)
@@ -40,8 +41,41 @@ export async function searchCustomers(query: string): Promise<CustomerResult[]> 
       name: c.name,
       phone: c.phone,
       vehicle_plate: vi?.plate ?? null,
+      address: c.notes,
     };
   });
+}
+
+export async function updateCustomerFromInvoice(
+  customerId: string,
+  payload: { name: string; phone: string; address: string }
+): Promise<CustomerActionState> {
+  try {
+    if (!customerId) return { error: "ID pelanggan tidak valid" };
+    const ctx = await getUserContext();
+    if (!ctx.tenantId || (ctx.role !== "owner" && ctx.role !== "admin")) {
+      return { error: "Anda tidak memiliki akses untuk mengubah data pelanggan" };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("customers")
+      .update({
+        name: payload.name.trim(),
+        phone: payload.phone.trim() || null,
+        notes: payload.address.trim() || null,
+      })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("id", customerId);
+
+    if (error) return { error: `Gagal memperbarui pelanggan: ${error.message}` };
+    revalidatePath("/owner/customers");
+    revalidatePath("/owner/invoices");
+    revalidatePath("/admin/invoices");
+    return { success: "Data pelanggan berhasil diperbarui" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }
 
 export async function quickCreateCustomer(

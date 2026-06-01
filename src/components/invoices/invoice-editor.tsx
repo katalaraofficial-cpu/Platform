@@ -8,10 +8,11 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, X, ArrowLeft } from "lucide-react";
+import { Plus, X, ArrowLeft, Eye, Users } from "lucide-react";
 import {
   searchCustomers,
   quickCreateCustomer,
+  updateCustomerFromInvoice,
   type CustomerResult,
 } from "@/lib/actions/customer";
 import {
@@ -72,6 +73,7 @@ export interface EditModeCustomer {
   id: string;
   name: string;
   phone: string | null;
+  address?: string | null;
 }
 
 export interface InvoiceEditData {
@@ -222,7 +224,7 @@ function QuickAddCustomerModal({
   onClose,
 }: {
   initialName: string;
-  onCreated: (c: { id: string; name: string; phone: string | null }) => void;
+  onCreated: (c: { id: string; name: string; phone: string | null; address: string | null }) => void;
   onClose: () => void;
 }) {
   const [name, setName] = useState(initialName);
@@ -237,7 +239,7 @@ function QuickAddCustomerModal({
     startT(async () => {
       const res = await quickCreateCustomer(name, phone, address);
       if ("error" in res) { setErr(res.error); return; }
-      onCreated({ id: res.id, name: res.name, phone: phone || null });
+      onCreated({ id: res.id, name: res.name, phone: phone || null, address: address || null });
     });
   }
 
@@ -288,11 +290,13 @@ function QuickAddCustomerModal({
 function MechanicPickerModal({
   mechanics,
   assignedIds,
+  maxReached,
   onAssign,
   onClose,
 }: {
   mechanics: MechanicOption[];
   assignedIds: string[];
+  maxReached: boolean;
   onAssign: (mechanicId: string, role: MechanicRoleInInvoice) => void;
   onClose: () => void;
 }) {
@@ -303,9 +307,11 @@ function MechanicPickerModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div className="w-full max-w-sm rounded-xl bg-white p-6 shadow-xl">
-        <h3 className="mb-4 font-semibold text-gray-900">Tambah Mekanik</h3>
-        {available.length === 0 ? (
-          <p className="text-sm text-gray-500">Semua mekanik sudah ditugaskan.</p>
+        <h3 className="mb-4 font-semibold text-gray-900">Tambah Engineer</h3>
+        {maxReached ? (
+          <p className="text-sm text-amber-600">Maksimal 10 engineer per invoice.</p>
+        ) : available.length === 0 ? (
+          <p className="text-sm text-gray-500">Semua engineer sudah ditugaskan.</p>
         ) : (
           <div className="space-y-3">
             <select
@@ -313,7 +319,7 @@ function MechanicPickerModal({
               value={selectedId}
               onChange={(e) => setSelectedId(e.target.value)}
             >
-              <option value="">-- Pilih Mekanik --</option>
+              <option value="">-- Pilih Engineer --</option>
               {available.map((m) => (
                 <option key={m.id} value={m.id}>{m.name}</option>
               ))}
@@ -323,7 +329,7 @@ function MechanicPickerModal({
               value={role}
               onChange={(e) => setRole(e.target.value as MechanicRoleInInvoice)}
             >
-              <option value="lead">Lead Mechanic</option>
+              <option value="lead">Lead Engineer</option>
               <option value="helper">Helper</option>
             </select>
           </div>
@@ -332,7 +338,7 @@ function MechanicPickerModal({
           <button type="button" onClick={onClose} className="rounded-md px-4 py-2 text-sm text-gray-600 hover:bg-gray-100">
             Batal
           </button>
-          {available.length > 0 && (
+          {!maxReached && available.length > 0 && (
             <button
               type="button"
               disabled={!selectedId}
@@ -345,6 +351,197 @@ function MechanicPickerModal({
             </button>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CustomerPreviewModal({
+  customer,
+  onClose,
+  onSaved,
+}: {
+  customer: { id: string; name: string; phone: string | null; address: string | null };
+  onClose: () => void;
+  onSaved: (payload: { name: string; phone: string | null; address: string | null }) => void;
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [name, setName] = useState(customer.name);
+  const [phone, setPhone] = useState(customer.phone ?? "");
+  const [address, setAddress] = useState(customer.address ?? "");
+  const [error, setError] = useState("");
+  const [isPending, startTransition] = useTransition();
+
+  function handleSave() {
+    if (!name.trim()) {
+      setError("Nama pelanggan wajib diisi");
+      return;
+    }
+    setError("");
+    startTransition(async () => {
+      const res = await updateCustomerFromInvoice(customer.id, {
+        name,
+        phone,
+        address,
+      });
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      onSaved({
+        name: name.trim(),
+        phone: phone.trim() || null,
+        address: address.trim() || null,
+      });
+      setIsEditing(false);
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">Data Pelanggan</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {error && <p className="mb-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+
+        <div className="space-y-3">
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Nama</p>
+            {isEditing ? (
+              <input
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+              />
+            ) : (
+              <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">{customer.name}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">No. Telepon</p>
+            {isEditing ? (
+              <input
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0812xxxx"
+              />
+            ) : (
+              <p className="rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">{customer.phone || "-"}</p>
+            )}
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">Alamat</p>
+            {isEditing ? (
+              <textarea
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                rows={3}
+                value={address}
+                onChange={(e) => setAddress(e.target.value)}
+                placeholder="Alamat pelanggan"
+              />
+            ) : (
+              <p className="min-h-16 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">{customer.address || "-"}</p>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-md border border-gray-200 px-4 py-2 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            Kembali
+          </button>
+          {isEditing ? (
+            <button
+              type="button"
+              disabled={isPending}
+              onClick={handleSave}
+              className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-500 disabled:opacity-50"
+            >
+              {isPending ? "Menyimpan..." : "Simpan"}
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsEditing(true)}
+              className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800"
+            >
+              Ubah Data
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EngineerMembersModal({
+  engineers,
+  canEdit,
+  onRemove,
+  onClose,
+}: {
+  engineers: AssignedMechanic[];
+  canEdit: boolean;
+  onRemove: (assignmentId: string) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+      <div className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-gray-900">Personil Engineer</h3>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded p-1 text-gray-500 hover:bg-gray-100"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {engineers.length === 0 ? (
+          <p className="text-sm text-gray-500">Belum ada engineer ditugaskan.</p>
+        ) : (
+          <div className="max-h-72 space-y-2 overflow-y-auto">
+            {engineers.map((engineer, idx) => (
+              <div
+                key={engineer.assignmentId}
+                className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
+              >
+                <div>
+                  <p className="text-sm font-medium text-gray-900">{idx + 1}. {engineer.name}</p>
+                  <p className="text-xs text-gray-500">
+                    {engineer.role === "lead" ? "Teknisi (Lead Engineer)" : "Helper"}
+                  </p>
+                </div>
+                {canEdit && (
+                  <button
+                    type="button"
+                    onClick={() => onRemove(engineer.assignmentId)}
+                    className="rounded-md border border-red-200 px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                  >
+                    Hapus
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -375,12 +572,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   }, [editInvoice?.status]);
 
   // ── Customer state ─────────────────────────────────────────────────
-  const [customer, setCustomer] = useState<{ id: string; name: string; phone: string | null } | null>(
-    editCustomer
+  const [customer, setCustomer] = useState<{ id: string; name: string; phone: string | null; address: string | null } | null>(
+    editCustomer ? { ...editCustomer, address: editCustomer.address ?? null } : null
   );
   const [customerSearch, setCustomerSearch] = useState(editCustomer?.name ?? "");
   const [customerResults, setCustomerResults] = useState<CustomerResult[]>([]);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
+  const [showCustomerPreview, setShowCustomerPreview] = useState(false);
 
   // ── Date state ────────────────────────────────────────────────────────
   const [invoiceDate, setInvoiceDate] = useState(
@@ -402,6 +600,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   );
   const hasComplaint = assignedMechanics.some((m) => m.hasComplaint);
   const [showMechanicPicker, setShowMechanicPicker] = useState(false);
+  const [showEngineerMembers, setShowEngineerMembers] = useState(false);
 
   // ── Item input state ──────────────────────────────────────────────────
   const [itemType, setItemType] = useState<ItemType>("service");
@@ -462,6 +661,19 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Save state (create) ───────────────────────────────────────────────
   const [saveError, setSaveError] = useState("");
+
+  const leadEngineer = assignedMechanics.find((m) => m.role === "lead") ?? assignedMechanics[0] ?? null;
+  const otherEngineerCount = leadEngineer ? assignedMechanics.length - 1 : 0;
+  const maxEngineerReached = assignedMechanics.length >= 10;
+  const isCreateDirty =
+    !isEdit &&
+    (Boolean(customer) ||
+      customerSearch.trim().length > 0 ||
+      items.length > 0 ||
+      assignedMechanics.length > 0 ||
+      dueDate.length > 0 ||
+      shippingCost > 0 ||
+      invoiceDate !== todayStr());
 
   // ── Computed totals ───────────────────────────────────────────────────
   const preTax = items.reduce((s, i) => s + i.sellPrice * i.qty, 0);
@@ -658,6 +870,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Mechanics ─────────────────────────────────────────────────────────
   function handleAddMechanic(mechanicId: string, role: MechanicRoleInInvoice) {
+    if (assignedMechanics.length >= 10) return;
+    if (assignedMechanics.some((m) => m.mechanicId === mechanicId)) return;
     const mechanic = props.mechanics.find((m) => m.id === mechanicId);
     if (!mechanic) return;
 
@@ -678,6 +892,37 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         ]);
       });
     }
+  }
+
+  function resetCreateDraft() {
+    setItems([]);
+    setCustomer(null);
+    setCustomerSearch("");
+    setCustomerResults([]);
+    setAssignedMechanics([]);
+    setDueDate("");
+    setShippingCost(0);
+    setShippingInput("");
+    setInvoiceDate(todayStr());
+    setItemDesc("");
+    setItemQty(1);
+    setItemUnitLabel("");
+    setItemSellPrice(0);
+    setItemBuyPrice(0);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setSaveError("");
+    setShowCustomerPreview(false);
+    setShowEngineerMembers(false);
+  }
+
+  function handleStartNewInvoice() {
+    if (isEdit) return;
+    if (isCreateDirty) {
+      const proceed = window.confirm("Draft saat ini akan direset. Lanjut buat invoice baru?");
+      if (!proceed) return;
+    }
+    resetCreateDraft();
   }
 
   function handleToggleComplaint() {
@@ -861,18 +1106,46 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           onClose={() => setShowAddCustomer(false)}
         />
       )}
+      {showCustomerPreview && customer && (
+        <CustomerPreviewModal
+          customer={customer}
+          onSaved={(payload) => {
+            setCustomer((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    name: payload.name,
+                    phone: payload.phone,
+                    address: payload.address,
+                  }
+                : prev
+            );
+            setCustomerSearch(payload.name);
+          }}
+          onClose={() => setShowCustomerPreview(false)}
+        />
+      )}
       {showMechanicPicker && (
         <MechanicPickerModal
           mechanics={props.mechanics}
           assignedIds={assignedMechanics.map((m) => m.mechanicId)}
+          maxReached={maxEngineerReached}
           onAssign={handleAddMechanic}
           onClose={() => setShowMechanicPicker(false)}
         />
       )}
+      {showEngineerMembers && (
+        <EngineerMembersModal
+          engineers={assignedMechanics}
+          canEdit={canEdit}
+          onRemove={handleRemoveMechanic}
+          onClose={() => setShowEngineerMembers(false)}
+        />
+      )}
 
       {/* ── Title Bar ──────────────────────────────────────────────────── */}
-      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-700 bg-gray-900 px-4 py-2.5">
-        <div className="flex min-w-0 items-center gap-3">
+      <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-gray-700 bg-gray-900 px-3 py-2.5 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <Link
             href={`${props.basePath}/invoices`}
             className="flex shrink-0 items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-white"
@@ -894,7 +1167,19 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </span>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-3">
+        <div className="flex items-center justify-center">
+          {!isEdit && (
+            <button
+              type="button"
+              onClick={handleStartNewInvoice}
+              className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/40 bg-blue-500/15 px-2.5 py-1 text-xs font-semibold text-blue-100 transition-colors hover:bg-blue-500/25"
+            >
+              <Plus size={12} />
+              Buat Baru
+            </button>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center justify-end gap-3">
           {isPending && (
             <span className="animate-pulse text-xs text-gray-400">Menyimpan…</span>
           )}
@@ -910,11 +1195,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
 
       {/* ── Field Strip ─────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-b border-gray-700 bg-gray-800 px-4 py-2.5">
-        <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-x-5 sm:gap-y-2">
+      <div className="shrink-0 border-b border-gray-700 bg-gray-800 px-3 py-3 sm:px-4">
+        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-12">
 
           {/* Date */}
-          <div className="flex items-center gap-1.5">
+          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-2">
+            <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Tgl</span>
             <input
               type="date"
@@ -925,12 +1211,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               }}
               className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
+            </div>
           </div>
 
-          <div className="hidden h-4 w-px bg-gray-600 sm:block" />
-
           {/* Due Date */}
-          <div className="flex items-center gap-1.5">
+          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-3">
+            <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Jatuh Tempo</span>
             <input
               type="date"
@@ -938,18 +1224,31 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               onChange={(e) => handleSaveDueDate(e.target.value)}
               className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
+            </div>
           </div>
 
-          <div className="hidden h-4 w-px bg-gray-600 sm:block" />
-          <div className="flex items-center gap-1.5">
+          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-4">
+            <div className="flex items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Customer</span>
             {isEdit ? (
-              <span className="text-sm font-medium text-white">
-                {editCustomer?.name ?? <span className="italic text-gray-500">–</span>}
-                {editCustomer?.phone && (
-                  <span className="ml-1.5 text-xs text-gray-400">{editCustomer.phone}</span>
+              <div className="flex min-w-0 items-center gap-2">
+                <span className="truncate text-sm font-medium text-white">
+                  {editCustomer?.name ?? <span className="italic text-gray-500">–</span>}
+                  {editCustomer?.phone && (
+                    <span className="ml-1.5 text-xs text-gray-400">{editCustomer.phone}</span>
+                  )}
+                </span>
+                {customer && (
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomerPreview(true)}
+                    className="inline-flex items-center justify-center rounded border border-gray-600 p-1 text-gray-300 hover:border-blue-500 hover:text-blue-300"
+                    title="Preview data pelanggan"
+                  >
+                    <Eye size={12} />
+                  </button>
                 )}
-              </span>
+              </div>
             ) : (
               <div className="relative flex min-w-0 items-center gap-1">
                 <input
@@ -959,7 +1258,17 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                 />
                 {customer ? (
-                  <span className="text-xs text-green-400">✓</span>
+                  <>
+                    <span className="text-xs text-green-400">✓</span>
+                    <button
+                      type="button"
+                      onClick={() => setShowCustomerPreview(true)}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-300"
+                      title="Preview data pelanggan"
+                    >
+                      <Eye size={11} />
+                    </button>
+                  </>
                 ) : (
                   <button
                     type="button"
@@ -978,7 +1287,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                         type="button"
                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
                         onClick={() => {
-                          setCustomer({ id: c.id, name: c.name, phone: c.phone });
+                          setCustomer({ id: c.id, name: c.name, phone: c.phone, address: c.address });
                           setCustomerSearch(c.name);
                           setCustomerResults([]);
                         }}
@@ -999,42 +1308,36 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </div>
             )}
+            </div>
           </div>
 
-          <div className="hidden h-4 w-px bg-gray-600 sm:block" />
-
           {/* Mechanics */}
-          <div className="flex items-center gap-1.5">
-            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Mekanik</span>
-            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1">
-              {assignedMechanics.map((m) => (
-                <span
-                  key={m.assignmentId}
-                  className="inline-flex items-center gap-1 rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-200"
-                >
-                  {m.name}
-                  <span
-                    className={`rounded-full px-1 text-[10px] font-medium ${
-                      m.role === "lead" ? "bg-blue-700 text-blue-200" : "bg-gray-600 text-gray-300"
-                    }`}
-                  >
-                    {m.role === "lead" ? "L" : "H"}
+          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-3">
+            <div className="flex items-center gap-1.5">
+              <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Engineer</span>
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
+                {leadEngineer ? (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-700/30 px-2 py-0.5 text-xs text-blue-100">
+                    Lead: {leadEngineer.name}
                   </span>
-                  {m.hasComplaint && (
-                    <span className="rounded bg-red-500 px-1 py-0 text-[9px] font-bold text-white">K</span>
-                  )}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveMechanic(m.assignmentId)}
-                      className="ml-0.5 text-gray-400 hover:text-red-400"
-                    >
-                      <X size={10} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {canEdit && props.mechanics.length > assignedMechanics.length && (
+                ) : (
+                  <span className="text-xs italic text-gray-500">Belum dipilih</span>
+                )}
+                {otherEngineerCount > 0 && (
+                  <span className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-200">
+                    +{otherEngineerCount} personil
+                  </span>
+                )}
+                {assignedMechanics.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowEngineerMembers(true)}
+                    className="inline-flex items-center gap-1 rounded-full border border-gray-600 px-2 py-0.5 text-xs text-gray-300 hover:border-blue-400 hover:text-blue-200"
+                  >
+                    <Users size={11} /> Lihat Engineer
+                  </button>
+                )}
+              {canEdit && props.mechanics.length > assignedMechanics.length && !maxEngineerReached && (
                 <button
                   type="button"
                   onClick={() => setShowMechanicPicker(true)}
@@ -1043,16 +1346,17 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   <Plus size={10} /> Tambah
                 </button>
               )}
-              {assignedMechanics.length === 0 && !canEdit && (
-                <span className="text-xs italic text-gray-500">–</span>
+              {maxEngineerReached && canEdit && (
+                <span className="text-[10px] font-medium text-amber-400">Maks 10</span>
               )}
+              </div>
             </div>
           </div>
 
-          <div className="hidden h-4 w-px bg-gray-600 sm:block" />
-
           {/* Notes / Catatan */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {isEdit && (
+          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-12">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
             <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Catatan</span>
             <input
               className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
@@ -1072,7 +1376,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 Simpan
               </button>
             )}
+            </div>
           </div>
+          )}
         </div>
       </div>
 
@@ -1817,8 +2123,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 <button
                   type="button"
                   onClick={() => {
-                    setItems([]); setCustomer(null); setCustomerSearch("");
-                    setNotes(""); setAssignedMechanics([]); setSaveError("");
+                    resetCreateDraft();
                   }}
                   className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
                 >
@@ -1842,8 +2147,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               <button
                 type="button"
                 onClick={() => {
-                  setItems([]); setCustomer(null); setCustomerSearch("");
-                  setNotes(""); setAssignedMechanics([]); setSaveError("");
+                  resetCreateDraft();
                 }}
                 className="rounded-lg border border-gray-200 py-2 text-sm text-gray-600"
               >

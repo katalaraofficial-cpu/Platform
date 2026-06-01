@@ -28,6 +28,7 @@ const COA_MASUK: CoaEntry[] = [
   { code: "103", name: "Piutang Usaha" },
   { code: "301", name: "Modal Awal / Setoran" },
   { code: "105", name: "Mutasi Kas Bank" },
+  { code: "108", name: "Pelunasan Kasbon Karyawan" },
   { code: "610", name: "Lainnya" },
 ];
 
@@ -41,10 +42,38 @@ const COA_KELUAR: CoaEntry[] = [
   { code: "607", name: "Pajak" },
   { code: "501", name: "Beban Bunga Bank" },
   { code: "210", name: "Hutang Usaha" },
+  { code: "108", name: "Kasbon Karyawan" },
   { code: "302", name: "Prive" },
   { code: "104", name: "Pembelian Stok" },
   { code: "610", name: "Lainnya" },
 ];
+
+// COA codes that need extra counterparty / due-date fields
+const HP_COA_CODES = ["103", "210", "108"];
+function coaCodeOf(cat: string) {
+  return cat.split(" ")[0]; // "103 - Piutang Usaha" → "103"
+}
+function isHpCoa(cat: string) {
+  return HP_COA_CODES.includes(coaCodeOf(cat));
+}
+function counterpartyLabel(cat: string) {
+  const code = coaCodeOf(cat);
+  if (code === "103") return "Nama Customer / Pihak";
+  if (code === "210") return "Nama Vendor / Pemasok";
+  return "Nama Karyawan";
+}
+function hasDueDateField(cat: string) {
+  const code = coaCodeOf(cat);
+  return code === "103" || code === "210";
+}
+// Build a structured notes string when HP fields are filled
+function buildHpNotes(counterparty: string, dueDate: string, userNotes: string) {
+  const parts: string[] = [];
+  if (counterparty) parts.push(`Pihak: ${counterparty}`);
+  if (dueDate) parts.push(`JT: ${dueDate}`);
+  const prefix = parts.join(" | ");
+  return prefix ? (userNotes ? `${prefix} — ${userNotes}` : prefix) : userNotes;
+}
 
 // ── Date helpers ───────────────────────────────────────────
 function todayIso() {
@@ -193,6 +222,7 @@ function TambahModal({ onClose }: { onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
   const [amount, setAmount] = useState("");
+  const [selectedCoa, setSelectedCoa] = useState("");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -203,13 +233,17 @@ function TambahModal({ onClose }: { onClose: () => void }) {
       setErr("Jumlah harus lebih dari 0");
       return;
     }
+    const counterparty = (fd.get("counterparty") as string) || "";
+    const dueDate = (fd.get("due_date") as string) || "";
+    const userNotes = (fd.get("notes") as string) || "";
+    const notes = buildHpNotes(counterparty, dueDate, userNotes) || undefined;
     startTransition(async () => {
       const res = await addKasEntry({
         transaction_type: "kas_masuk",
         account_type: fd.get("account_type") as AccountType,
         category: fd.get("category") as string,
         amount: amtVal,
-        notes: (fd.get("notes") as string) || undefined,
+        notes,
         transaction_date: (fd.get("transaction_date") as string) || undefined,
       });
       if ("error" in res) {
@@ -240,7 +274,12 @@ function TambahModal({ onClose }: { onClose: () => void }) {
         </select>
       </Field>
       <Field label="Kategori (COA)">
-        <select name="category" className={selectCls} required>
+        <select
+          name="category"
+          className={selectCls}
+          required
+          onChange={(e) => setSelectedCoa(e.target.value)}
+        >
           <option value="">-- Pilih kategori --</option>
           {COA_MASUK.map((c) => (
             <option key={c.code} value={`${c.code} - ${c.name}`}>
@@ -249,6 +288,22 @@ function TambahModal({ onClose }: { onClose: () => void }) {
           ))}
         </select>
       </Field>
+      {/* Conditional HP fields */}
+      {isHpCoa(selectedCoa) && (
+        <Field label={counterpartyLabel(selectedCoa)}>
+          <input
+            name="counterparty"
+            className={inputCls}
+            placeholder="Masukkan nama..."
+            required
+          />
+        </Field>
+      )}
+      {hasDueDateField(selectedCoa) && (
+        <Field label="Jatuh Tempo (opsional)">
+          <input name="due_date" type="date" className={inputCls} />
+        </Field>
+      )}
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
       </Field>
@@ -267,6 +322,7 @@ function KurangModal({ onClose }: { onClose: () => void }) {
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
   const [amount, setAmount] = useState("");
+  const [selectedCoa, setSelectedCoa] = useState("");
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -277,13 +333,17 @@ function KurangModal({ onClose }: { onClose: () => void }) {
       setErr("Jumlah harus lebih dari 0");
       return;
     }
+    const counterparty = (fd.get("counterparty") as string) || "";
+    const dueDate = (fd.get("due_date") as string) || "";
+    const userNotes = (fd.get("notes") as string) || "";
+    const notes = buildHpNotes(counterparty, dueDate, userNotes) || undefined;
     startTransition(async () => {
       const res = await addKasEntry({
         transaction_type: "kas_keluar",
         account_type: fd.get("account_type") as AccountType,
         category: fd.get("category") as string,
         amount: amtVal,
-        notes: (fd.get("notes") as string) || undefined,
+        notes,
         transaction_date: (fd.get("transaction_date") as string) || undefined,
       });
       if ("error" in res) {
@@ -314,7 +374,12 @@ function KurangModal({ onClose }: { onClose: () => void }) {
         </select>
       </Field>
       <Field label="Kategori (COA)">
-        <select name="category" className={selectCls} required>
+        <select
+          name="category"
+          className={selectCls}
+          required
+          onChange={(e) => setSelectedCoa(e.target.value)}
+        >
           <option value="">-- Pilih kategori --</option>
           {COA_KELUAR.map((c) => (
             <option key={`${c.code}-${c.name}`} value={`${c.code} - ${c.name}`}>
@@ -323,6 +388,22 @@ function KurangModal({ onClose }: { onClose: () => void }) {
           ))}
         </select>
       </Field>
+      {/* Conditional HP fields */}
+      {isHpCoa(selectedCoa) && (
+        <Field label={counterpartyLabel(selectedCoa)}>
+          <input
+            name="counterparty"
+            className={inputCls}
+            placeholder="Masukkan nama..."
+            required
+          />
+        </Field>
+      )}
+      {hasDueDateField(selectedCoa) && (
+        <Field label="Jatuh Tempo (opsional)">
+          <input name="due_date" type="date" className={inputCls} />
+        </Field>
+      )}
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
       </Field>

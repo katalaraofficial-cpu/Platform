@@ -13,24 +13,16 @@ import {
 } from "lucide-react";
 import { KasQuickActions, KasRowActions } from "@/components/kas/kas-actions";
 import { KasFilterBar } from "@/components/kas/kas-filter-bar";
-import { KasHpSection } from "@/components/kas/kas-hp";
-import { listKasHp } from "@/lib/actions/kas-hp";
 import type { Ledger } from "@/types/database";
-
-// ── Constants ─────────────────────────────────────────────────
-const PAGE_SIZE = 20;
 
 // ── Helpers ────────────────────────────────────────────────────
 function fmt(n: number) {
-  return "Rp " + Math.abs(n).toLocaleString("id-ID");
+  return (n < 0 ? "-" : "") + "Rp " + Math.abs(n).toLocaleString("id-ID");
 }
 
-function fmtDate(iso: string) {
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+function fmtDate(dateStr: string) {
+  const d = dateStr.length === 10 ? new Date(dateStr + "T00:00:00") : new Date(dateStr);
+  return d.toLocaleDateString("id-ID", { day: "2-digit", month: "short", year: "numeric" });
 }
 
 // ── Props ──────────────────────────────────────────────────────
@@ -40,6 +32,8 @@ type SearchParams = Promise<{
   type?: string;
   from?: string;
   to?: string;
+  search?: string;
+  size?: string;
 }>;
 
 // ── Page ───────────────────────────────────────────────────────
@@ -53,10 +47,12 @@ export default async function KasPage({
 
   const sp = await searchParams;
   const page = Math.max(1, parseInt(sp.page ?? "1", 10));
-  const accountFilter = sp.account ?? "all"; // all | kas_tunai | bank
-  const typeFilter = sp.type ?? "all"; // all | kas_masuk | kas_keluar
+  const accountFilter = sp.account ?? "all";
+  const typeFilter = sp.type ?? "all";
   const fromDate = sp.from ?? "";
   const toDate = sp.to ?? "";
+  const search = sp.search ?? "";
+  const pageSize = Math.min(50, Math.max(10, parseInt(sp.size ?? "20", 10)));
 
   const supabase = await createClient();
 
@@ -75,23 +71,23 @@ export default async function KasPage({
     query = query.eq("transaction_type", typeFilter as import("@/types/database").LedgerType);
   }
   if (fromDate) {
-    query = query.gte("created_at", fromDate);
+    query = query.gte("transaction_date", fromDate);
   }
   if (toDate) {
-    // Include entire end day
-    query = query.lte("created_at", toDate + "T23:59:59");
+    query = query.lte("transaction_date", toDate);
+  }
+  if (search) {
+    query = query.or(`category.ilike.%${search}%,notes.ilike.%${search}%`);
   }
 
-  const from = (page - 1) * PAGE_SIZE;
-  const to = from + PAGE_SIZE - 1;
-  const [{ data: allEntries }, { data: entries, count }, hutang, piutang] = await Promise.all([
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+  const [{ data: allEntries }, { data: entries, count }] = await Promise.all([
     supabase
       .from("ledger")
       .select("account_type, transaction_type, amount")
       .eq("tenant_id", ctx.tenantId),
     query.range(from, to),
-    listKasHp("hutang"),
-    listKasHp("piutang"),
   ]);
 
   let kasTunaiIn = 0,
@@ -115,9 +111,9 @@ export default async function KasPage({
   const totalIn = kasTunaiIn + bankIn;
   const totalOut = kasTunaiOut + bankOut;
 
-  const totalPages = Math.max(1, Math.ceil((count ?? 0) / PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
 
-  // ── Pagination URL builder ───────────────────────────────────
+  // ── URL builders ────────────────────────────────────────────
   function pageUrl(p: number) {
     const params = new URLSearchParams();
     params.set("page", String(p));
@@ -125,6 +121,20 @@ export default async function KasPage({
     if (typeFilter !== "all") params.set("type", typeFilter);
     if (fromDate) params.set("from", fromDate);
     if (toDate) params.set("to", toDate);
+    if (search) params.set("search", search);
+    if (pageSize !== 20) params.set("size", String(pageSize));
+    return `/owner/kas?${params.toString()}`;
+  }
+
+  function pageSizeUrl(s: number) {
+    const params = new URLSearchParams();
+    params.set("page", "1");
+    params.set("size", String(s));
+    if (accountFilter !== "all") params.set("account", accountFilter);
+    if (typeFilter !== "all") params.set("type", typeFilter);
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
+    if (search) params.set("search", search);
     return `/owner/kas?${params.toString()}`;
   }
 
@@ -223,6 +233,8 @@ export default async function KasPage({
           typeFilter={typeFilter}
           fromDate={fromDate}
           toDate={toDate}
+          search={search}
+          pageSize={String(pageSize)}
         />
 
         {/* Table */}
@@ -348,11 +360,31 @@ export default async function KasPage({
         </div>
 
         {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="flex items-center justify-between border-t border-gray-100 px-5 py-3">
+        <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-5 py-3 sm:flex-row sm:justify-between">
+          {/* Info + page size */}
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:justify-start">
             <p className="text-xs text-gray-500">
-              {count} transaksi — halaman {page} dari {totalPages}
+              {count ?? 0} transaksi &mdash; hal. {page}/{totalPages}
             </p>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-gray-400">Tampil:</span>
+              {[10, 15, 25, 50].map((s) => (
+                <a
+                  key={s}
+                  href={pageSizeUrl(s)}
+                  className={`rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+                    pageSize === s
+                      ? "bg-primary text-white"
+                      : "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                  }`}
+                >
+                  {s}
+                </a>
+              ))}
+            </div>
+          </div>
+          {/* Nav */}
+          {totalPages > 1 && (
             <div className="flex items-center gap-1">
               {page > 1 && (
                 <a
@@ -363,7 +395,6 @@ export default async function KasPage({
                   Prev
                 </a>
               )}
-              {/* Page numbers (show up to 5) */}
               {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                 const start = Math.max(1, Math.min(page - 2, totalPages - 4));
                 const p = start + i;
@@ -391,12 +422,9 @@ export default async function KasPage({
                 </a>
               )}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
-
-      {/* ── Hutang & Piutang Section ─────────────────────── */}
-      <KasHpSection hutang={hutang} piutang={piutang} />
     </div>
   );
 }

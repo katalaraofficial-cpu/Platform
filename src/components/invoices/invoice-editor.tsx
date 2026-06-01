@@ -1380,7 +1380,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
 
       {/* ── Main Body ───────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col pb-52 md:pb-0 md:flex-row">
 
         {/* ── Left: Add-item strip + Items table ────────────────────────── */}
         <div className="flex min-w-0 flex-1 flex-col overflow-visible md:overflow-hidden">
@@ -1733,7 +1733,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           </div>
 
           {/* Items Table */}
-          <div className="flex-1 overflow-y-auto">
+          <div className="flex-1 overflow-y-auto pb-40 md:pb-0">
             {items.length === 0 ? (
               <div className="flex h-full min-h-[120px] items-center justify-center text-sm text-gray-400">
                 Belum ada item. Tambahkan item di atas.

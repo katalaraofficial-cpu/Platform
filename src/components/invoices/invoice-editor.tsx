@@ -2001,7 +2001,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         </div>
 
         {/* ── Right Sidebar ──────────────────────────────────────────────── */}
-        <div className={`flex w-full shrink-0 flex-col border-t border-gray-200 bg-white ${!isEdit ? "pb-40 md:pb-0" : "pb-0"} md:w-64 md:border-l md:border-t-0 md:overflow-y-auto`}>
+        <div className={`flex w-full shrink-0 flex-col border-t border-gray-200 bg-white ${!isEdit ? "pb-40 md:pb-0" : "pb-32 md:pb-0"} md:w-64 md:border-l md:border-t-0 md:overflow-y-auto`}>
 
           {/* Totals */}
           <div className="hidden space-y-2.5 border-b border-gray-100 p-4 md:block">
@@ -2298,31 +2298,29 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </div>
           )}
 
-          {/* Bottom CTA */}
-          <div className="mt-auto space-y-2 p-4 pb-28 md:pb-4">
-            {saveError && <p className="text-xs text-red-600">{saveError}</p>}
-            {!isEdit && (
-              <div className="hidden md:block space-y-2">
-                <button
-                  type="button"
-                  onClick={handleSave}
-                  disabled={isPending || !customer}
-                  className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
-                >
-                  {isPending ? "Menyimpan…" : "Simpan Invoice"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    resetCreateDraft();
-                  }}
-                  className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
-                >
-                  Reset
-                </button>
-              </div>
-            )}
-          </div>
+          {/* Bottom CTA (desktop create only) */}
+          {!isEdit && (
+            <div className="mt-auto hidden space-y-2 p-4 md:block">
+              {saveError && <p className="text-xs text-red-600">{saveError}</p>}
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={isPending || !customer}
+                className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-bold text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+              >
+                {isPending ? "Menyimpan…" : "Simpan Invoice"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetCreateDraft();
+                }}
+                className="w-full rounded-lg border border-gray-200 py-2 text-sm text-gray-600 hover:bg-gray-50"
+              >
+                Reset
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -2353,6 +2351,35 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 {isPending ? "Menyimpan..." : "Simpan"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isEdit && (
+        <div className="fixed inset-x-0 bottom-20 z-40 px-3 md:hidden">
+          <div className="rounded-xl border border-gray-200 bg-white/95 p-3 shadow-lg backdrop-blur">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Grand Total</span>
+              <span className="font-mono text-sm font-bold text-gray-900">{fmt(grandTotal)}</span>
+            </div>
+            {displayStatus === "completed" ? (
+              <button
+                type="button"
+                onClick={handleProcessPayment}
+                disabled={isPending}
+                className="w-full rounded-lg bg-green-600 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+              >
+                {isPending ? "Proses..." : "Tandai Lunas"}
+              </button>
+            ) : displayStatus === "paid" ? (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-center text-xs font-semibold text-green-700">
+                Invoice sudah lunas
+              </div>
+            ) : (
+              <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-center text-xs text-gray-600">
+                Lanjutkan proses dari menu status invoice
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1380,10 +1380,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
 
       {/* ── Main Body ───────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 flex-col pb-52 md:pb-0 md:flex-row">
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
 
         {/* ── Left: Add-item strip + Items table ────────────────────────── */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-visible md:overflow-hidden">
+        <div className="flex min-w-0 flex-col overflow-visible md:flex-1 md:overflow-hidden">
 
           {/* Add Item Strip */}
           {canEdit && (
@@ -1602,6 +1602,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </div>
           )}
 
+          {!isEdit && (
           <div className="border-b border-gray-100 bg-white px-3 pb-3 md:hidden">
             <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between text-sm text-gray-500">
@@ -1731,9 +1732,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               </div>
             </div>
           </div>
+          )}
 
           {/* Items Table */}
-          <div className="flex-1 overflow-y-auto pb-40 md:pb-0">
+          <div className={`overflow-visible ${!isEdit ? "pb-40" : "pb-0"} md:flex-1 md:overflow-y-auto md:pb-0`}>
             {items.length === 0 ? (
               <div className="flex h-full min-h-[120px] items-center justify-center text-sm text-gray-400">
                 Belum ada item. Tambahkan item di atas.
@@ -1999,7 +2001,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         </div>
 
         {/* ── Right Sidebar ──────────────────────────────────────────────── */}
-        <div className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-gray-200 bg-white md:w-64 md:border-l md:border-t-0">
+        <div className={`flex w-full shrink-0 flex-col border-t border-gray-200 bg-white ${!isEdit ? "pb-40 md:pb-0" : "pb-0"} md:w-64 md:border-l md:border-t-0 md:overflow-y-auto`}>
 
           {/* Totals */}
           <div className="hidden space-y-2.5 border-b border-gray-100 p-4 md:block">

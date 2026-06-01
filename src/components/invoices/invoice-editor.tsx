@@ -1144,7 +1144,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       )}
 
       {/* ── Title Bar ──────────────────────────────────────────────────── */}
-      <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center gap-3 border-b border-gray-700 bg-gray-900 px-3 py-2.5 sm:px-4">
+      <div className="grid shrink-0 grid-cols-[auto_1fr_auto] items-center gap-3 border-b border-gray-700 bg-gray-900 px-3 py-2.5 sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
           <Link
             href={`${props.basePath}/invoices`}
@@ -1153,10 +1153,16 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             <ArrowLeft size={15} />
             <span className="hidden sm:inline">Kembali</span>
           </Link>
-          <span className="shrink-0 text-gray-600">|</span>
-          <h1 className="truncate font-mono text-base font-bold text-white">
-            {isEdit ? editInvoice!.invoiceNumber : "Invoice Baru"}
-          </h1>
+        </div>
+        <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+          <div className="min-w-0">
+            <h1 className="truncate text-base font-bold text-white">
+              {isEdit ? "Invoice" : "Invoice Baru"}
+            </h1>
+            {isEdit && (
+              <p className="truncate text-[11px] text-gray-400">{editInvoice!.invoiceNumber}</p>
+            )}
+          </div>
           {isEdit && displayStatus && (
             <span
               className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide ${
@@ -1167,7 +1173,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </span>
           )}
         </div>
-        <div className="flex items-center justify-center">
+        <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
           {!isEdit && (
             <button
               type="button"
@@ -1178,8 +1184,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               Buat Baru
             </button>
           )}
-        </div>
-        <div className="flex shrink-0 items-center justify-end gap-3">
           {isPending && (
             <span className="animate-pulse text-xs text-gray-400">Menyimpan…</span>
           )}
@@ -1196,12 +1200,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
       {/* ── Field Strip ─────────────────────────────────────────────────── */}
       <div className="shrink-0 border-b border-gray-700 bg-gray-800 px-3 py-3 sm:px-4">
-        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-12">
-
-          {/* Date */}
-          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-2">
-            <div className="flex items-center gap-1.5">
-            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Tgl</span>
+        <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-12">
+          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Tanggal</p>
             <input
               type="date"
               value={invoiceDate}
@@ -1209,29 +1210,24 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               onBlur={(e) => {
                 if (isEdit) handleSaveInvoiceDate(e.target.value);
               }}
-              className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
-            </div>
           </div>
 
-          {/* Due Date */}
-          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-3">
-            <div className="flex items-center gap-1.5">
-            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Jatuh Tempo</span>
+          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Jatuh Tempo</p>
             <input
               type="date"
               value={dueDate}
               onChange={(e) => handleSaveDueDate(e.target.value)}
-              className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white focus:border-blue-500 focus:outline-none"
+              className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
             />
-            </div>
           </div>
 
-          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-4">
-            <div className="flex items-center gap-1.5">
-            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Customer</span>
+          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-4">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Customer</p>
             {isEdit ? (
-              <div className="flex min-w-0 items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2 rounded border border-gray-600 bg-gray-700 px-3 py-2">
                 <span className="truncate text-sm font-medium text-white">
                   {editCustomer?.name ?? <span className="italic text-gray-500">–</span>}
                   {editCustomer?.phone && (
@@ -1242,18 +1238,18 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   <button
                     type="button"
                     onClick={() => setShowCustomerPreview(true)}
-                    className="inline-flex items-center justify-center rounded border border-gray-600 p-1 text-gray-300 hover:border-blue-500 hover:text-blue-300"
+                    className="inline-flex items-center justify-center rounded border border-gray-500 p-1 text-gray-300 hover:border-blue-500 hover:text-blue-300"
                     title="Preview data pelanggan"
                   >
-                    <Eye size={12} />
+                    <Eye size={14} />
                   </button>
                 )}
               </div>
             ) : (
-              <div className="relative flex min-w-0 items-center gap-1">
+              <div className="relative flex min-w-0 items-center gap-2">
                 <input
-                  className="w-full min-w-0 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none sm:w-40"
-                  placeholder="Cari pelanggan…"
+                  className="w-full min-w-0 rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                  placeholder="Cari pelanggan..."
                   value={customerSearch}
                   onChange={(e) => handleCustomerSearch(e.target.value)}
                 />
@@ -1263,10 +1259,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     <button
                       type="button"
                       onClick={() => setShowCustomerPreview(true)}
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-300"
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-300 hover:border-blue-500 hover:text-blue-300"
                       title="Preview data pelanggan"
                     >
-                      <Eye size={11} />
+                      <Eye size={14} />
                     </button>
                   </>
                 ) : (
@@ -1274,13 +1270,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     type="button"
                     title="Tambah pelanggan baru"
                     onClick={() => setShowAddCustomer(true)}
-                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded border border-gray-600 text-gray-400 hover:border-blue-500 hover:text-blue-400"
                   >
-                    <Plus size={11} />
+                    <Plus size={14} />
                   </button>
                 )}
                 {customerResults.length > 0 && !customer && (
-                  <div className="absolute left-0 top-full z-30 mt-1 w-64 rounded-md border border-gray-200 bg-white shadow-lg">
+                  <div className="absolute left-0 top-full z-30 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg sm:w-64">
                     {customerResults.map((c) => (
                       <button
                         key={c.id}
@@ -1300,7 +1296,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     <button
                       type="button"
                       className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50"
-                      onClick={() => { setCustomerResults([]); setShowAddCustomer(true); }}
+                      onClick={() => {
+                        setCustomerResults([]);
+                        setShowAddCustomer(true);
+                      }}
                     >
                       + Tambah &ldquo;{customerSearch}&rdquo; sebagai baru
                     </button>
@@ -1308,40 +1307,37 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </div>
             )}
-            </div>
           </div>
 
-          {/* Mechanics */}
-          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-3">
-            <div className="flex items-center gap-1.5">
-              <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Engineer</span>
-              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-                {leadEngineer ? (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-700/30 px-2 py-0.5 text-xs text-blue-100">
-                    Lead: {leadEngineer.name}
-                  </span>
-                ) : (
-                  <span className="text-xs italic text-gray-500">Belum dipilih</span>
-                )}
-                {otherEngineerCount > 0 && (
-                  <span className="rounded-full bg-gray-700 px-2 py-0.5 text-xs text-gray-200">
-                    +{otherEngineerCount} personil
-                  </span>
-                )}
-                {assignedMechanics.length > 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setShowEngineerMembers(true)}
-                    className="inline-flex items-center gap-1 rounded-full border border-gray-600 px-2 py-0.5 text-xs text-gray-300 hover:border-blue-400 hover:text-blue-200"
-                  >
-                    <Users size={11} /> Lihat Engineer
-                  </button>
-                )}
+          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Engineer</p>
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5 rounded border border-gray-600 bg-gray-700 px-2.5 py-2">
+              {leadEngineer ? (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-700/30 px-2 py-0.5 text-xs text-blue-100">
+                  Lead: {leadEngineer.name}
+                </span>
+              ) : (
+                <span className="text-xs italic text-gray-400">Belum dipilih</span>
+              )}
+              {otherEngineerCount > 0 && (
+                <span className="rounded-full bg-gray-600 px-2 py-0.5 text-xs text-gray-200">
+                  +{otherEngineerCount} personil
+                </span>
+              )}
+              {assignedMechanics.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowEngineerMembers(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-gray-500 px-2 py-0.5 text-xs text-gray-200 hover:border-blue-400 hover:text-blue-200"
+                >
+                  <Users size={11} /> Lihat Engineer
+                </button>
+              )}
               {canEdit && props.mechanics.length > assignedMechanics.length && !maxEngineerReached && (
                 <button
                   type="button"
                   onClick={() => setShowMechanicPicker(true)}
-                  className="flex items-center gap-0.5 rounded-full border border-gray-600 px-1.5 py-0.5 text-xs text-gray-400 hover:border-gray-400 hover:text-gray-300"
+                  className="flex items-center gap-0.5 rounded-full border border-gray-500 px-1.5 py-0.5 text-xs text-gray-200 hover:border-gray-300 hover:text-white"
                 >
                   <Plus size={10} /> Tambah
                 </button>
@@ -1349,35 +1345,36 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               {maxEngineerReached && canEdit && (
                 <span className="text-[10px] font-medium text-amber-400">Maks 10</span>
               )}
-              </div>
             </div>
           </div>
 
-          {/* Notes / Catatan */}
           {isEdit && (
-          <div className="rounded-md border border-gray-700 bg-gray-800/60 p-2 lg:col-span-12">
-            <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="shrink-0 text-xs font-semibold uppercase tracking-wider text-gray-400">Catatan</span>
-            <input
-              className="min-w-0 flex-1 rounded border border-gray-600 bg-gray-700 px-2 py-0.5 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-              placeholder="Catatan / pekerjaan…"
-              value={notes}
-              readOnly={!canEdit}
-              onChange={(e) => { setNotes(e.target.value); if (isEdit) setNotesDirty(true); }}
-              onBlur={() => { if (isEdit && notesDirty) handleSaveNotes(); }}
-            />
-            {isEdit && notesDirty && (
-              <button
-                type="button"
-                onClick={handleSaveNotes}
-                disabled={isPending}
-                className="shrink-0 text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
-              >
-                Simpan
-              </button>
-            )}
+            <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-12">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Catatan</p>
+              <input
+                className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+                placeholder="Catatan / pekerjaan..."
+                value={notes}
+                readOnly={!canEdit}
+                onChange={(e) => {
+                  setNotes(e.target.value);
+                  if (isEdit) setNotesDirty(true);
+                }}
+                onBlur={() => {
+                  if (isEdit && notesDirty) handleSaveNotes();
+                }}
+              />
+              {isEdit && notesDirty && (
+                <button
+                  type="button"
+                  onClick={handleSaveNotes}
+                  disabled={isPending}
+                  className="shrink-0 text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
+                >
+                  Simpan
+                </button>
+              )}
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -1386,20 +1383,23 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
 
         {/* ── Left: Add-item strip + Items table ────────────────────────── */}
-        <div className="flex min-w-0 flex-1 flex-col overflow-y-auto md:overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col overflow-visible md:overflow-hidden">
 
           {/* Add Item Strip */}
           {canEdit && (
-            <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2.5">
-              <div className="grid grid-cols-2 gap-2 md:flex md:flex-wrap md:items-center">
-                {/* Type toggle */}
-                <div className="col-span-2 flex overflow-hidden rounded border border-gray-200 md:col-span-1 md:w-auto">
+            <div className="shrink-0 border-b border-gray-200 bg-white px-3 py-3 md:px-4 md:py-2.5">
+              <div className="rounded-xl border border-blue-100 bg-white p-3 shadow-sm">
+                <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-blue-600">
+                  Tambah Item / Jasa Servis <span className="font-medium text-slate-400">&mdash; Ketik Nama, Tekan Enter</span>
+                </p>
+
+                <div className="mb-3 flex overflow-hidden rounded-lg border border-gray-200">
                   {(["service", "part_internal"] as const).map((t, i) => (
                     <button
                       key={t}
                       type="button"
                       onClick={() => setItemType(t)}
-                      className={`flex-1 py-2 text-sm font-medium transition-colors md:flex-none md:px-2.5 md:py-1.5 md:text-xs ${
+                      className={`flex-1 py-2 text-sm font-medium transition-colors md:flex-none md:px-3 md:py-2 md:text-xs ${
                         i > 0 ? "border-l border-gray-200" : ""
                       } ${
                         itemType === t
@@ -1412,136 +1412,325 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   ))}
                 </div>
 
-                {/* Description with autocomplete */}
-                <div className="relative col-span-2 min-w-0 md:min-w-[160px] md:flex-1">
-                  <input
-                    className="w-full rounded border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
-                    placeholder="Nama item / jasa…"
-                    value={itemDesc}
-                    onChange={(e) => handleDescInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddItem(); } }}
-                    onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-                  />
-                  {showSuggestions && (
-                    <div className="absolute left-0 top-full z-20 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-md">
-                      {suggestions.map((s, i) => (
-                        <button
-                          key={i}
-                          type="button"
-                          className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => {
-                            setItemDesc(s.description);
-                            if (s.item_type !== "service") setItemType(s.item_type as ItemType);
-                            setShowSuggestions(false);
-                          }}
-                        >
-                          <span className="text-gray-900">{s.description}</span>
-                          <span className="ml-2 text-xs text-gray-400">{s.item_type}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Qty */}
-                <div className="flex min-w-0 items-center gap-1">
-                  <span className="text-xs text-gray-500">Qty</span>
-                  <input
-                    type="number" min="0.01" step="any"
-                    value={itemQty}
-                    onChange={(e) => setItemQty(Number(e.target.value))}
-                    className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-center text-sm focus:border-blue-500 focus:outline-none md:w-14"
-                  />
-                </div>
-
-                {/* Satuan */}
-                <div className="flex min-w-0 items-center gap-1">
-                  <span className="text-xs text-gray-500">Satuan</span>
-                  <input
-                    type="text"
-                    value={itemUnitLabel}
-                    onChange={(e) => setItemUnitLabel(e.target.value)}
-                    placeholder="pcs, unit…"
-                    className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-sm focus:border-blue-500 focus:outline-none md:w-16"
-                  />
-                </div>
-
-                {/* Buy price (parts only) */}
-                {itemType !== "service" && (
-                  <div className="col-span-2 flex min-w-0 items-center gap-1 md:col-span-1">
-                    <span className="text-xs text-gray-500">H.Beli</span>
+                <div className="grid gap-3 md:hidden">
+                  <div className="relative grid grid-cols-[1fr_52px] gap-2">
                     <input
-                      type="number" min="0" step="any"
-                      value={itemBuyPrice || ""}
-                      onChange={(e) => setItemBuyPrice(Number(e.target.value))}
-                      placeholder="0"
-                      className="w-full min-w-0 rounded border border-gray-300 px-2 py-1.5 text-right text-sm focus:border-blue-500 focus:outline-none md:w-24"
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      placeholder="Nama item atau jasa..."
+                      value={itemDesc}
+                      onChange={(e) => handleDescInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddItem(); } }}
+                      onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                     />
-                  </div>
-                )}
-
-                {/* Margin toggle (parts only) */}
-                {itemType !== "service" && (
-                  <div className="col-span-2 flex min-w-0 items-center gap-1.5 md:col-span-1">
-                    <label className="flex cursor-pointer items-center gap-1 text-xs text-gray-500 select-none">
-                      <input
-                        type="checkbox"
-                        checked={marginEnabled}
-                        onChange={(e) => setMarginEnabled(e.target.checked)}
-                        className="rounded"
-                      />
-                      Margin
-                    </label>
-                    {marginEnabled && (
-                      <>
-                        <input
-                          type="number" min="0" max="999" step="1"
-                          value={marginPct}
-                          onChange={(e) => setMarginPct(Number(e.target.value))}
-                          className="w-full min-w-0 rounded border border-amber-400 bg-amber-50 px-2 py-1.5 text-right text-sm focus:outline-none md:w-14"
-                        />
-                        <span className="text-xs text-amber-600">%</span>
-                      </>
+                    <button
+                      type="button"
+                      onClick={handleAddItem}
+                      disabled={isPending}
+                      className="flex items-center justify-center rounded border border-blue-200 bg-blue-50 text-blue-600 transition-colors hover:bg-blue-100 disabled:opacity-50"
+                    >
+                      <Plus size={18} />
+                    </button>
+                    {showSuggestions && (
+                      <div className="absolute left-0 top-full z-20 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-md">
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setItemDesc(s.description);
+                              if (s.item_type !== "service") setItemType(s.item_type as ItemType);
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            <span className="text-gray-900">{s.description}</span>
+                            <span className="ml-2 text-xs text-gray-400">{s.item_type}</span>
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
-                )}
 
-                {/* Sell price */}
-                <div className="col-span-2 flex min-w-0 items-center gap-1 md:col-span-1">
-                  <span className="text-xs text-gray-500">H.Jual</span>
-                  <input
-                    type="number" min="0" step="any"
-                    value={itemSellPrice || ""}
-                    onChange={(e) => {
-                      setItemSellPrice(Number(e.target.value));
-                      if (marginEnabled) setMarginEnabled(false); // manual override disables margin
-                    }}
-                    placeholder={itemType === "service" ? "wajib" : "opsional"}
-                    className={`w-full min-w-0 rounded border px-2 py-1.5 text-right text-sm focus:outline-none md:w-28 ${
-                      itemType !== "service" && itemSellPrice === 0
-                        ? "border-amber-300 bg-amber-50 placeholder-amber-400 focus:border-amber-500"
-                        : "border-gray-300 focus:border-blue-500"
-                    }`}
-                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <p className="mb-1 text-[11px] font-medium text-gray-500">Qty</p>
+                      <input
+                        type="number" min="0.01" step="any"
+                        value={itemQty}
+                        onChange={(e) => setItemQty(Number(e.target.value))}
+                        className="w-full rounded border border-gray-300 px-2 py-2 text-center text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-[11px] font-medium text-gray-500">Satuan</p>
+                      <input
+                        type="text"
+                        value={itemUnitLabel}
+                        onChange={(e) => setItemUnitLabel(e.target.value)}
+                        placeholder="pcs"
+                        className="w-full rounded border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <p className="mb-1 text-[11px] font-medium text-gray-500">Harga Jual</p>
+                      <input
+                        type="number" min="0" step="any"
+                        value={itemSellPrice || ""}
+                        onChange={(e) => {
+                          setItemSellPrice(Number(e.target.value));
+                          if (marginEnabled) setMarginEnabled(false);
+                        }}
+                        placeholder="0"
+                        className={`w-full rounded border px-2 py-2 text-right text-sm focus:outline-none ${
+                          itemType !== "service" && itemSellPrice === 0
+                            ? "border-amber-300 bg-amber-50 placeholder-amber-400 focus:border-amber-500"
+                            : "border-gray-300 focus:border-blue-500"
+                        }`}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    disabled={isPending}
+                    className="flex items-center justify-center gap-1 rounded bg-blue-600 px-3 py-2.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                  >
+                    <Plus size={14} /> Add
+                  </button>
                 </div>
 
+                <div className="hidden gap-2 md:grid md:grid-cols-[minmax(0,1fr)_90px_110px_120px_120px_auto] md:items-end">
+                  <div className="relative min-w-0">
+                    <p className="mb-1 text-[11px] font-medium text-gray-500">Nama Item / Jasa</p>
+                    <input
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                      placeholder="Nama item / jasa..."
+                      value={itemDesc}
+                      onChange={(e) => handleDescInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAddItem(); } }}
+                      onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+                      onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+                    />
+                    {showSuggestions && (
+                      <div className="absolute left-0 top-full z-20 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-md">
+                        {suggestions.map((s, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setItemDesc(s.description);
+                              if (s.item_type !== "service") setItemType(s.item_type as ItemType);
+                              setShowSuggestions(false);
+                            }}
+                          >
+                            <span className="text-gray-900">{s.description}</span>
+                            <span className="ml-2 text-xs text-gray-400">{s.item_type}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-500">Qty</p>
+                    <input
+                      type="number" min="0.01" step="any"
+                      value={itemQty}
+                      onChange={(e) => setItemQty(Number(e.target.value))}
+                      className="w-full rounded border border-gray-300 px-2 py-2 text-center text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddItem}
-                  disabled={isPending}
-                  className="col-span-2 flex items-center justify-center gap-1 rounded bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50 md:col-span-1 md:shrink-0 md:justify-start md:py-1.5"
-                >
-                  <Plus size={14} /> Tambah
-                </button>
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-500">Satuan</p>
+                    <input
+                      type="text"
+                      value={itemUnitLabel}
+                      onChange={(e) => setItemUnitLabel(e.target.value)}
+                      placeholder="pcs, unit..."
+                      className="w-full rounded border border-gray-300 px-2 py-2 text-sm focus:border-blue-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-500">H.Beli</p>
+                    <input
+                      type="number" min="0" step="any"
+                      value={itemType !== "service" ? itemBuyPrice || "" : ""}
+                      onChange={(e) => setItemBuyPrice(Number(e.target.value))}
+                      placeholder={itemType === "service" ? "-" : "0"}
+                      disabled={itemType === "service"}
+                      className="w-full rounded border border-gray-300 px-2 py-2 text-right text-sm focus:border-blue-500 focus:outline-none disabled:bg-gray-100 disabled:text-gray-400"
+                    />
+                  </div>
+
+                  <div>
+                    <p className="mb-1 text-[11px] font-medium text-gray-500">H.Jual</p>
+                    <input
+                      type="number" min="0" step="any"
+                      value={itemSellPrice || ""}
+                      onChange={(e) => {
+                        setItemSellPrice(Number(e.target.value));
+                        if (marginEnabled) setMarginEnabled(false);
+                      }}
+                      placeholder={itemType === "service" ? "wajib" : "opsional"}
+                      className={`w-full rounded border px-2 py-2 text-right text-sm focus:outline-none ${
+                        itemType !== "service" && itemSellPrice === 0
+                          ? "border-amber-300 bg-amber-50 placeholder-amber-400 focus:border-amber-500"
+                          : "border-gray-300 focus:border-blue-500"
+                      }`}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    disabled={isPending}
+                    className="flex items-center justify-center gap-1 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                  >
+                    <Plus size={14} /> Tambah
+                  </button>
+                </div>
 
                 {addItemError && <span className="col-span-2 text-xs text-red-600">{addItemError}</span>}
               </div>
             </div>
           )}
+
+          <div className="border-b border-gray-100 bg-white px-3 pb-3 md:hidden">
+            <div className="rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between text-sm text-gray-500">
+                <span>Subtotal</span>
+                <span className="font-mono">{fmt(preTax)}</span>
+              </div>
+
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => setShowCostDetailsMobile((prev) => !prev)}
+                  className="w-full rounded-md border border-gray-200 px-3 py-2 text-xs font-medium text-gray-600"
+                >
+                  {showCostDetailsMobile ? "Sembunyikan rincian biaya" : "Tampilkan rincian biaya"}
+                </button>
+              </div>
+
+              {showCostDetailsMobile && (
+                <div className="mt-3 space-y-2.5 border-t border-gray-100 pt-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={ppnEnabled}
+                        disabled={!canEdit}
+                        onChange={(e) => {
+                          const nextEnabled = e.target.checked;
+                          setPpnEnabled(nextEnabled);
+                          if (isEdit) handleSaveTax(nextEnabled, ppnPct, pphEnabled, pphPct);
+                        }}
+                        className="rounded"
+                      />
+                      <span>PPN</span>
+                    </label>
+                    {ppnEnabled && <span className="font-mono text-xs text-gray-600">+{fmt(ppnAmount)}</span>}
+                  </div>
+
+                  {ppnEnabled && canEdit && (
+                    <input
+                      type="number" min="0" max="100"
+                      value={ppnPct}
+                      onChange={(e) => setPpnPct(Number(e.target.value))}
+                      onBlur={() => { if (isEdit) handleSaveTax(); }}
+                      className="w-full rounded border border-gray-200 px-2 py-2 text-center text-xs focus:outline-none"
+                    />
+                  )}
+
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={pphEnabled}
+                        disabled={!canEdit}
+                        onChange={(e) => {
+                          const nextEnabled = e.target.checked;
+                          setPphEnabled(nextEnabled);
+                          if (isEdit) handleSaveTax(ppnEnabled, ppnPct, nextEnabled, pphPct);
+                        }}
+                        className="rounded"
+                      />
+                      <span>PPh</span>
+                    </label>
+                    {pphEnabled && <span className="font-mono text-xs text-gray-600">-{fmt(pphAmount)}</span>}
+                  </div>
+
+                  {pphEnabled && canEdit && (
+                    <input
+                      type="number" min="0" max="100"
+                      value={pphPct}
+                      onChange={(e) => setPphPct(Number(e.target.value))}
+                      onBlur={() => { if (isEdit) handleSaveTax(); }}
+                      className="w-full rounded border border-gray-200 px-2 py-2 text-center text-xs focus:outline-none"
+                    />
+                  )}
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-500">Potongan / Bonus</span>
+                      <div className="flex overflow-hidden rounded border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => setDiscountMode("rp")}
+                          className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${discountMode === "rp" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >Rp</button>
+                        <button
+                          type="button"
+                          onClick={() => setDiscountMode("pct")}
+                          className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${discountMode === "pct" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >%</button>
+                      </div>
+                    </div>
+                    <input
+                      type="number" min="0" step="any"
+                      value={discountInput}
+                      onChange={(e) => setDiscountInput(e.target.value)}
+                      onBlur={() => { if (isEdit) handleSaveDiscount(); }}
+                      placeholder="0"
+                      className="w-full rounded border border-gray-200 px-2 py-2 text-right text-xs focus:outline-none"
+                    />
+                    {computedDiscount > 0 && (
+                      <div className="flex justify-between text-xs text-green-600">
+                        <span>Potongan</span>
+                        <span className="font-mono">-{fmt(computedDiscount)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {canEdit && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-xs text-gray-500">Biaya Kirim</span>
+                      <input
+                        type="number" min="0" step="any"
+                        value={shippingInput}
+                        onChange={(e) => setShippingInput(e.target.value)}
+                        onBlur={handleSaveShipping}
+                        placeholder="0"
+                        className="w-28 rounded border border-gray-200 px-2 py-1.5 text-right text-xs focus:outline-none"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-3 flex items-center justify-between border-t border-gray-200 pt-3">
+                <span className="font-semibold text-gray-900">Grand Total</span>
+                <span className="font-mono text-base font-bold text-gray-900">{fmt(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
 
           {/* Items Table */}
           <div className="flex-1 overflow-y-auto">
@@ -1813,7 +2002,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         <div className="flex w-full shrink-0 flex-col overflow-y-auto border-t border-gray-200 bg-white md:w-64 md:border-l md:border-t-0">
 
           {/* Totals */}
-          <div className="space-y-2.5 border-b border-gray-100 p-4">
+          <div className="hidden space-y-2.5 border-b border-gray-100 p-4 md:block">
             <div className="flex items-center justify-between text-sm text-gray-500">
               <span>Subtotal</span>
               <span className="font-mono">{fmt(preTax)}</span>

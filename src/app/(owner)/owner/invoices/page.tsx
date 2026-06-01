@@ -247,11 +247,11 @@ export default async function OwnerInvoicesPage({
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Total Terbayar</p>
           <p className="mt-1 text-xl font-bold text-emerald-700">{fmt(totalPaidAmount)}</p>
         </div>
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-center">
           <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Total Belum Terbayar</p>
           <p className="mt-1 text-xl font-bold text-red-700">{fmt(totalUnpaidAmount)}</p>
         </div>
@@ -360,7 +360,7 @@ export default async function OwnerInvoicesPage({
                         <p className="truncate font-medium text-gray-700">{customer?.name ?? "-"}</p>
                       </div>
                       <div>
-                        <p className="text-gray-400">Mekanik</p>
+                        <p className="text-gray-400">Engineer</p>
                         <p className="truncate font-medium text-gray-700">
                           {mechanics.length > 0 ? mechanics.join(", ") : "-"}
                         </p>
@@ -403,7 +403,7 @@ export default async function OwnerInvoicesPage({
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
                     <th className={`${TH} text-right`}>Kurang</th>
-                    <th className={TH}>Mekanik</th>
+                    <th className={TH}>Engineer</th>
                     <th className={TH}>Tgl Selesai</th>
                     <th className={TH}>Catatan</th>
                     <th className="w-10 px-3 py-3" />

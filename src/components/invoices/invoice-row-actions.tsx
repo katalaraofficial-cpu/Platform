@@ -142,10 +142,10 @@ export function InvoiceRowActions({
 
               <div className="mt-4 space-y-3">
                 <div>
-                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <label className="mb-1 block text-center text-xs font-semibold uppercase tracking-wide text-gray-500">
                     Metode Pembayaran
                   </label>
-                  <div className="flex gap-2">
+                  <div className="flex justify-center gap-2">
                     <button
                       type="button"
                       onClick={() => setPayMethod("cash")}

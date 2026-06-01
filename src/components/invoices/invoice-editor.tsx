@@ -1075,7 +1075,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // RENDER
   // ─────────────────────────────────────────────────────────────────────
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden bg-gray-50">
+    <div className="flex flex-col bg-gray-50 md:h-[calc(100vh-4rem)] md:overflow-hidden">
       {/* Confirm dialogs */}
       <ConfirmDialog
         open={pendingConfirm === "rollback"}
@@ -1380,10 +1380,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       </div>
 
       {/* ── Main Body ───────────────────────────────────────────────────── */}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+      <div className="flex flex-col md:min-h-0 md:flex-1 md:flex-row">
 
         {/* ── Left: Add-item strip + Items table ────────────────────────── */}
-        <div className="flex min-w-0 flex-col overflow-visible md:flex-1 md:overflow-hidden">
+        <div className="flex min-w-0 flex-col md:flex-1 md:overflow-hidden">
 
           {/* Add Item Strip */}
           {canEdit && (
@@ -1735,7 +1735,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           )}
 
           {/* Items Table */}
-          <div className={`overflow-visible ${!isEdit ? "pb-40" : "pb-0"} md:flex-1 md:overflow-y-auto md:pb-0`}>
+          <div className="pb-0 md:flex-1 md:overflow-y-auto">
             {items.length === 0 ? (
               <div className="flex h-full min-h-[120px] items-center justify-center text-sm text-gray-400">
                 Belum ada item. Tambahkan item di atas.
@@ -2001,7 +2001,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         </div>
 
         {/* ── Right Sidebar ──────────────────────────────────────────────── */}
-        <div className={`flex w-full shrink-0 flex-col border-t border-gray-200 bg-white ${!isEdit ? "pb-40 md:pb-0" : "pb-32 md:pb-0"} md:w-64 md:border-l md:border-t-0 md:overflow-y-auto`}>
+        <div className="flex w-full shrink-0 flex-col border-t border-gray-200 bg-white pb-36 md:w-64 md:border-l md:border-t-0 md:overflow-y-auto md:pb-0">
 
           {/* Totals */}
           <div className="hidden space-y-2.5 border-b border-gray-100 p-4 md:block">

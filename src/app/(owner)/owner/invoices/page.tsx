@@ -3,12 +3,11 @@ import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { InvoiceRowActions } from "@/components/invoices/invoice-row-actions";
-import { InvoiceDateFilter } from "@/components/invoices/invoice-date-filter";
 import type { InvoiceStatus } from "@/types/database";
-import { Suspense } from "react";
 
 const BASE_PATH = "/owner";
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 15;
+const PAGE_SIZE_OPTIONS = [15, 25, 50] as const;
 
 const KPI_STATUSES = [
   { label: "Semua",      value: "",            numClass: "text-gray-800",    activeClass: "bg-gray-900 text-white border-gray-900" },
@@ -39,12 +38,17 @@ function fmtDate(iso: string | null | undefined) {
 export default async function OwnerInvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; size?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const status = params.status ?? "";
   const dateFrom = params.from ?? "";
   const dateTo = params.to ?? "";
+  const customerQuery = (params.q ?? "").trim();
+  const requestedSize = parseInt(params.size ?? String(DEFAULT_PAGE_SIZE), 10);
+  const pageSize = PAGE_SIZE_OPTIONS.includes(requestedSize as (typeof PAGE_SIZE_OPTIONS)[number])
+    ? requestedSize
+    : DEFAULT_PAGE_SIZE;
   const page = Math.max(1, parseInt(params.page ?? "1") || 1);
 
   const user = await getUserContext();
@@ -52,12 +56,33 @@ export default async function OwnerInvoicesPage({
   const tenantId = user.tenantId;
 
   const supabase = await createClient();
-  const offset = (page - 1) * PAGE_SIZE;
+  const offset = (page - 1) * pageSize;
+
+  let matchedCustomerIds: string[] | null = null;
+  if (customerQuery) {
+    const { data: matchedCustomers } = await supabase
+      .from("customers")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .ilike("name", `%${customerQuery}%`)
+      .limit(2000);
+    matchedCustomerIds = (matchedCustomers ?? []).map((row) => row.id);
+  }
 
   // KPI counts (respects date range)
-  let kpiQuery = supabase.from("invoices").select("status").eq("tenant_id", tenantId);
+  let kpiQuery = supabase
+    .from("invoices")
+    .select("status, grand_total")
+    .eq("tenant_id", tenantId);
   if (dateFrom) kpiQuery = kpiQuery.gte("created_at", dateFrom);
   if (dateTo) kpiQuery = kpiQuery.lte("created_at", dateTo + "T23:59:59");
+  if (matchedCustomerIds) {
+    if (matchedCustomerIds.length === 0) {
+      kpiQuery = kpiQuery.eq("customer_id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      kpiQuery = kpiQuery.in("customer_id", matchedCustomerIds);
+    }
+  }
 
   // Paginated table query (respects status + date + pagination)
   let tableQuery = supabase
@@ -67,11 +92,20 @@ export default async function OwnerInvoicesPage({
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
+    .order("invoice_date", { ascending: false, nullsFirst: false })
     .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
+    .order("invoice_number", { ascending: false })
+    .range(offset, offset + pageSize - 1);
   if (status) tableQuery = tableQuery.eq("status", status as InvoiceStatus);
   if (dateFrom) tableQuery = tableQuery.gte("created_at", dateFrom);
   if (dateTo) tableQuery = tableQuery.lte("created_at", dateTo + "T23:59:59");
+  if (matchedCustomerIds) {
+    if (matchedCustomerIds.length === 0) {
+      tableQuery = tableQuery.eq("customer_id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      tableQuery = tableQuery.in("customer_id", matchedCustomerIds);
+    }
+  }
 
   const [{ data: kpiData }, { data: invoices, count: totalCount }] = await Promise.all([
     kpiQuery,
@@ -80,8 +114,13 @@ export default async function OwnerInvoicesPage({
 
   // Compute per-status counts
   const kpiCounts: Record<string, number> = {};
+  let totalPaidAmount = 0;
+  let totalUnpaidAmount = 0;
   for (const row of kpiData ?? []) {
     kpiCounts[row.status] = (kpiCounts[row.status] ?? 0) + 1;
+    const amount = Number(row.grand_total ?? 0);
+    if (row.status === "paid") totalPaidAmount += amount;
+    else if (row.status !== "cancelled") totalUnpaidAmount += amount;
   }
   const kpiTotal = kpiData?.length ?? 0;
 
@@ -145,14 +184,18 @@ export default async function OwnerInvoicesPage({
   }
 
   const total = totalCount ?? 0;
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const totalPages = Math.ceil(total / pageSize);
 
-  function buildUrl(overrides: { status?: string; page?: number }) {
+  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string }) {
     const p = new URLSearchParams();
     const s = "status" in overrides ? (overrides.status ?? "") : status;
     if (s) p.set("status", s);
     if (dateFrom) p.set("from", dateFrom);
     if (dateTo) p.set("to", dateTo);
+    const q = "q" in overrides ? (overrides.q ?? "") : customerQuery;
+    if (q) p.set("q", q);
+    const sz = "size" in overrides ? (overrides.size ?? pageSize) : pageSize;
+    if (sz !== DEFAULT_PAGE_SIZE) p.set("size", String(sz));
     const pg = "page" in overrides ? (overrides.page ?? 1) : page;
     if (pg > 1) p.set("page", String(pg));
     const qs = p.toString();
@@ -203,13 +246,79 @@ export default async function OwnerInvoicesPage({
         })}
       </div>
 
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Total Terbayar</p>
+          <p className="mt-1 text-xl font-bold text-emerald-700">{fmt(totalPaidAmount)}</p>
+        </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-700">Total Belum Terbayar</p>
+          <p className="mt-1 text-xl font-bold text-red-700">{fmt(totalUnpaidAmount)}</p>
+        </div>
+      </div>
+
       {/* Table Card */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        {/* Date Filter */}
         <div className="border-b border-gray-100 px-4 py-3">
-          <Suspense fallback={null}>
-            <InvoiceDateFilter basePath={BASE_PATH} />
-          </Suspense>
+          <form method="get" action={`${BASE_PATH}/invoices`} className="flex flex-wrap items-end gap-3">
+            {status ? <input type="hidden" name="status" value={status} /> : null}
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Dari</label>
+              <input
+                type="date"
+                name="from"
+                defaultValue={dateFrom}
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Sampai</label>
+              <input
+                type="date"
+                name="to"
+                defaultValue={dateTo}
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1 block text-xs text-gray-500">Cari Pelanggan</label>
+              <input
+                type="text"
+                name="q"
+                defaultValue={customerQuery}
+                placeholder="Input nama pelanggan"
+                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs text-gray-500">Baris</label>
+              <select
+                name="size"
+                defaultValue={String(pageSize)}
+                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="submit"
+              className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+            >
+              Terapkan
+            </button>
+            {(dateFrom || dateTo || customerQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
+              <Link
+                href={buildUrl({ page: 1, q: "", size: DEFAULT_PAGE_SIZE })}
+                className="text-sm text-gray-400 hover:text-gray-600 underline"
+              >
+                Reset
+              </Link>
+            )}
+          </form>
         </div>
 
         {/* Table */}
@@ -389,7 +498,7 @@ export default async function OwnerInvoicesPage({
           <p className="text-sm text-gray-400">
             {total === 0
               ? "Tidak ada invoice"
-              : `${offset + 1}–${Math.min(offset + PAGE_SIZE, total)} dari ${total} invoice`}
+              : `${offset + 1}–${Math.min(offset + pageSize, total)} dari ${total} invoice`}
           </p>
           {totalPages > 1 && (
             <div className="flex gap-2">

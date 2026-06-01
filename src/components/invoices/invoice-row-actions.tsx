@@ -3,8 +3,8 @@
 import { createPortal } from "react-dom";
 import { useRef, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw } from "lucide-react";
-import { deleteInvoice, rollbackInvoiceStatus } from "@/lib/actions/invoice";
+import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw, BadgeCheck } from "lucide-react";
+import { deleteInvoice, processPayment, rollbackInvoiceStatus } from "@/lib/actions/invoice";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 interface Props {
@@ -26,7 +26,11 @@ export function InvoiceRowActions({
   const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
+  const [isPayPending, startPayTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<"delete" | "rollback" | null>(null);
+  const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [payMethod, setPayMethod] = useState<"cash" | "transfer">("cash");
+  const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => setMounted(true), []);
@@ -55,6 +59,7 @@ export function InvoiceRowActions({
 
   const canDelete = isOwner ? status !== "" : (status === "draft" || status === "cancelled");
   const canRollback = isOwner && status !== "draft" && status !== "cancelled";
+  const canMarkPaid = status === "completed";
 
   const ROLLBACK_LABEL: Record<string, string> = {
     paid: "Kembalikan ke Selesai",
@@ -85,6 +90,20 @@ export function InvoiceRowActions({
     });
   }
 
+  function openMarkPaidModal() {
+    setOpen(false);
+    setPayMethod("cash");
+    setPaymentDate(new Date().toISOString().slice(0, 10));
+    setShowMarkPaidModal(true);
+  }
+
+  function confirmMarkPaid() {
+    startPayTransition(async () => {
+      await processPayment(invoiceId, payMethod, paymentDate, basePath);
+      setShowMarkPaidModal(false);
+    });
+  }
+
   const deleteMessage =
     status === "paid" || status === "completed"
       ? `PERHATIAN: Invoice ${invoiceNumber} sudah ${status === "paid" ? "lunas" : "selesai"}. Menghapus akan menghilangkan data kas terkait.\n\nLanjutkan hapus?`
@@ -111,6 +130,83 @@ export function InvoiceRowActions({
         onConfirm={executeRollback}
         onCancel={() => setPendingAction(null)}
       />
+
+      {showMarkPaidModal && mounted &&
+        createPortal(
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/40 p-4">
+            <div className="w-full max-w-md rounded-xl border border-gray-200 bg-white p-5 shadow-xl">
+              <h3 className="text-base font-semibold text-gray-900">Tandai Lunas</h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Tetapkan pembayaran invoice {invoiceNumber} sebagai lunas.
+              </p>
+
+              <div className="mt-4 space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Metode Pembayaran
+                  </label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPayMethod("cash")}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                        payMethod === "cash"
+                          ? "border-green-300 bg-green-50 text-green-700"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      Tunai
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPayMethod("transfer")}
+                      className={`rounded-md border px-3 py-2 text-sm font-medium ${
+                        payMethod === "transfer"
+                          ? "border-green-300 bg-green-50 text-green-700"
+                          : "border-gray-200 text-gray-600"
+                      }`}
+                    >
+                      Transfer
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">
+                    Tanggal Pembayaran
+                  </label>
+                  <input
+                    type="date"
+                    value={paymentDate}
+                    max={new Date().toISOString().slice(0, 10)}
+                    onChange={(e) => setPaymentDate(e.target.value)}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-5 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowMarkPaidModal(false)}
+                  className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmMarkPaid}
+                  disabled={isPayPending || !paymentDate}
+                  className="rounded-md bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-500 disabled:opacity-50"
+                >
+                  {isPayPending ? "Memproses..." : "Tandai Lunas"}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
       <button
         ref={btnRef}
         onClick={handleOpen}
@@ -151,6 +247,16 @@ export function InvoiceRowActions({
               <Printer className="h-3.5 w-3.5 text-gray-400" />
               Cetak Invoice
             </button>
+
+            {canMarkPaid && (
+              <button
+                onClick={openMarkPaidModal}
+                className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-50"
+              >
+                <BadgeCheck className="h-3.5 w-3.5" />
+                Tandai Lunas
+              </button>
+            )}
 
             {canRollback && (
               <>

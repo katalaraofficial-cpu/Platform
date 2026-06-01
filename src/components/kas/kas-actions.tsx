@@ -19,30 +19,37 @@ import {
 } from "@/lib/actions/kas";
 import type { AccountType } from "@/types/database";
 
-// ── Kategori presets ─────────────────────────────────────────
-const KATEGORI_MASUK = [
-  "Pembayaran Invoice",
-  "Pendapatan Jasa",
-  "Setoran Modal Pemilik",
-  "Penerimaan Piutang",
-  "Pendapatan Lain-lain",
-  "Bunga Bank",
+// ── COA (Chart of Account) ────────────────────────────────────
+type CoaEntry = { code: string; name: string };
+
+const COA_MASUK: CoaEntry[] = [
+  { code: "401", name: "Pendapatan Jasa" },
+  { code: "409", name: "Pendapatan Lain-lain" },
+  { code: "103", name: "Piutang Usaha" },
+  { code: "301", name: "Modal Awal / Setoran" },
+  { code: "105", name: "Mutasi Kas Bank" },
+  { code: "610", name: "Lainnya" },
 ];
 
-const KATEGORI_KELUAR = [
-  "Pembelian Sparepart / Persediaan",
-  "Gaji & Tunjangan Karyawan",
-  "Kasbon Karyawan",
-  "Beban Sewa Tempat",
-  "Beban Listrik & Air",
-  "Beban Telepon & Internet",
-  "Beban Pemasaran & Promosi",
-  "Beban Administrasi & Umum",
-  "Pembayaran Hutang Usaha",
-  "Pembayaran Pajak",
-  "Pembelian Peralatan",
-  "Beban Lain-lain",
+const COA_KELUAR: CoaEntry[] = [
+  { code: "604", name: "Bahan & Sparepart" },
+  { code: "602", name: "Gaji Karyawan" },
+  { code: "601", name: "Beban Bulanan (Sewa/Listrik/Air)" },
+  { code: "603", name: "Konsumsi" },
+  { code: "605", name: "Transport" },
+  { code: "606", name: "Perlengkapan Bengkel" },
+  { code: "607", name: "Pajak" },
+  { code: "501", name: "Beban Bunga Bank" },
+  { code: "210", name: "Hutang Usaha" },
+  { code: "302", name: "Prive" },
+  { code: "104", name: "Pembelian Stok" },
+  { code: "610", name: "Lainnya" },
 ];
+
+// ── Date helpers ───────────────────────────────────────────
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
 
 // ── Number formatting (id-ID locale: 1.000.000) ─────────────
 function fmtDisplay(raw: string): string {
@@ -203,6 +210,7 @@ function TambahModal({ onClose }: { onClose: () => void }) {
         category: fd.get("category") as string,
         amount: amtVal,
         notes: (fd.get("notes") as string) || undefined,
+        transaction_date: (fd.get("transaction_date") as string) || undefined,
       });
       if ("error" in res) {
         setErr(res.error);
@@ -216,25 +224,30 @@ function TambahModal({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {err && <ErrBanner msg={err} />}
+      <Field label="Tanggal">
+        <input
+          name="transaction_date"
+          type="date"
+          className={inputCls}
+          defaultValue={todayIso()}
+          required
+        />
+      </Field>
       <Field label="Akun">
         <select name="account_type" className={selectCls} required>
           <option value="kas_tunai">Kas Tunai</option>
           <option value="bank">Bank</option>
         </select>
       </Field>
-      <Field label="Kategori">
-        <input
-          name="category"
-          className={inputCls}
-          list="kategori-masuk-list"
-          placeholder="e.g. Pembayaran Invoice, Modal Usaha"
-          required
-        />
-        <datalist id="kategori-masuk-list">
-          {KATEGORI_MASUK.map((k) => (
-            <option key={k} value={k} />
+      <Field label="Kategori (COA)">
+        <select name="category" className={selectCls} required>
+          <option value="">-- Pilih kategori --</option>
+          {COA_MASUK.map((c) => (
+            <option key={c.code} value={`${c.code} - ${c.name}`}>
+              {c.code} — {c.name}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
@@ -271,6 +284,7 @@ function KurangModal({ onClose }: { onClose: () => void }) {
         category: fd.get("category") as string,
         amount: amtVal,
         notes: (fd.get("notes") as string) || undefined,
+        transaction_date: (fd.get("transaction_date") as string) || undefined,
       });
       if ("error" in res) {
         setErr(res.error);
@@ -284,25 +298,30 @@ function KurangModal({ onClose }: { onClose: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {err && <ErrBanner msg={err} />}
+      <Field label="Tanggal">
+        <input
+          name="transaction_date"
+          type="date"
+          className={inputCls}
+          defaultValue={todayIso()}
+          required
+        />
+      </Field>
       <Field label="Akun">
         <select name="account_type" className={selectCls} required>
           <option value="kas_tunai">Kas Tunai</option>
           <option value="bank">Bank</option>
         </select>
       </Field>
-      <Field label="Kategori">
-        <input
-          name="category"
-          className={inputCls}
-          list="kategori-keluar-list"
-          placeholder="e.g. Beli Sparepart, Biaya Operasional"
-          required
-        />
-        <datalist id="kategori-keluar-list">
-          {KATEGORI_KELUAR.map((k) => (
-            <option key={k} value={k} />
+      <Field label="Kategori (COA)">
+        <select name="category" className={selectCls} required>
+          <option value="">-- Pilih kategori --</option>
+          {COA_KELUAR.map((c) => (
+            <option key={`${c.code}-${c.name}`} value={`${c.code} - ${c.name}`}>
+              {c.code} — {c.name}
+            </option>
           ))}
-        </datalist>
+        </select>
       </Field>
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
@@ -372,6 +391,15 @@ function TransferModal({ onClose }: { onClose: () => void }) {
           <p className="mt-0.5 text-sm font-semibold text-gray-800">{toLabel}</p>
         </div>
       </div>
+      <Field label="Tanggal">
+        <input
+          name="transaction_date"
+          type="date"
+          className={inputCls}
+          defaultValue={todayIso()}
+          required
+        />
+      </Field>
       <Field label="Jumlah">
         <AmountInput value={amount} onChange={setAmount} />
       </Field>
@@ -391,6 +419,7 @@ type EditTarget = {
   category: string;
   amount: number;
   notes: string | null;
+  transaction_date: string | null;
 };
 
 function EditModal({
@@ -420,6 +449,7 @@ function EditModal({
         category: fd.get("category") as string,
         amount: amtVal,
         notes: (fd.get("notes") as string) || undefined,
+        transaction_date: (fd.get("transaction_date") as string) || undefined,
       });
       if ("error" in res) {
         setErr(res.error);
@@ -433,7 +463,16 @@ function EditModal({
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {err && <ErrBanner msg={err} />}
-      <Field label="Kategori">
+      <Field label="Tanggal Transaksi">
+        <input
+          name="transaction_date"
+          type="date"
+          className={inputCls}
+          defaultValue={entry.transaction_date ?? todayIso()}
+          required
+        />
+      </Field>
+      <Field label="Kategori (COA)">
         <input
           name="category"
           className={inputCls}
@@ -525,6 +564,7 @@ type RowEntry = {
   amount: number;
   notes: string | null;
   transfer_ref: string | null;
+  transaction_date: string | null;
 };
 
 export function KasRowActions({ entry }: { entry: RowEntry }) {

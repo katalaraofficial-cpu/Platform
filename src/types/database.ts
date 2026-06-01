@@ -350,6 +350,64 @@ export interface Database {
         Update: Partial<Omit<TenantRequest, "id" | "created_at">>;
         Relationships: never[];
       };
+      kas_hp: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          hp_type: "hutang" | "piutang";
+          counterparty: string;
+          description: string | null;
+          amount: number;
+          paid_amount: number;
+          transaction_date: string;
+          due_date: string | null;
+          created_by: string;
+          created_at: string;
+        } & Record<string, unknown>;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          hp_type: "hutang" | "piutang";
+          counterparty: string;
+          description?: string | null;
+          amount: number;
+          paid_amount?: number;
+          transaction_date?: string;
+          due_date?: string | null;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          counterparty: string;
+          description: string | null;
+          amount: number;
+          paid_amount: number;
+          due_date: string | null;
+        }>;
+        Relationships: never[];
+      };
+      kas_hp_payment: {
+        Row: {
+          id: string;
+          hp_id: string;
+          ledger_id: string | null;
+          amount: number;
+          paid_at: string;
+          notes: string | null;
+          created_at: string;
+        } & Record<string, unknown>;
+        Insert: {
+          id?: string;
+          hp_id: string;
+          ledger_id?: string | null;
+          amount: number;
+          paid_at?: string;
+          notes?: string | null;
+          created_at?: string;
+        };
+        Update: never;
+        Relationships: never[];
+      };
     };
     Views: {
       v_mechanic_debt_summary: {

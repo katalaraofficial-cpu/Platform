@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { KasQuickActions, KasRowActions } from "@/components/kas/kas-actions";
 import { KasFilterBar } from "@/components/kas/kas-filter-bar";
+import { KasHpSection } from "@/components/kas/kas-hp";
+import { listKasHp } from "@/lib/actions/kas-hp";
 import type { Ledger } from "@/types/database";
 
 // ── Constants ─────────────────────────────────────────────────
@@ -61,8 +63,9 @@ export default async function KasPage({
   // ── Table: build filtered + paginated query ─────────────────
   let query = supabase
     .from("ledger")
-    .select("id, account_type, transaction_type, category, amount, reference_id, transfer_ref, notes, created_by, created_at", { count: "exact" })
+    .select("id, account_type, transaction_type, category, amount, reference_id, transfer_ref, notes, created_by, created_at, transaction_date", { count: "exact" })
     .eq("tenant_id", ctx.tenantId)
+    .order("transaction_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (accountFilter !== "all") {
@@ -81,12 +84,14 @@ export default async function KasPage({
 
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
-  const [{ data: allEntries }, { data: entries, count }] = await Promise.all([
+  const [{ data: allEntries }, { data: entries, count }, hutang, piutang] = await Promise.all([
     supabase
       .from("ledger")
       .select("account_type, transaction_type, amount")
       .eq("tenant_id", ctx.tenantId),
     query.range(from, to),
+    listKasHp("hutang"),
+    listKasHp("piutang"),
   ]);
 
   let kasTunaiIn = 0,
@@ -141,7 +146,7 @@ export default async function KasPage({
       {/* ── KPI Cards ────────────────────────────────────────── */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Kas Tunai */}
-        <div className="rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 text-white shadow-sm">
+        <div className={`rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-5 text-white shadow-sm ${kasTunaiBalance < 0 ? "ring-2 ring-red-400" : ""}`}>
           <div className="mb-3 flex items-center gap-2">
             <div className="rounded-lg bg-white/20 p-1.5">
               <Wallet className="h-4 w-4" />
@@ -150,7 +155,7 @@ export default async function KasPage({
               Kas Tunai
             </span>
           </div>
-          <p className="text-2xl font-bold">{fmt(kasTunaiBalance)}</p>
+          <p className={`text-2xl font-bold ${kasTunaiBalance < 0 ? "text-red-200" : ""}`}>{fmt(kasTunaiBalance)}</p>
           <div className="mt-3 flex gap-4">
             <span className="flex items-center gap-1 text-xs text-emerald-100">
               <ArrowUp className="h-3 w-3" />
@@ -164,7 +169,7 @@ export default async function KasPage({
         </div>
 
         {/* Bank */}
-        <div className="rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 text-white shadow-sm">
+        <div className={`rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 p-5 text-white shadow-sm ${bankBalance < 0 ? "ring-2 ring-red-400" : ""}`}>
           <div className="mb-3 flex items-center gap-2">
             <div className="rounded-lg bg-white/20 p-1.5">
               <Building2 className="h-4 w-4" />
@@ -173,7 +178,7 @@ export default async function KasPage({
               Bank
             </span>
           </div>
-          <p className="text-2xl font-bold">{fmt(bankBalance)}</p>
+          <p className={`text-2xl font-bold ${bankBalance < 0 ? "text-red-200" : ""}`}>{fmt(bankBalance)}</p>
           <div className="mt-3 flex gap-4">
             <span className="flex items-center gap-1 text-xs text-blue-100">
               <ArrowUp className="h-3 w-3" />
@@ -187,7 +192,7 @@ export default async function KasPage({
         </div>
 
         {/* Saldo Total */}
-        <div className="rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 p-5 text-white shadow-sm">
+        <div className={`rounded-2xl bg-gradient-to-br from-violet-500 to-purple-700 p-5 text-white shadow-sm ${totalBalance < 0 ? "ring-2 ring-red-400" : ""}`}>
           <div className="mb-3 flex items-center gap-2">
             <div className="rounded-lg bg-white/20 p-1.5">
               <TrendingUp className="h-4 w-4" />
@@ -196,7 +201,7 @@ export default async function KasPage({
               Saldo Total
             </span>
           </div>
-          <p className="text-2xl font-bold">{fmt(totalBalance)}</p>
+          <p className={`text-2xl font-bold ${totalBalance < 0 ? "text-red-200" : ""}`}>{fmt(totalBalance)}</p>
           <div className="mt-3 flex gap-4">
             <span className="flex items-center gap-1 text-xs text-purple-100">
               <ArrowUp className="h-3 w-3" />
@@ -278,7 +283,7 @@ export default async function KasPage({
                         {from + idx + 1}
                       </td>
                       <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">
-                        {fmtDate(row.created_at)}
+                        {fmtDate((row as Ledger & { transaction_date?: string }).transaction_date ?? row.created_at)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
@@ -330,6 +335,7 @@ export default async function KasPage({
                             amount: Number(row.amount),
                             notes: row.notes,
                             transfer_ref: row.transfer_ref,
+                            transaction_date: (row as Ledger & { transaction_date?: string }).transaction_date ?? null,
                           }}
                         />
                       </td>
@@ -388,6 +394,9 @@ export default async function KasPage({
           </div>
         )}
       </div>
+
+      {/* ── Hutang & Piutang Section ─────────────────────── */}
+      <KasHpSection hutang={hutang} piutang={piutang} />
     </div>
   );
 }

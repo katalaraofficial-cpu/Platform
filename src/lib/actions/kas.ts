@@ -19,6 +19,7 @@ type AddKasInput = {
   category: string;
   amount: number;
   notes?: string;
+  transaction_date?: string; // YYYY-MM-DD; defaults to today
 };
 
 // ============================================================
@@ -31,6 +32,7 @@ export async function addKasEntry(
   if (!ctx) return { error: "Akses ditolak" };
   const supabase = await createClient();
 
+  const today = new Date().toISOString().slice(0, 10);
   const { error } = await supabase.from("ledger").insert({
     tenant_id: ctx.tenantId!,
     transaction_type: data.transaction_type,
@@ -38,6 +40,7 @@ export async function addKasEntry(
     category: data.category,
     amount: data.amount,
     notes: data.notes || null,
+    transaction_date: data.transaction_date || today,
     created_by: ctx.id,
   } as never);
 
@@ -115,12 +118,12 @@ export async function createKasTransfer(data: {
 }
 
 // ============================================================
-// UPDATE  — edit category / amount / notes of an entry
+// UPDATE  — edit category / amount / notes / date of an entry
 //           (account_type and transaction_type are immutable)
 // ============================================================
 export async function updateKasEntry(
   id: string,
-  data: { category?: string; amount?: number; notes?: string }
+  data: { category?: string; amount?: number; notes?: string; transaction_date?: string }
 ): Promise<{ success: true } | { error: string }> {
   const ctx = await getOwnerCtx();
   if (!ctx) return { error: "Akses ditolak" };

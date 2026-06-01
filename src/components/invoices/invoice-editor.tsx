@@ -1348,34 +1348,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </div>
           </div>
 
-          {isEdit && (
-            <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-12">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Catatan</p>
-              <input
-                className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-                placeholder="Catatan / pekerjaan..."
-                value={notes}
-                readOnly={!canEdit}
-                onChange={(e) => {
-                  setNotes(e.target.value);
-                  if (isEdit) setNotesDirty(true);
-                }}
-                onBlur={() => {
-                  if (isEdit && notesDirty) handleSaveNotes();
-                }}
-              />
-              {isEdit && notesDirty && (
-                <button
-                  type="button"
-                  onClick={handleSaveNotes}
-                  disabled={isPending}
-                  className="shrink-0 text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
-                >
-                  Simpan
-                </button>
-              )}
-            </div>
-          )}
+
         </div>
       </div>
 

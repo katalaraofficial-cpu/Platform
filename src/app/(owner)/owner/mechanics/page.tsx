@@ -122,7 +122,7 @@ export default async function MechanicsPage({
 
     supabase
       .from("settings")
-      .select("reward_employee_enabled, reward_point_value, reward_min_redeem")
+      .select("reward_employee_enabled, reward_point_value, reward_min_redeem, reward_spend_per_point, reward_lead_multiplier, reward_helper_multiplier")
       .eq("tenant_id", tenantId)
       .single(),
 
@@ -210,6 +210,30 @@ export default async function MechanicsPage({
     current.balance = Math.max(0, current.balance + points);
     current.earned = Math.max(0, current.earned + points);
     invoicePointMap.set(row.profile_id, current);
+  }
+
+  // Fallback calculation from paid invoice revenue + role multiplier for cases
+  // where point transactions have not been recorded/synced yet.
+  const expectedInvoicePointMap = new Map<string, number>();
+  const spendPerPoint = Number(settingsRaw?.reward_spend_per_point ?? 0);
+  const leadMultiplier = Number(settingsRaw?.reward_lead_multiplier ?? 1);
+  const helperMultiplier = Number(settingsRaw?.reward_helper_multiplier ?? 0.5);
+  if (spendPerPoint > 0) {
+    for (const row of allAssignments) {
+      const inv = row.invoices;
+      if (!inv || inv.status !== "paid") continue;
+      const invoiceAmount = Number(inv.grand_total ?? 0);
+      if (invoiceAmount <= 0) continue;
+      const basePoints = Math.floor(invoiceAmount / spendPerPoint);
+      if (basePoints <= 0) continue;
+      const multiplier = row.mechanic_role === "lead" ? leadMultiplier : helperMultiplier;
+      const earned = Math.floor(basePoints * multiplier);
+      if (earned <= 0) continue;
+      expectedInvoicePointMap.set(
+        row.mechanic_id,
+        (expectedInvoicePointMap.get(row.mechanic_id) ?? 0) + earned
+      );
+    }
   }
 
   const { data: paidItemsRaw } = paidInvoiceIds.length
@@ -606,7 +630,9 @@ export default async function MechanicsPage({
                     {rewardEnabled && ownerView !== "insentif" && (() => {
                       const ep = pointsMap.get(mechanic.id);
                       const invoicePoints = invoicePointMap.get(mechanic.id);
-                      const earned = invoicePoints?.earned ?? 0;
+                      const earnedRecorded = invoicePoints?.earned ?? 0;
+                      const earnedExpected = expectedInvoicePointMap.get(mechanic.id) ?? 0;
+                      const earned = earnedRecorded > 0 ? earnedRecorded : earnedExpected;
                       return (
                         <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2">
                           <div className="flex items-center gap-2">
@@ -614,7 +640,7 @@ export default async function MechanicsPage({
                             <div>
                               <p className="text-xs font-semibold text-amber-700">{earned} Point Invoice Lunas</p>
                               <p className="text-[10px] text-amber-400">
-                                Saldo global: {ep?.points_balance ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}
+                                Saldo global: {ep?.points_balance ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}{earnedRecorded === 0 && earnedExpected > 0 ? " · estimasi auto" : ""}
                               </p>
                             </div>
                           </div>

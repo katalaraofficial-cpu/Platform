@@ -117,7 +117,7 @@ export default async function MechanicsPage({
 
     supabase
       .from("employee_point_transactions")
-      .select("profile_id, points, transaction_type")
+      .select("profile_id, points, transaction_type, reference_id")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -159,12 +159,6 @@ export default async function MechanicsPage({
     createdAt: c.created_at,
   }));
 
-  // Points data
-  const pointsMap = summarizeEmployeePointsByProfile(
-    ((employeePointTransactionsRaw as PointTransactionSummaryRow[] | null) ?? [])
-  );
-  const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
-
   type DebtSummaryRow = {
     mechanic_id: string;
     total_advanced: number;
@@ -194,6 +188,29 @@ export default async function MechanicsPage({
         .filter(Boolean)
     ),
   ];
+
+  type PointTxnRow = PointTransactionSummaryRow & {
+    reference_id: string | null;
+  };
+  const pointTxRows = (employeePointTransactionsRaw as PointTxnRow[] | null) ?? [];
+
+  // Global point summary remains available in the incentive tab.
+  const pointsMap = summarizeEmployeePointsByProfile(pointTxRows);
+  const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
+
+  // Activity cards should only show points that come from paid invoices so the
+  // metric stays consistent with the revenue block shown above it.
+  const paidInvoiceIdSet = new Set(paidInvoiceIds);
+  const invoicePointMap = new Map<string, { earned: number; balance: number }>();
+  for (const row of pointTxRows) {
+    if (!row.reference_id || !paidInvoiceIdSet.has(row.reference_id)) continue;
+    if (row.transaction_type !== "earn" && row.transaction_type !== "adjust") continue;
+    const current = invoicePointMap.get(row.profile_id) ?? { earned: 0, balance: 0 };
+    const points = Number(row.points ?? 0);
+    current.balance = Math.max(0, current.balance + points);
+    current.earned = Math.max(0, current.earned + points);
+    invoicePointMap.set(row.profile_id, current);
+  }
 
   const { data: paidItemsRaw } = paidInvoiceIds.length
     ? await supabase
@@ -510,11 +527,11 @@ export default async function MechanicsPage({
                         <p className="text-xs font-medium text-amber-600">Insentif & Point</p>
                         <div className="mt-2 grid grid-cols-2 gap-2">
                           <div className="rounded-lg bg-white/70 px-2.5 py-2">
-                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Saldo Point</p>
+                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Saldo Point Global</p>
                             <p className="text-sm font-bold text-amber-700">{pointsMap.get(mechanic.id)?.points_balance ?? 0} pt</p>
                           </div>
                           <div className="rounded-lg bg-white/70 px-2.5 py-2">
-                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Total Earned</p>
+                            <p className="text-[10px] uppercase tracking-wider text-amber-400">Total Earned Global</p>
                             <p className="text-sm font-bold text-amber-700">{pointsMap.get(mechanic.id)?.total_earned ?? 0} pt</p>
                           </div>
                         </div>
@@ -588,15 +605,16 @@ export default async function MechanicsPage({
                     {/* Point reward section */}
                     {rewardEnabled && ownerView !== "insentif" && (() => {
                       const ep = pointsMap.get(mechanic.id);
-                      const balance = ep?.points_balance ?? 0;
+                      const invoicePoints = invoicePointMap.get(mechanic.id);
+                      const earned = invoicePoints?.earned ?? 0;
                       return (
                         <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2">
                           <div className="flex items-center gap-2">
                             <Gift className="h-4 w-4 text-amber-500" />
                             <div>
-                              <p className="text-xs font-semibold text-amber-700">{balance} Point</p>
+                              <p className="text-xs font-semibold text-amber-700">{earned} Point Invoice Lunas</p>
                               <p className="text-[10px] text-amber-400">
-                                Total earned: {ep?.total_earned ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}
+                                Saldo global: {ep?.points_balance ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}
                               </p>
                             </div>
                           </div>

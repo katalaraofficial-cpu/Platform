@@ -117,7 +117,7 @@ export default async function MechanicsPage({
 
     supabase
       .from("employee_point_transactions")
-      .select("profile_id, points, transaction_type, reference_id")
+      .select("profile_id, points, transaction_type")
       .eq("tenant_id", tenantId),
 
     supabase
@@ -189,52 +189,11 @@ export default async function MechanicsPage({
     ),
   ];
 
-  type PointTxnRow = PointTransactionSummaryRow & {
-    reference_id: string | null;
-  };
-  const pointTxRows = (employeePointTransactionsRaw as PointTxnRow[] | null) ?? [];
+  const pointTxRows = (employeePointTransactionsRaw as PointTransactionSummaryRow[] | null) ?? [];
 
   // Global point summary remains available in the incentive tab.
   const pointsMap = summarizeEmployeePointsByProfile(pointTxRows);
   const rewardEnabled = settingsRaw?.reward_employee_enabled ?? false;
-
-  // Activity cards should only show points that come from paid invoices so the
-  // metric stays consistent with the revenue block shown above it.
-  const paidInvoiceIdSet = new Set(paidInvoiceIds);
-  const invoicePointMap = new Map<string, { earned: number; balance: number }>();
-  for (const row of pointTxRows) {
-    if (!row.reference_id || !paidInvoiceIdSet.has(row.reference_id)) continue;
-    if (row.transaction_type !== "earn" && row.transaction_type !== "adjust") continue;
-    const current = invoicePointMap.get(row.profile_id) ?? { earned: 0, balance: 0 };
-    const points = Number(row.points ?? 0);
-    current.balance = Math.max(0, current.balance + points);
-    current.earned = Math.max(0, current.earned + points);
-    invoicePointMap.set(row.profile_id, current);
-  }
-
-  // Fallback calculation from paid invoice revenue + role multiplier for cases
-  // where point transactions have not been recorded/synced yet.
-  const expectedInvoicePointMap = new Map<string, number>();
-  const spendPerPoint = Number(settingsRaw?.reward_spend_per_point ?? 0);
-  const leadMultiplier = Number(settingsRaw?.reward_lead_multiplier ?? 1);
-  const helperMultiplier = Number(settingsRaw?.reward_helper_multiplier ?? 0.5);
-  if (spendPerPoint > 0) {
-    for (const row of allAssignments) {
-      const inv = row.invoices;
-      if (!inv || inv.status !== "paid") continue;
-      const invoiceAmount = Number(inv.grand_total ?? 0);
-      if (invoiceAmount <= 0) continue;
-      const basePoints = Math.floor(invoiceAmount / spendPerPoint);
-      if (basePoints <= 0) continue;
-      const multiplier = row.mechanic_role === "lead" ? leadMultiplier : helperMultiplier;
-      const earned = Math.floor(basePoints * multiplier);
-      if (earned <= 0) continue;
-      expectedInvoicePointMap.set(
-        row.mechanic_id,
-        (expectedInvoicePointMap.get(row.mechanic_id) ?? 0) + earned
-      );
-    }
-  }
 
   const { data: paidItemsRaw } = paidInvoiceIds.length
     ? await supabase
@@ -515,7 +474,7 @@ export default async function MechanicsPage({
                         <div className="grid grid-cols-2 gap-2">
                           <div className="rounded-xl bg-blue-50 p-3">
                             <p className="text-[10px] font-medium uppercase tracking-wider text-blue-400">Estimasi Durasi Invoice</p>
-                            <p className="mt-1 text-lg font-bold text-blue-700">{perf.workHours.toFixed(1)} jam</p>
+                            <p className="mt-1 text-lg font-bold text-blue-700">-</p>
                           </div>
                           <div className="rounded-xl bg-rose-50 p-3">
                             <p className="text-[10px] font-medium uppercase tracking-wider text-rose-400">Komplain</p>
@@ -534,7 +493,7 @@ export default async function MechanicsPage({
                             <p className="text-[10px] text-amber-500">Assignment</p>
                           </div>
                           <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
-                            <p className="text-lg font-bold text-amber-700">{perf.workHours.toFixed(1)}</p>
+                            <p className="text-lg font-bold text-amber-700">-</p>
                             <p className="text-[10px] text-amber-500">Estimasi Jam Invoice</p>
                           </div>
                           <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
@@ -629,18 +588,14 @@ export default async function MechanicsPage({
                     {/* Point reward section */}
                     {rewardEnabled && ownerView !== "insentif" && (() => {
                       const ep = pointsMap.get(mechanic.id);
-                      const invoicePoints = invoicePointMap.get(mechanic.id);
-                      const earnedRecorded = invoicePoints?.earned ?? 0;
-                      const earnedExpected = expectedInvoicePointMap.get(mechanic.id) ?? 0;
-                      const earned = earnedRecorded > 0 ? earnedRecorded : earnedExpected;
                       return (
                         <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2">
                           <div className="flex items-center gap-2">
                             <Gift className="h-4 w-4 text-amber-500" />
                             <div>
-                              <p className="text-xs font-semibold text-amber-700">{earned} Point Invoice Lunas</p>
+                              <p className="text-xs font-semibold text-amber-700">- Point Invoice Lunas</p>
                               <p className="text-[10px] text-amber-400">
-                                Saldo global: {ep?.points_balance ?? 0} · Redeemed: {ep?.total_redeemed ?? 0}{earnedRecorded === 0 && earnedExpected > 0 ? " · estimasi auto" : ""}
+                                Saldo global: {ep?.points_balance ?? 0} · Redeemed: {ep?.total_redeemed ?? 0} · menunggu aktivasi KPI
                               </p>
                             </div>
                           </div>

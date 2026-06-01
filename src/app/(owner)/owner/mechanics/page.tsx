@@ -514,7 +514,7 @@ export default async function MechanicsPage({
 
                         <div className="grid grid-cols-2 gap-2">
                           <div className="rounded-xl bg-blue-50 p-3">
-                            <p className="text-[10px] font-medium uppercase tracking-wider text-blue-400">Waktu Kerja</p>
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-blue-400">Estimasi Durasi Invoice</p>
                             <p className="mt-1 text-lg font-bold text-blue-700">{perf.workHours.toFixed(1)} jam</p>
                           </div>
                           <div className="rounded-xl bg-rose-50 p-3">
@@ -535,14 +535,14 @@ export default async function MechanicsPage({
                           </div>
                           <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
                             <p className="text-lg font-bold text-amber-700">{perf.workHours.toFixed(1)}</p>
-                            <p className="text-[10px] text-amber-500">Jam Kerja</p>
+                            <p className="text-[10px] text-amber-500">Estimasi Jam Invoice</p>
                           </div>
                           <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
                             <p className="text-lg font-bold text-amber-700">-</p>
                             <p className="text-[10px] text-amber-500">Absensi</p>
                           </div>
                         </div>
-                        <p className="mt-2 text-xs text-amber-500">Sinkron absensi belum dihubungkan, tab ini menyiapkan ringkasan awal.</p>
+                        <p className="mt-2 text-xs text-amber-500">Sinkron absensi belum dihubungkan. Nilai jam di atas adalah estimasi dari selisih waktu invoice dibuat hingga selesai.</p>
                       </div>
                     )}
 

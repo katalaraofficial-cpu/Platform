@@ -167,6 +167,7 @@ export async function updateFeatureToggles(
     module_mechanic_portal: formData.get("module_mechanic_portal") === "on",
     module_customer_history: formData.get("module_customer_history") === "on",
     module_engineer: formData.get("module_engineer") === "on",
+    module_kas: formData.get("module_kas") === "on",
   };
 
   const { error } = await supabase
@@ -344,6 +345,7 @@ export async function approveRegistration(
         module_mechanic_portal: true,
         module_customer_history: true,
         module_engineer: true,
+        module_kas: true,
       },
     })
     .select("id")

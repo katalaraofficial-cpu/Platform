@@ -20,6 +20,7 @@ export interface FeatureToggles {
   module_mechanic_portal: boolean;
   module_customer_history: boolean;
   module_engineer: boolean;
+  module_kas: boolean;
 }
 
 // ── Vehicle info shape (stored as JSONB in customers) ───────

@@ -130,6 +130,7 @@ export default async function OwnerDashboard({
     donut_type?: string;
     donut_period?: string;
     mech?: string;
+    month?: string;
   }>;
 }) {
   const sp = await searchParams;
@@ -150,29 +151,49 @@ export default async function OwnerDashboard({
   const tenantId = ctx.tenantId!;
 
   const now = new Date();
-  const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+  // ── Selected month (from ?month=YYYY-MM param) ────────────────
+  const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthParam = sp.month;
+  const monthStr =
+    monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonthStr;
+  const [selYear, selMonthIdx] = monthStr.split("-").map(Number) as [number, number];
+  const selMonth = selMonthIdx - 1; // 0-indexed for Date constructor
+  const selectedDate = new Date(selYear, selMonth, 1);
+  const isCurrentMonth = monthStr === currentMonthStr;
+  const selectedMonthLabel = selectedDate.toLocaleDateString("id-ID", { month: "long", year: "numeric" });
+
+  // DATE strings for invoice_date column (avoids timestamptz timezone ambiguity)
+  const firstOfMonth = `${monthStr}-01`;
+  const nextMonthDate = new Date(selYear, selMonth + 1, 1);
+  const firstOfNextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}-01`;
+
+  // ISO strings for ledger created_at (timestamptz)
+  const ledgerMonthStart = new Date(selYear, selMonth, 1).toISOString();
+  const ledgerMonthEnd = new Date(selYear, selMonth + 1, 1).toISOString();
+
+  // "Today" is always now, independent of selected month
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
 
+  // Bar chart: relative to selected month, going back barMonths
   const barMonths = period === "12m" ? 12 : period === "3m" ? 3 : 6;
-  const barStart = new Date(now.getFullYear(), now.getMonth() - (barMonths - 1), 1).toISOString();
+  const barStartDate = new Date(selYear, selMonth - (barMonths - 1), 1);
+  const barStart = `${barStartDate.getFullYear()}-${String(barStartDate.getMonth() + 1).padStart(2, "0")}-01`;
 
+  // Top customers: DATE string filter on invoice_date
   const topMonths = top === "6m" ? 6 : top === "3m" ? 3 : 1;
-  const topStart =
-    topMonths === 1
-      ? firstOfMonth
-      : new Date(now.getFullYear(), now.getMonth() - (topMonths - 1), 1).toISOString();
+  const topStartDate = new Date(selYear, selMonth - (topMonths - 1), 1);
+  const topStart = `${topStartDate.getFullYear()}-${String(topStartDate.getMonth() + 1).padStart(2, "0")}-01`;
 
+  // Donut: invoice_items uses created_at (timestamptz), keep as ISO
   const donutMonths = donutPeriod === "6m" ? 6 : donutPeriod === "3m" ? 3 : 1;
-  const donutStart =
-    donutMonths === 1
-      ? firstOfMonth
-      : new Date(now.getFullYear(), now.getMonth() - (donutMonths - 1), 1).toISOString();
+  const donutStartDate = new Date(selYear, selMonth - (donutMonths - 1), 1);
+  const donutStart = donutStartDate.toISOString();
 
+  // Mechanic ranking: DATE string filter on invoice_date
   const mechMonths = mech === "6m" ? 6 : mech === "3m" ? 3 : 1;
-  const mechStart =
-    mechMonths === 1
-      ? firstOfMonth
-      : new Date(now.getFullYear(), now.getMonth() - (mechMonths - 1), 1).toISOString();
+  const mechStartDate = new Date(selYear, selMonth - (mechMonths - 1), 1);
+  const mechStart = `${mechStartDate.getFullYear()}-${String(mechStartDate.getMonth() + 1).padStart(2, "0")}-01`;
 
   let itemsQuery = supabase
     .from("invoice_items")
@@ -198,7 +219,8 @@ export default async function OwnerDashboard({
       .from("invoices")
       .select("status, grand_total")
       .eq("tenant_id", tenantId)
-      .gte("created_at", firstOfMonth),
+      .gte("invoice_date", firstOfMonth)
+      .lt("invoice_date", firstOfNextMonth),
     supabase
       .from("invoices")
       .select("id, invoice_number, customer_id, status, grand_total, created_at")
@@ -216,7 +238,8 @@ export default async function OwnerDashboard({
       .from("ledger")
       .select("transaction_type, amount, created_at")
       .eq("tenant_id", tenantId)
-      .gte("created_at", firstOfMonth),
+      .gte("created_at", ledgerMonthStart)
+      .lt("created_at", ledgerMonthEnd),
     supabase
       .from("v_mechanic_debt_summary")
       .select("outstanding_balance")
@@ -226,7 +249,8 @@ export default async function OwnerDashboard({
       .from("invoices")
       .select("customer_id, grand_total")
       .eq("tenant_id", tenantId)
-      .gte("created_at", topStart),
+      .gte("invoice_date", topStart)
+      .lt("invoice_date", firstOfNextMonth),
     supabase
       .from("invoice_mechanics")
       .select("mechanic_id, invoice_id")
@@ -236,7 +260,8 @@ export default async function OwnerDashboard({
       .select("id")
       .eq("tenant_id", tenantId)
       .in("status", ["completed", "paid"])
-      .gte("created_at", mechStart),
+      .gte("invoice_date", mechStart)
+      .lt("invoice_date", firstOfNextMonth),
   ]);
 
   // Customer names
@@ -361,7 +386,7 @@ export default async function OwnerDashboard({
     return acc;
   }, {});
   const topCustomers = Object.entries(custCount)
-    .sort(([, a], [, b]) => b.count - a.count)
+    .sort(([, a], [, b]) => b.revenue - a.revenue)
     .slice(0, 5)
     .map(([id, data]) => ({
       id,
@@ -400,6 +425,7 @@ export default async function OwnerDashboard({
     donut_type?: string;
     donut_period?: string;
     mech?: string;
+    month?: string;
   }) {
     const p = new URLSearchParams();
     const vals = {
@@ -408,6 +434,7 @@ export default async function OwnerDashboard({
       donut_type: donutType,
       donut_period: donutPeriod,
       mech,
+      month: monthStr,
       ...overrides,
     };
     if (vals.period !== "6m") p.set("period", vals.period);
@@ -415,6 +442,7 @@ export default async function OwnerDashboard({
     if (vals.donut_type !== "all") p.set("donut_type", vals.donut_type);
     if (vals.donut_period !== "1m") p.set("donut_period", vals.donut_period);
     if (vals.mech !== "1m") p.set("mech", vals.mech);
+    if (vals.month && vals.month !== currentMonthStr) p.set("month", vals.month);
     const qs = p.toString();
     return `/owner/dashboard${qs ? "?" + qs : ""}`;
   }
@@ -423,9 +451,9 @@ export default async function OwnerDashboard({
   const periodLabel =
     period === "3m" ? "3 Bulan Terakhir" : period === "12m" ? "12 Bulan Terakhir" : "6 Bulan Terakhir";
   const topLabel =
-    top === "3m" ? "3 Bulan Terakhir" : top === "6m" ? "6 Bulan Terakhir" : "Bulan Ini";
+    top === "3m" ? "3 Bulan Terakhir" : top === "6m" ? "6 Bulan Terakhir" : selectedMonthLabel;
   const donutPeriodLabel =
-    donutPeriod === "3m" ? "3 Bulan Terakhir" : donutPeriod === "6m" ? "6 Bulan Terakhir" : "Bulan Ini";
+    donutPeriod === "3m" ? "3 Bulan Terakhir" : donutPeriod === "6m" ? "6 Bulan Terakhir" : selectedMonthLabel;
 
   // Pill helper — dark theme
   const pill = (active: boolean) =>
@@ -438,13 +466,43 @@ export default async function OwnerDashboard({
   return (
     <div className="-m-6 bg-slate-900 p-6">
       <div className="space-y-6">
-        {/* Title */}
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard Pemilik</h1>
-          <p className="mt-1 text-sm text-gray-400">
-            Ringkasan keuangan dan operasional bengkel &mdash;{" "}
-            {now.toLocaleDateString("id-ID", { month: "long", year: "numeric" })}
-          </p>
+        {/* Title + Month picker */}
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-white">Dashboard Pemilik</h1>
+            <p className="mt-1 text-sm text-gray-400">
+              Data bulan:{" "}
+              <span className="font-semibold text-white">{selectedMonthLabel}</span>
+              {!isCurrentMonth && (
+                <a
+                  href="/owner/dashboard"
+                  className="ml-2 text-xs text-blue-400 hover:text-blue-300"
+                >
+                  ← Bulan ini
+                </a>
+              )}
+            </p>
+          </div>
+          <form method="GET" action="/owner/dashboard" className="flex items-center gap-2">
+            {period !== "6m" && <input type="hidden" name="period" value={period} />}
+            {top !== "1m" && <input type="hidden" name="top" value={top} />}
+            {donutType !== "all" && <input type="hidden" name="donut_type" value={donutType} />}
+            {donutPeriod !== "1m" && <input type="hidden" name="donut_period" value={donutPeriod} />}
+            {mech !== "1m" && <input type="hidden" name="mech" value={mech} />}
+            <input
+              type="month"
+              name="month"
+              defaultValue={monthStr}
+              max={currentMonthStr}
+              className="rounded-lg border border-slate-600 bg-slate-700 px-3 py-1.5 text-sm text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              type="submit"
+              className="rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 transition-colors"
+            >
+              Terapkan
+            </button>
+          </form>
         </div>
 
         {/* Stat cards */}
@@ -457,7 +515,7 @@ export default async function OwnerDashboard({
               color: "text-green-400",
             },
             {
-              label: "Pendapatan Bulan Ini",
+              label: `Pendapatan ${selectedMonthLabel}`,
               value: fmt(monthRevenue),
               icon: <TrendingUp className="h-5 w-5 text-blue-400" />,
               color: "text-blue-400",
@@ -469,7 +527,7 @@ export default async function OwnerDashboard({
               color: "text-yellow-400",
             },
             {
-              label: "Total Invoice Bulan Ini",
+              label: `Total Invoice ${selectedMonthLabel}`,
               value: all.length,
               icon: <FileText className="h-5 w-5 text-slate-400" />,
               color: "text-slate-300",

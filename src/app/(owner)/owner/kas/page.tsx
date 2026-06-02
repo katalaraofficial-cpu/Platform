@@ -10,6 +10,7 @@ import {
   ArrowLeftRight,
   ChevronLeft,
   ChevronRight,
+  FileDown,
 } from "lucide-react";
 import { KasQuickActions, KasRowActions } from "@/components/kas/kas-actions";
 import { KasFilterBar } from "@/components/kas/kas-filter-bar";
@@ -138,6 +139,18 @@ export default async function KasPage({
     return `/owner/kas?${params.toString()}`;
   }
 
+  // ── Print URL (passes active filters to print page) ────────
+  function printUrl() {
+    const params = new URLSearchParams();
+    if (accountFilter !== "all") params.set("account", accountFilter);
+    if (typeFilter !== "all") params.set("type", typeFilter);
+    if (fromDate) params.set("from", fromDate);
+    if (toDate) params.set("to", toDate);
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    return `/owner/kas/print${qs ? "?" + qs : ""}`;
+  }
+
   const rows = (entries as Ledger[] | null) ?? [];
 
   return (
@@ -150,7 +163,19 @@ export default async function KasPage({
             Kelola kas tunai dan rekening bank bisnis Anda
           </p>
         </div>
-        <KasQuickActions />
+        <div className="flex items-center gap-2">
+          <a
+            href={printUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 transition-colors"
+            title="Ekspor Jurnal & Buku Besar ke PDF"
+          >
+            <FileDown className="h-4 w-4 text-gray-500" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </a>
+          <KasQuickActions />
+        </div>
       </div>
 
       {/* ── KPI Cards ────────────────────────────────────────── */}

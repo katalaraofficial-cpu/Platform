@@ -6,21 +6,29 @@ import { toast } from "sonner";
 import { addKasKeluar } from "@/lib/actions/kas-admin";
 import type { AccountType } from "@/types/database";
 
-// ── COA Pengeluaran ──────────────────────────────────────────
+// ── COA Pengeluaran — UMKM Jasa & Dagang ─────────────────────
 const COA_KELUAR = [
-  { code: "604", name: "Bahan & Sparepart" },
-  { code: "602", name: "Gaji Karyawan" },
-  { code: "601", name: "Beban Bulanan (Sewa/Listrik/Air)" },
-  { code: "603", name: "Konsumsi" },
-  { code: "605", name: "Transport" },
-  { code: "606", name: "Perlengkapan" },
-  { code: "607", name: "Pajak" },
+  // Beban Produksi & Operasional
+  { code: "604", name: "Bahan & Sparepart Bengkel (Habis Pakai)" },
+  { code: "602", name: "Gaji & Insentif Karyawan" },
+  { code: "601", name: "Beban Bulanan (Sewa, Listrik, Air, Wifi)" },
+  { code: "603", name: "Konsumsi & Makan Lembur" },
+  { code: "605", name: "Transportasi & Bensin Teknisi" },
+  { code: "606", name: "Perlengkapan Bengkel" },
+  { code: "609", name: "Alat Kerja & Pemeliharaan" },
+  { code: "611", name: "Perlengkapan Kebersihan & RT Kantor" },
+  { code: "608", name: "Alat Tulis, Cetak Nota & Stiker Promosi" },
+  { code: "607", name: "Pajak Usaha" },
+  // Beban Keuangan
   { code: "501", name: "Beban Bunga Bank" },
+  { code: "502", name: "Biaya Admin Bank & QRIS" },
+  // Kewajiban & Modal
   { code: "210", name: "Hutang Usaha" },
-  { code: "108", name: "Kasbon Karyawan" },
-  { code: "302", name: "Prive" },
-  { code: "104", name: "Pembelian Stok" },
-  { code: "610", name: "Lainnya" },
+  { code: "302", name: "Prive (Pengambilan Pribadi)" },
+  // Pembelian Stok
+  { code: "104", name: "Pembelian Stok / Inventaris Barang" },
+  // Lainnya
+  { code: "610", name: "Beban Lainnya" },
 ];
 
 function todayIso() {

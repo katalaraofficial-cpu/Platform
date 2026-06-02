@@ -19,37 +19,55 @@ import {
 } from "@/lib/actions/kas";
 import type { AccountType } from "@/types/database";
 
-// ── COA (Chart of Account) ────────────────────────────────────
+// ── COA (Chart of Account) — UMKM Jasa & Dagang ──────────────
+// Kode mengikuti standar klasifikasi UMKM:
+//   1xx = Aktiva Lancar & Piutang
+//   2xx = Kewajiban / Hutang
+//   3xx = Modal
+//   4xx = Pendapatan
+//   5xx = Beban Keuangan & Bank
+//   6xx = Beban Operasional
 type CoaEntry = { code: string; name: string };
 
+// ── KAS MASUK (Debit Kas) ─────────────────────────────────────
 const COA_MASUK: CoaEntry[] = [
   { code: "401", name: "Pendapatan Jasa" },
-  { code: "409", name: "Pendapatan Lain-lain" },
-  { code: "103", name: "Piutang Usaha" },
+  { code: "402", name: "Pendapatan Penjualan Barang" },
+  { code: "409", name: "Income Lain-lain" },
+  { code: "103", name: "Piutang Usaha" },          // penerimaan piutang
   { code: "301", name: "Modal Awal / Setoran" },
-  { code: "105", name: "Mutasi Kas Bank" },
-  { code: "108", name: "Pelunasan Kasbon Karyawan" },
-  { code: "610", name: "Lainnya" },
+  { code: "105", name: "Mutasi Kas dan Bank" },
 ];
 
+// ── KAS KELUAR (Kredit Kas) ───────────────────────────────────
 const COA_KELUAR: CoaEntry[] = [
-  { code: "604", name: "Bahan & Sparepart" },
-  { code: "602", name: "Gaji Karyawan" },
-  { code: "601", name: "Beban Bulanan (Sewa/Listrik/Air)" },
-  { code: "603", name: "Konsumsi" },
-  { code: "605", name: "Transport" },
+  // Beban Produksi & Operasional
+  { code: "604", name: "Bahan & Sparepart Bengkel (Habis Pakai)" },
+  { code: "602", name: "Gaji & Insentif Karyawan" },
+  { code: "601", name: "Beban Bulanan (Sewa, Listrik, Air, Wifi)" },
+  { code: "603", name: "Konsumsi & Makan Lembur" },
+  { code: "605", name: "Transportasi & Bensin Teknisi" },
   { code: "606", name: "Perlengkapan Bengkel" },
-  { code: "607", name: "Pajak" },
+  { code: "609", name: "Alat Kerja & Pemeliharaan" },
+  { code: "611", name: "Perlengkapan Kebersihan & RT Kantor" },
+  { code: "608", name: "Alat Tulis, Cetak Nota & Stiker Promosi" },
+  { code: "607", name: "Pajak Usaha" },
+  // Beban Keuangan
   { code: "501", name: "Beban Bunga Bank" },
-  { code: "210", name: "Hutang Usaha" },
-  { code: "108", name: "Kasbon Karyawan" },
-  { code: "302", name: "Prive" },
-  { code: "104", name: "Pembelian Stok" },
-  { code: "610", name: "Lainnya" },
+  { code: "502", name: "Biaya Admin Bank & QRIS" },
+  // Kewajiban & Modal
+  { code: "210", name: "Hutang Usaha" },           // pembayaran hutang
+  { code: "302", name: "Prive (Pengambilan Pribadi)" },
+  // Pembelian Aset / Stok
+  { code: "104", name: "Pembelian Stok / Inventaris Barang" },
+  { code: "105", name: "Mutasi Kas dan Bank" },
+  // Lainnya
+  { code: "610", name: "Beban Lainnya" },
 ];
 
 // COA codes that need extra counterparty / due-date fields
-const HP_COA_CODES = ["103", "210", "108"];
+// [103] Piutang → nama pelanggan; [210] Hutang → nama vendor
+const HP_COA_CODES = ["103", "210"];
 function coaCodeOf(cat: string) {
   return cat.split(" ")[0]; // "103 - Piutang Usaha" → "103"
 }
@@ -58,9 +76,9 @@ function isHpCoa(cat: string) {
 }
 function counterpartyLabel(cat: string) {
   const code = coaCodeOf(cat);
-  if (code === "103") return "Nama Customer / Pihak";
+  if (code === "103") return "Nama Customer / Pihak Piutang";
   if (code === "210") return "Nama Vendor / Pemasok";
-  return "Nama Karyawan";
+  return "Nama Pihak";
 }
 function hasDueDateField(cat: string) {
   const code = coaCodeOf(cat);

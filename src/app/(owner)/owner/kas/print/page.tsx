@@ -140,217 +140,278 @@ export default async function KasPrintPage({
   return (
     <>
       <style>{`
+        /* ── Screen: halaman preview ────────────────────────── */
+        :root {
+          --paper: #ffffff;
+          --ink: #111827;
+          --muted: #6b7280;
+          --border: #e5e7eb;
+          --accent-green: #065f46;
+          --accent-red: #991b1b;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+          font-family: 'Helvetica Neue', Arial, sans-serif;
+          background: #f3f4f6;
+          color: var(--ink);
+          margin: 0;
+        }
+
+        /* ── Print: A4, sembunyikan UI chrome ───────────────── */
         @media print {
+          @page {
+            size: A4 portrait;
+            margin: 15mm 15mm 20mm 15mm;
+          }
+
+          html, body {
+            background: white !important;
+            font-size: 9.5pt;
+            color: #000 !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+
           .no-print { display: none !important; }
-          body { font-size: 11px; }
-          table { page-break-inside: auto; }
-          tr { page-break-inside: avoid; page-break-after: auto; }
+          .print-paper { box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin: 0 !important; max-width: 100% !important; }
+
+          table { border-collapse: collapse; width: 100%; page-break-inside: auto; }
           thead { display: table-header-group; }
           tfoot { display: table-footer-group; }
+          tr { page-break-inside: avoid; }
+
+          /* Force background colors on table rows */
+          .row-even { background-color: #f9fafb !important; }
+          .row-odd  { background-color: #ffffff !important; }
+          .thead-row { background-color: #1f2937 !important; color: #ffffff !important; }
+          .tfoot-row { background-color: #f3f4f6 !important; }
+
+          .text-emerald-700 { color: #065f46 !important; }
+          .text-red-600 { color: #991b1b !important; }
+          .text-red-700 { color: #b91c1c !important; }
+          .badge-tunai { background-color: #d1fae5 !important; color: #065f46 !important; }
+          .badge-bank  { background-color: #dbeafe !important; color: #1d4ed8 !important; }
+
+          section { page-break-inside: avoid; }
+          .section-new-page { page-break-before: always; }
         }
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; }
       `}</style>
 
-      <div className="mx-auto max-w-4xl p-6">
-
-        {/* ── Toolbar (hidden on print) ─────────────────────── */}
-        <div className="no-print mb-6 flex items-center justify-between rounded-xl border border-gray-200 bg-gray-50 px-5 py-3">
-          <div className="flex items-center gap-3">
-            <a href="/owner/kas" className="text-sm text-blue-600 hover:underline">
-              ← Kembali
+      {/* ── Toolbar: sticky, hanya tampil di layar ────────────── */}
+      <div className="no-print sticky top-0 z-30 border-b border-gray-200 bg-white/95 shadow-sm backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+          {/* Kiri: Kembali + info */}
+          <div className="flex items-center gap-3 min-w-0">
+            <a
+              href="/owner/kas"
+              className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
+              Kembali
             </a>
-            <span className="text-gray-300">|</span>
-            <span className="text-sm text-gray-500">{entries.length} transaksi · {periodLabel}</span>
+            <div className="hidden min-w-0 sm:block">
+              <p className="truncate text-sm font-semibold text-gray-800">{tenantName}</p>
+              <p className="text-xs text-gray-400">{entries.length} transaksi · {periodLabel}</p>
+            </div>
           </div>
+
+          {/* Kanan: Print button */}
           <PrintButton />
         </div>
 
-        {/* ══════════════════════════════════════════════════════
-            JURNAL KAS & KEUANGAN
-        ══════════════════════════════════════════════════════ */}
-        <div className="space-y-8">
+        {/* Mobile: info baris kedua */}
+        <div className="border-t border-gray-100 px-4 pb-2 pt-1 sm:hidden">
+          <p className="text-xs text-gray-500 truncate">{entries.length} transaksi · {periodLabel}</p>
+        </div>
+      </div>
 
-          {/* Header Laporan */}
-          <div className="border-b-2 border-gray-900 pb-4 text-center">
-            <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">Laporan Keuangan UMKM</p>
-            <h1 className="mt-1 text-2xl font-bold text-gray-900">{tenantName}</h1>
-            <h2 className="mt-2 text-base font-semibold text-gray-700">Jurnal Kas &amp; Keuangan</h2>
-            <p className="mt-1 text-sm text-gray-500">Periode: {periodLabel}</p>
+      {/* ── Konten laporan ────────────────────────────────────── */}
+      <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 print:p-0 print:max-w-full">
+        <div className="print-paper rounded-2xl bg-white p-6 shadow-md sm:p-10 print:shadow-none print:rounded-none print:p-0">
+
+          {/* ══ HEADER LAPORAN ══════════════════════════════ */}
+          <header className="mb-8 border-b-2 border-gray-900 pb-5 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-gray-400">
+              Laporan Keuangan UMKM
+            </p>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight text-gray-900">
+              {tenantName}
+            </h1>
+            <div className="mt-1 inline-block rounded-full border border-gray-300 px-4 py-0.5">
+              <p className="text-sm font-semibold text-gray-700">Jurnal Kas &amp; Keuangan</p>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">Periode: <span className="font-semibold text-gray-700">{periodLabel}</span></p>
             <p className="mt-0.5 text-xs text-gray-400">Dicetak: {printedAt}</p>
-          </div>
+          </header>
 
-          {/* ── Bagian 1: Jurnal Umum ───────────────────────── */}
-          <section>
-            <h3 className="mb-3 border-b border-gray-300 pb-1 text-sm font-bold uppercase tracking-wide text-gray-700">
-              I. Jurnal Umum
-            </h3>
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b-2 border-gray-700 bg-gray-100">
-                  <th className="py-2 pl-2 text-left font-semibold text-gray-700 w-[90px]">Tanggal</th>
-                  <th className="py-2 px-2 text-left font-semibold text-gray-700">Akun &amp; Keterangan</th>
-                  <th className="py-2 px-2 text-left font-semibold text-gray-700 w-[70px]">Akun</th>
-                  <th className="py-2 px-2 text-right font-semibold text-gray-700 w-[110px]">Debit (Masuk)</th>
-                  <th className="py-2 pl-2 pr-2 text-right font-semibold text-gray-700 w-[110px]">Kredit (Keluar)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-gray-400">Tidak ada transaksi</td>
-                  </tr>
-                ) : (
-                  entries.map((e, idx) => {
-                    const isMasuk = e.transaction_type === "kas_masuk";
-                    const dateStr = (e as Ledger & { transaction_date?: string }).transaction_date ?? e.created_at;
-                    return (
-                      <tr key={e.id} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="py-1.5 pl-2 text-gray-600 align-top">{fmtDate(dateStr)}</td>
-                        <td className="py-1.5 px-2 align-top">
-                          <p className="font-medium text-gray-800">{getCoaLabel(e.category)}</p>
-                          {e.notes && (
-                            <p className="text-[10px] text-gray-400 mt-0.5">{e.notes}</p>
-                          )}
-                        </td>
-                        <td className="py-1.5 px-2 align-top">
-                          <span className={`inline-flex rounded px-1 py-0.5 text-[10px] font-medium ${
-                            e.account_type === "kas_tunai"
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-blue-100 text-blue-700"
-                          }`}>
-                            {e.account_type === "kas_tunai" ? "Tunai" : "Bank"}
-                          </span>
-                        </td>
-                        <td className="py-1.5 px-2 text-right font-medium text-emerald-700 align-top">
-                          {isMasuk ? fmt(Number(e.amount)) : ""}
-                        </td>
-                        <td className="py-1.5 pl-2 pr-2 text-right font-medium text-red-600 align-top">
-                          {!isMasuk ? fmt(Number(e.amount)) : ""}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-700 bg-gray-100 font-bold">
-                  <td colSpan={3} className="py-2 pl-2 text-right text-xs text-gray-700">TOTAL</td>
-                  <td className="py-2 px-2 text-right text-xs text-emerald-700">{fmt(totalDebit)}</td>
-                  <td className="py-2 pl-2 pr-2 text-right text-xs text-red-600">{fmt(totalKredit)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </section>
-
-          {/* ── Bagian 2: Rekapitulasi per COA (Buku Besar) ─── */}
-          <section>
-            <h3 className="mb-3 border-b border-gray-300 pb-1 text-sm font-bold uppercase tracking-wide text-gray-700">
-              II. Rekapitulasi per Akun (Buku Besar Ringkas)
-            </h3>
-            <table className="w-full border-collapse text-xs">
-              <thead>
-                <tr className="border-b-2 border-gray-700 bg-gray-100">
-                  <th className="py-2 pl-2 text-left font-semibold text-gray-700 w-[60px]">Kode</th>
-                  <th className="py-2 px-2 text-left font-semibold text-gray-700">Nama Akun</th>
-                  <th className="py-2 px-2 text-right font-semibold text-gray-700 w-[120px]">Debit (Masuk)</th>
-                  <th className="py-2 px-2 text-right font-semibold text-gray-700 w-[120px]">Kredit (Keluar)</th>
-                  <th className="py-2 pl-2 pr-2 text-right font-semibold text-gray-700 w-[120px]">Saldo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortedCoa.map(([code, val], idx) => {
-                  const saldo = val.debit - val.kredit;
-                  return (
-                    <tr key={code} className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                      <td className="py-1.5 pl-2 font-mono text-gray-500">[{code}]</td>
-                      <td className="py-1.5 px-2 text-gray-800">{COA_MAP[code] ?? code}</td>
-                      <td className="py-1.5 px-2 text-right text-emerald-700">
-                        {val.debit > 0 ? fmt(val.debit) : "—"}
-                      </td>
-                      <td className="py-1.5 px-2 text-right text-red-600">
-                        {val.kredit > 0 ? fmt(val.kredit) : "—"}
-                      </td>
-                      <td className={`py-1.5 pl-2 pr-2 text-right font-semibold ${saldo >= 0 ? "text-gray-800" : "text-red-600"}`}>
-                        {saldo >= 0 ? fmt(saldo) : `(${fmt(Math.abs(saldo))})`}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-700 bg-gray-100 font-bold">
-                  <td colSpan={2} className="py-2 pl-2 text-right text-xs text-gray-700">TOTAL</td>
-                  <td className="py-2 px-2 text-right text-xs text-emerald-700">{fmt(totalDebit)}</td>
-                  <td className="py-2 px-2 text-right text-xs text-red-600">{fmt(totalKredit)}</td>
-                  <td className={`py-2 pl-2 pr-2 text-right text-xs font-bold ${totalDebit - totalKredit >= 0 ? "text-gray-900" : "text-red-700"}`}>
-                    {totalDebit - totalKredit >= 0
-                      ? fmt(totalDebit - totalKredit)
-                      : `(${fmt(Math.abs(totalDebit - totalKredit))})`}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </section>
-
-          {/* ── Bagian 3: Ringkasan Posisi Kas ──────────────── */}
-          <section>
-            <h3 className="mb-3 border-b border-gray-300 pb-1 text-sm font-bold uppercase tracking-wide text-gray-700">
-              III. Ringkasan Posisi Kas
-            </h3>
-            <div className="grid grid-cols-3 gap-4 text-xs">
+          {/* ══ RINGKASAN POSISI KAS (di atas jurnal) ═══════ */}
+          <section className="mb-8">
+            <div className="grid grid-cols-3 gap-3 text-xs">
               {[
-                {
-                  label: "Total Kas Masuk (Debit)",
-                  value: fmt(totalDebit),
-                  cls: "text-emerald-700",
-                },
-                {
-                  label: "Total Kas Keluar (Kredit)",
-                  value: fmt(totalKredit),
-                  cls: "text-red-600",
-                },
+                { label: "Total Kas Masuk", value: fmt(totalDebit), color: "border-l-emerald-500 text-emerald-700" },
+                { label: "Total Kas Keluar", value: fmt(totalKredit), color: "border-l-red-500 text-red-600" },
                 {
                   label: "Selisih Bersih",
-                  value:
-                    totalDebit - totalKredit >= 0
-                      ? fmt(totalDebit - totalKredit)
-                      : `(${fmt(Math.abs(totalDebit - totalKredit))})`,
-                  cls: totalDebit - totalKredit >= 0 ? "text-gray-900" : "text-red-700",
+                  value: totalDebit - totalKredit >= 0
+                    ? fmt(totalDebit - totalKredit)
+                    : `(${fmt(Math.abs(totalDebit - totalKredit))})`,
+                  color: totalDebit - totalKredit >= 0
+                    ? "border-l-gray-700 text-gray-800"
+                    : "border-l-red-600 text-red-700",
                 },
               ].map((s) => (
-                <div key={s.label} className="rounded-lg border border-gray-200 p-3">
-                  <p className="text-gray-500">{s.label}</p>
-                  <p className={`mt-1 text-base font-bold ${s.cls}`}>{s.value}</p>
+                <div key={s.label} className={`rounded-xl border border-gray-100 border-l-4 bg-gray-50 p-3 ${s.color}`}>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-gray-500">{s.label}</p>
+                  <p className={`mt-1 text-base font-bold ${s.color.split(" ")[1]}`}>{s.value}</p>
                 </div>
               ))}
             </div>
           </section>
 
-          {/* ── Footer Tanda Tangan ──────────────────────────── */}
-          <section className="mt-8 grid grid-cols-3 gap-6 text-xs text-gray-600">
-            <div className="text-center">
-              <p>Dibuat oleh,</p>
-              <div className="mt-10 border-t border-gray-400 pt-1">
-                <p className="font-medium">Admin / Kasir</p>
-              </div>
+          {/* ══ I. JURNAL UMUM ══════════════════════════════ */}
+          <section className="mb-8">
+            <div className="mb-3 flex items-center gap-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500">I. Jurnal Umum</h3>
+              <div className="flex-1 border-t border-gray-200" />
             </div>
-            <div className="text-center">
-              <p>Diperiksa oleh,</p>
-              <div className="mt-10 border-t border-gray-400 pt-1">
-                <p className="font-medium">Pengelola</p>
-              </div>
-            </div>
-            <div className="text-center">
-              <p>Disetujui oleh,</p>
-              <div className="mt-10 border-t border-gray-400 pt-1">
-                <p className="font-medium">Pemilik</p>
-              </div>
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="thead-row bg-gray-800 text-white">
+                    <th className="py-2.5 pl-3 text-left font-semibold w-[90px]">Tanggal</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Akun &amp; Keterangan</th>
+                    <th className="py-2.5 px-3 text-center font-semibold w-[60px]">Akun</th>
+                    <th className="py-2.5 px-3 text-right font-semibold w-[110px]">Debit (Masuk)</th>
+                    <th className="py-2.5 px-3 pr-3 text-right font-semibold w-[110px]">Kredit (Keluar)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {entries.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-10 text-center text-gray-400">Tidak ada transaksi pada periode ini</td>
+                    </tr>
+                  ) : (
+                    entries.map((e, idx) => {
+                      const isMasuk = e.transaction_type === "kas_masuk";
+                      const dateStr = (e as Ledger & { transaction_date?: string }).transaction_date ?? e.created_at;
+                      return (
+                        <tr key={e.id} className={idx % 2 === 0 ? "row-even bg-white" : "row-odd bg-gray-50"}>
+                          <td className="py-2 pl-3 text-gray-500 align-top whitespace-nowrap">{fmtDate(dateStr)}</td>
+                          <td className="py-2 px-3 align-top">
+                            <p className="font-semibold text-gray-800">{getCoaLabel(e.category)}</p>
+                            {e.notes && (
+                              <p className="mt-0.5 text-[10px] leading-relaxed text-gray-400">{e.notes}</p>
+                            )}
+                          </td>
+                          <td className="py-2 px-3 align-top text-center">
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                              e.account_type === "kas_tunai"
+                                ? "badge-tunai bg-emerald-100 text-emerald-700"
+                                : "badge-bank bg-blue-100 text-blue-700"
+                            }`}>
+                              {e.account_type === "kas_tunai" ? "Tunai" : "Bank"}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-right font-medium tabular-nums align-top text-emerald-700">
+                            {isMasuk ? fmt(Number(e.amount)) : ""}
+                          </td>
+                          <td className="py-2 px-3 pr-3 text-right font-medium tabular-nums align-top text-red-600">
+                            {!isMasuk ? fmt(Number(e.amount)) : ""}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="tfoot-row border-t-2 border-gray-700 bg-gray-100">
+                    <td colSpan={3} className="py-2.5 pl-3 text-right text-xs font-bold text-gray-700">TOTAL</td>
+                    <td className="py-2.5 px-3 text-right text-xs font-bold tabular-nums text-emerald-700">{fmt(totalDebit)}</td>
+                    <td className="py-2.5 px-3 pr-3 text-right text-xs font-bold tabular-nums text-red-600">{fmt(totalKredit)}</td>
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </section>
 
-          <p className="text-center text-[10px] text-gray-400">
-            Dokumen ini dicetak dari sistem POS — {tenantName} · {printedAt}
-          </p>
+          {/* ══ II. REKAPITULASI PER AKUN ═══════════════════ */}
+          <section className="mb-8 section-new-page">
+            <div className="mb-3 flex items-center gap-3">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500">II. Rekapitulasi per Akun (Buku Besar Ringkas)</h3>
+              <div className="flex-1 border-t border-gray-200" />
+            </div>
+            <div className="overflow-x-auto rounded-xl border border-gray-200">
+              <table className="w-full border-collapse text-xs">
+                <thead>
+                  <tr className="thead-row bg-gray-800 text-white">
+                    <th className="py-2.5 pl-3 text-left font-semibold w-[55px]">Kode</th>
+                    <th className="py-2.5 px-3 text-left font-semibold">Nama Akun</th>
+                    <th className="py-2.5 px-3 text-right font-semibold w-[120px]">Debit (Masuk)</th>
+                    <th className="py-2.5 px-3 text-right font-semibold w-[120px]">Kredit (Keluar)</th>
+                    <th className="py-2.5 px-3 pr-3 text-right font-semibold w-[120px]">Saldo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sortedCoa.map(([code, val], idx) => {
+                    const saldo = val.debit - val.kredit;
+                    return (
+                      <tr key={code} className={idx % 2 === 0 ? "row-even bg-white" : "row-odd bg-gray-50"}>
+                        <td className="py-2 pl-3 font-mono font-semibold text-gray-400">{code}</td>
+                        <td className="py-2 px-3 font-medium text-gray-800">{COA_MAP[code] ?? code}</td>
+                        <td className="py-2 px-3 text-right tabular-nums text-emerald-700">
+                          {val.debit > 0 ? fmt(val.debit) : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className="py-2 px-3 text-right tabular-nums text-red-600">
+                          {val.kredit > 0 ? fmt(val.kredit) : <span className="text-gray-300">—</span>}
+                        </td>
+                        <td className={`py-2 px-3 pr-3 text-right font-semibold tabular-nums ${saldo >= 0 ? "text-gray-800" : "text-red-600"}`}>
+                          {saldo >= 0 ? fmt(saldo) : `(${fmt(Math.abs(saldo))})`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="tfoot-row border-t-2 border-gray-700 bg-gray-100">
+                    <td colSpan={2} className="py-2.5 pl-3 text-right text-xs font-bold text-gray-700">TOTAL</td>
+                    <td className="py-2.5 px-3 text-right text-xs font-bold tabular-nums text-emerald-700">{fmt(totalDebit)}</td>
+                    <td className="py-2.5 px-3 text-right text-xs font-bold tabular-nums text-red-600">{fmt(totalKredit)}</td>
+                    <td className={`py-2.5 px-3 pr-3 text-right text-xs font-bold tabular-nums ${totalDebit - totalKredit >= 0 ? "text-gray-900" : "text-red-700"}`}>
+                      {totalDebit - totalKredit >= 0
+                        ? fmt(totalDebit - totalKredit)
+                        : `(${fmt(Math.abs(totalDebit - totalKredit))})`}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </section>
+
+          {/* ══ III. TANDA TANGAN ═══════════════════════════ */}
+          <section className="mt-12 border-t border-gray-200 pt-8">
+            <div className="grid grid-cols-3 gap-6 text-xs text-gray-600">
+              {["Dibuat oleh", "Diperiksa oleh", "Disetujui oleh"].map((label, i) => (
+                <div key={i} className="text-center">
+                  <p className="text-gray-500">{label},</p>
+                  <div className="mt-12 border-t border-gray-400 pt-1.5">
+                    <p className="font-semibold text-gray-700">
+                      {i === 0 ? "Admin / Kasir" : i === 1 ? "Pengelola" : "Pemilik"}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ══ FOOTER DOK ══════════════════════════════════ */}
+          <div className="mt-6 border-t border-gray-100 pt-4 text-center">
+            <p className="text-[10px] text-gray-300">
+              {tenantName} · Jurnal Kas &amp; Keuangan · {periodLabel} · Dicetak {printedAt}
+            </p>
+          </div>
+
         </div>
       </div>
     </>

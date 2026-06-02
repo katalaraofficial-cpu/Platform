@@ -44,11 +44,12 @@ function parseAmount(display: string): number {
   return parseInt(display.replace(/\./g, ""), 10) || 0;
 }
 
-const HP_COA_CODES = ["210", "108"];
+// [103] Piutang (masuk) dan [210] Hutang (keluar) memerlukan nama pihak
+const HP_COA_CODES = ["210"];
 function coaCodeOf(cat: string) { return cat.split(" ")[0]; }
 function isHpCoa(cat: string) { return HP_COA_CODES.includes(coaCodeOf(cat)); }
-function counterpartyLabel(cat: string) {
-  return coaCodeOf(cat) === "210" ? "Nama Vendor / Pemasok" : "Nama Karyawan";
+function counterpartyLabel(_cat: string) {
+  return "Nama Vendor / Pemasok";
 }
 
 const inputCls = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40";

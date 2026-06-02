@@ -168,11 +168,11 @@ export default async function KasPage({
             href={printUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-600 shadow-sm hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
             title="Ekspor Jurnal & Buku Besar ke PDF"
           >
             <FileDown className="h-4 w-4 text-gray-500" />
-            <span className="hidden sm:inline">Export PDF</span>
+            <span>Export PDF</span>
           </a>
           <KasQuickActions />
         </div>

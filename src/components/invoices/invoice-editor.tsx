@@ -688,11 +688,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Computed totals ───────────────────────────────────────────────────
   const preTax = items.reduce((s, i) => s + i.sellPrice * i.qty, 0);
-  const ppnAmount = ppnEnabled ? (preTax * ppnPct) / 100 : 0;
-  const pphAmount = pphEnabled ? (preTax * pphPct) / 100 : 0;
   const rawDiscount = Math.max(0, Number(discountInput) || 0);
   const computedDiscount = discountMode === "pct" ? (preTax * rawDiscount) / 100 : rawDiscount;
-  const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount + shippingCost;
+  // PPN/PPh dihitung setelah diskon (taxable base = subtotal - diskon)
+  const taxableBase = Math.max(0, preTax - computedDiscount);
+  const ppnAmount = ppnEnabled ? (taxableBase * ppnPct) / 100 : 0;
+  const pphAmount = pphEnabled ? (taxableBase * pphPct) / 100 : 0;
+  const grandTotal = taxableBase + ppnAmount - pphAmount + shippingCost;
   const rawDp = Math.max(0, Number(dpInput) || 0);
   const computedDp = dpMode === "pct" ? (grandTotal * rawDp) / 100 : rawDp;
   const dpEnabled = (props as { dpEnabled?: boolean }).dpEnabled === true;

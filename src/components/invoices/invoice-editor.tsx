@@ -2518,56 +2518,193 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               <span className="text-xs font-medium uppercase tracking-wider text-gray-500">Grand Total</span>
               <span className="font-mono text-sm font-bold text-gray-900">{fmt(grandTotal)}</span>
             </div>
-            {(ppnEnabled || pphEnabled || computedDiscount > 0 || shippingCost > 0 || (dpEnabled && computedDp > 0)) && (
-              <button
-                type="button"
-                onClick={() => setShowGrandTotalDetailsMobile((prev) => !prev)}
-                className="mb-2 w-full rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600"
-              >
-                {showGrandTotalDetailsMobile ? "Sembunyikan rincian" : "Tampilkan rincian"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setShowGrandTotalDetailsMobile((prev) => !prev)}
+              className="mb-2 w-full rounded-md border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600"
+            >
+              {showGrandTotalDetailsMobile ? "Sembunyikan rincian" : "Tampilkan rincian PPN, PPh, Diskon, DP"}
+            </button>
             {showGrandTotalDetailsMobile && (
-              <div className="mb-2 space-y-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <div className="mb-2 max-h-[55vh] space-y-2.5 overflow-y-auto rounded-lg border border-slate-200 bg-slate-50 px-3 py-3">
                 <div className="flex items-center justify-between text-xs text-slate-600">
                   <span>Subtotal</span>
                   <span className="font-mono">{fmt(preTax)}</span>
                 </div>
-                {ppnEnabled && (
-                  <div className="flex items-center justify-between text-xs text-blue-600">
+
+                {/* PPN */}
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex cursor-pointer items-center gap-1.5 text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={ppnEnabled}
+                      disabled={!canEdit}
+                      onChange={(e) => {
+                        const nextEnabled = e.target.checked;
+                        setPpnEnabled(nextEnabled);
+                        if (isEdit) handleSaveTax(nextEnabled, ppnPct, pphEnabled, pphPct);
+                      }}
+                      className="rounded"
+                    />
                     <span>PPN</span>
-                    <span className="font-mono">+{fmt(ppnAmount)}</span>
-                  </div>
-                )}
-                {pphEnabled && (
-                  <div className="flex items-center justify-between text-xs text-amber-700">
+                    {ppnEnabled && canEdit && (
+                      <>
+                        <input
+                          type="number" min="0" max="100"
+                          value={ppnPct}
+                          onChange={(e) => setPpnPct(Number(e.target.value))}
+                          onBlur={() => { if (isEdit) handleSaveTax(); }}
+                          className="w-12 rounded border border-gray-200 px-1 py-0.5 text-center text-xs focus:outline-none"
+                        />
+                        <span className="text-[10px] text-gray-400">%</span>
+                      </>
+                    )}
+                  </label>
+                  {ppnEnabled && <span className="font-mono text-xs text-blue-600">+{fmt(ppnAmount)}</span>}
+                </div>
+
+                {/* PPh */}
+                <div className="flex items-center justify-between text-xs">
+                  <label className="flex cursor-pointer items-center gap-1.5 text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={pphEnabled}
+                      disabled={!canEdit}
+                      onChange={(e) => {
+                        const nextEnabled = e.target.checked;
+                        setPphEnabled(nextEnabled);
+                        if (isEdit) handleSaveTax(ppnEnabled, ppnPct, nextEnabled, pphPct);
+                      }}
+                      className="rounded"
+                    />
                     <span>PPh</span>
-                    <span className="font-mono">-{fmt(pphAmount)}</span>
+                    {pphEnabled && canEdit && (
+                      <>
+                        <input
+                          type="number" min="0" max="100"
+                          value={pphPct}
+                          onChange={(e) => setPphPct(Number(e.target.value))}
+                          onBlur={() => { if (isEdit) handleSaveTax(); }}
+                          className="w-12 rounded border border-gray-200 px-1 py-0.5 text-center text-xs focus:outline-none"
+                        />
+                        <span className="text-[10px] text-gray-400">%</span>
+                      </>
+                    )}
+                  </label>
+                  {pphEnabled && <span className="font-mono text-xs text-amber-700">-{fmt(pphAmount)}</span>}
+                </div>
+
+                {/* Diskon */}
+                {canEdit ? (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-600">Diskon</span>
+                      <div className="flex overflow-hidden rounded border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => setDiscountMode("rp")}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium transition-colors ${discountMode === "rp" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >Rp</button>
+                        <button
+                          type="button"
+                          onClick={() => setDiscountMode("pct")}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium transition-colors ${discountMode === "pct" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >%</button>
+                      </div>
+                      <input
+                        type="number" min="0" step="any"
+                        value={discountInput}
+                        onChange={(e) => setDiscountInput(e.target.value)}
+                        onBlur={() => { if (isEdit) handleSaveDiscount(); }}
+                        placeholder="0"
+                        className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-0.5 text-right text-xs focus:outline-none"
+                      />
+                    </div>
+                    {computedDiscount > 0 && (
+                      <div className="flex justify-between text-[11px] text-green-600">
+                        <span>Potongan</span>
+                        <span className="font-mono">-{fmt(computedDiscount)}</span>
+                      </div>
+                    )}
                   </div>
-                )}
-                {computedDiscount > 0 && (
+                ) : computedDiscount > 0 ? (
                   <div className="flex items-center justify-between text-xs text-green-600">
                     <span>Diskon</span>
                     <span className="font-mono">-{fmt(computedDiscount)}</span>
                   </div>
-                )}
-                {shippingCost > 0 && (
-                  <div className="flex items-center justify-between text-xs text-slate-600">
+                ) : null}
+
+                {/* Biaya Kirim */}
+                {canEdit ? (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-gray-600">Biaya Kirim</span>
+                    <input
+                      type="number" min="0" step="any"
+                      value={shippingInput}
+                      onChange={(e) => setShippingInput(e.target.value)}
+                      onBlur={handleSaveShipping}
+                      placeholder="0"
+                      className="w-28 rounded border border-gray-200 px-2 py-0.5 text-right text-xs focus:outline-none"
+                    />
+                  </div>
+                ) : shippingCost > 0 ? (
+                  <div className="flex items-center justify-between text-xs text-gray-600">
                     <span>Biaya Kirim</span>
                     <span className="font-mono">+{fmt(shippingCost)}</span>
                   </div>
+                ) : null}
+
+                {/* DP / Uang Muka */}
+                {dpEnabled && canEdit && (
+                  <div className="space-y-1 border-t border-dashed border-slate-200 pt-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs text-gray-600">DP / Uang Muka</span>
+                      <div className="flex overflow-hidden rounded border border-gray-200">
+                        <button
+                          type="button"
+                          onClick={() => setDpMode("rp")}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium transition-colors ${dpMode === "rp" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >Rp</button>
+                        <button
+                          type="button"
+                          onClick={() => setDpMode("pct")}
+                          className={`px-1.5 py-0.5 text-[10px] font-medium transition-colors ${dpMode === "pct" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                        >%</button>
+                      </div>
+                      <input
+                        type="number" min="0" step="any"
+                        value={dpInput}
+                        onChange={(e) => setDpInput(e.target.value)}
+                        onBlur={handleSaveDp}
+                        placeholder="0"
+                        className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-0.5 text-right text-xs focus:outline-none"
+                      />
+                    </div>
+                    {computedDp > 0 && (
+                      <>
+                        <div className="flex justify-between text-[11px] text-blue-600">
+                          <span>DP Dibayar</span>
+                          <span className="font-mono">-{fmt(computedDp)}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1 text-[11px]">
+                          <span className="font-semibold text-amber-700">Sisa Tagihan</span>
+                          <span className="font-mono font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
-                {dpEnabled && computedDp > 0 && (
-                  <>
-                    <div className="flex items-center justify-between text-xs text-blue-600">
+                {dpEnabled && !canEdit && computedDp > 0 && (
+                  <div className="space-y-1 border-t border-dashed border-slate-200 pt-2">
+                    <div className="flex justify-between text-[11px] text-blue-600">
                       <span>DP Dibayar</span>
                       <span className="font-mono">-{fmt(computedDp)}</span>
                     </div>
-                    <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5 text-xs">
+                    <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1 text-[11px]">
                       <span className="font-semibold text-amber-700">Sisa Tagihan</span>
                       <span className="font-mono font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
                     </div>
-                  </>
+                  </div>
                 )}
               </div>
             )}

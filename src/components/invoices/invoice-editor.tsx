@@ -32,6 +32,7 @@ import {
   updateInvoiceDueDate,
   updateInvoiceShipping,
   updateInvoiceDate,
+  updateInvoiceDp,
   setInvoiceComplaintStatus,
 } from "@/lib/actions/invoice";
 import { PrintOptionsModal } from "@/components/invoices/print-options-modal";
@@ -85,6 +86,7 @@ export interface InvoiceEditData {
   ppnPct: number;
   pphPct: number;
   discountAmount: number;
+  dpAmount?: number;
   grandTotal: number;
   createdAt: string;
   paidAt: string | null;
@@ -637,6 +639,13 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   });
   const [discountMode, setDiscountMode] = useState<"rp" | "pct">("rp");
 
+  // ── DP (down payment) state ───────────────────────────────────────────
+  const [dpInput, setDpInput] = useState(() => {
+    const d = Number(editInvoice?.dpAmount ?? 0);
+    return d > 0 ? String(d) : "";
+  });
+  const [dpMode, setDpMode] = useState<"rp" | "pct">("rp");
+
   // ── Due date + shipping state ─────────────────────────────────────────
   const [dueDate, setDueDate] = useState(() => editInvoice?.dueDate ?? "");
   const [shippingCost, setShippingCost] = useState(() => Number(editInvoice?.shippingCost ?? 0));
@@ -682,6 +691,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const rawDiscount = Math.max(0, Number(discountInput) || 0);
   const computedDiscount = discountMode === "pct" ? (preTax * rawDiscount) / 100 : rawDiscount;
   const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount + shippingCost;
+  const rawDp = Math.max(0, Number(dpInput) || 0);
+  const computedDp = dpMode === "pct" ? (grandTotal * rawDp) / 100 : rawDp;
+  const grandTotalBeforeDp = grandTotal;
 
   // ── Derived edit-mode flags ───────────────────────────────────────────
   const canEdit = isEdit ? displayStatus !== "cancelled" : true;
@@ -1068,6 +1080,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     if (!isEdit) return;
     startTransition(async () => {
       await updateInvoiceShipping(editInvoice!.id, val, props.basePath);
+    });
+  }
+
+  // ── DP save ───────────────────────────────────────────────────────────
+  function handleSaveDp() {
+    const val = Math.max(0, computedDp);
+    if (!isEdit) return;
+    startTransition(async () => {
+      await updateInvoiceDp(editInvoice!.id, val, props.basePath);
     });
   }
 
@@ -1703,6 +1724,50 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 <span className="font-semibold text-gray-900">Grand Total</span>
                 <span className="font-mono text-base font-bold text-gray-900">{fmt(grandTotal)}</span>
               </div>
+
+              {/* DP mobile */}
+              {isEdit && canEdit && (
+                <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500">DP / Uang Muka</span>
+                    <div className="flex overflow-hidden rounded border border-gray-200">
+                      <button type="button" onClick={() => setDpMode("rp")}
+                        className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${dpMode === "rp" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}>Rp</button>
+                      <button type="button" onClick={() => setDpMode("pct")}
+                        className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${dpMode === "pct" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}>%</button>
+                    </div>
+                    <input type="number" min="0" step="any"
+                      value={dpInput} onChange={(e) => setDpInput(e.target.value)}
+                      onBlur={handleSaveDp} placeholder="0"
+                      className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-1.5 text-right text-xs focus:outline-none"
+                    />
+                  </div>
+                  {computedDp > 0 && (
+                    <>
+                      <div className="flex justify-between text-xs text-blue-600">
+                        <span>DP Dibayar</span>
+                        <span className="font-mono">-{fmt(computedDp)}</span>
+                      </div>
+                      <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5">
+                        <span className="text-xs font-semibold text-amber-700">Sisa Tagihan</span>
+                        <span className="font-mono text-sm font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+              {isEdit && !canEdit && computedDp > 0 && (
+                <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
+                  <div className="flex justify-between text-xs text-blue-600">
+                    <span>DP Dibayar</span>
+                    <span className="font-mono">-{fmt(computedDp)}</span>
+                  </div>
+                  <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5">
+                    <span className="text-xs font-semibold text-amber-700">Sisa Tagihan</span>
+                    <span className="font-mono text-sm font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
           )}
@@ -2123,6 +2188,59 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               <span className="font-semibold text-gray-900">Grand Total</span>
               <span className="font-mono text-base font-bold text-gray-900">{fmt(grandTotal)}</span>
             </div>
+
+            {/* DP / Uang Muka */}
+            {isEdit && canEdit && (
+              <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-gray-500">DP / Uang Muka</span>
+                  <div className="flex overflow-hidden rounded border border-gray-200">
+                    <button
+                      type="button"
+                      onClick={() => setDpMode("rp")}
+                      className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${dpMode === "rp" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                    >Rp</button>
+                    <button
+                      type="button"
+                      onClick={() => setDpMode("pct")}
+                      className={`px-1.5 py-0.5 text-xs font-medium transition-colors ${dpMode === "pct" ? "bg-gray-900 text-white" : "bg-white text-gray-600"}`}
+                    >%</button>
+                  </div>
+                  <input
+                    type="number" min="0" step="any"
+                    value={dpInput}
+                    onChange={(e) => setDpInput(e.target.value)}
+                    onBlur={handleSaveDp}
+                    placeholder="0"
+                    className="min-w-0 flex-1 rounded border border-gray-200 px-2 py-0.5 text-right text-xs focus:outline-none"
+                  />
+                </div>
+                {computedDp > 0 && (
+                  <>
+                    <div className="flex justify-between text-xs text-blue-600">
+                      <span>DP Dibayar</span>
+                      <span className="font-mono">-{fmt(computedDp)}</span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5">
+                      <span className="text-xs font-semibold text-amber-700">Sisa Tagihan</span>
+                      <span className="font-mono text-sm font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {isEdit && !canEdit && computedDp > 0 && (
+              <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
+                <div className="flex justify-between text-xs text-blue-600">
+                  <span>DP Dibayar</span>
+                  <span className="font-mono">-{fmt(computedDp)}</span>
+                </div>
+                <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5">
+                  <span className="text-xs font-semibold text-amber-700">Sisa Tagihan</span>
+                  <span className="font-mono text-sm font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Print size (create mode only) */}

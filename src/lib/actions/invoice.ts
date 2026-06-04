@@ -323,7 +323,22 @@ export async function updateInvoiceStatus(
   const supabase = await createClient();
   const now = new Date().toISOString();
   const update: Partial<Omit<Invoice, "id" | "created_at">> = { status: newStatus };
-  if (newStatus === "completed") update.completed_at = now;
+
+  if (newStatus === "completed") {
+    // For retroactive invoices, use invoice_date as completed_at
+    const { data: inv } = await supabase
+      .from("invoices")
+      .select("invoice_date")
+      .eq("id", invoiceId)
+      .single();
+    const today = new Date().toISOString().split("T")[0];
+    const invoiceDate = inv?.invoice_date as string | undefined;
+    update.completed_at =
+      invoiceDate && invoiceDate < today
+        ? new Date(invoiceDate + "T12:00:00").toISOString()
+        : now;
+  }
+
   if (newStatus === "paid") update.paid_at = now;
 
   await supabase.from("invoices").update(update).eq("id", invoiceId);
@@ -1098,6 +1113,23 @@ export async function updateInvoiceShipping(
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId);
   await syncTotals(supabase, invoiceId);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
+}
+
+// ── Update invoice down payment (DP / uang muka) ─────────────
+export async function updateInvoiceDp(
+  invoiceId: string,
+  dpAmount: number,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  await supabase
+    .from("invoices")
+    .update({ dp_amount: Math.max(0, dpAmount) })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 

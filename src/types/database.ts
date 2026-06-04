@@ -120,6 +120,7 @@ export interface Invoice {
   pph_pct: number;
   pph_amount: number;
   discount_amount: number;
+  dp_amount: number;
   grand_total: number;
   invoice_date: string;
   due_date: string | null;

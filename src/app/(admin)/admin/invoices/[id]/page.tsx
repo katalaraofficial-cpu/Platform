@@ -80,6 +80,7 @@ export default async function AdminInvoiceDetailPage({
         ppnPct: Number(invoice.ppn_pct ?? 0),
         pphPct: Number(invoice.pph_pct ?? 0),
         discountAmount: Number(invoice.discount_amount ?? 0),
+        dpAmount: Number((invoice as Record<string, unknown>)["dp_amount"] ?? 0),
         grandTotal: Number(invoice.grand_total),
         createdAt: invoice.created_at,
         paidAt: invoice.paid_at ?? null,

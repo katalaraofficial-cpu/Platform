@@ -694,10 +694,16 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount + shippingCost;
   const rawDp = Math.max(0, Number(dpInput) || 0);
   const computedDp = dpMode === "pct" ? (grandTotal * rawDp) / 100 : rawDp;
+  const dpEnabled = (props as { dpEnabled?: boolean }).dpEnabled === true;
+  const showMobileSummaryBox =
+    ppnEnabled ||
+    pphEnabled ||
+    computedDiscount > 0 ||
+    shippingCost > 0 ||
+    (dpEnabled && computedDp > 0);
 
   // ── Derived edit-mode flags ───────────────────────────────────────────
   const canEdit = isEdit ? displayStatus !== "cancelled" : true;
-  const dpEnabled = (props as { dpEnabled?: boolean }).dpEnabled === true;
   const statusMap = props.isOwner ? OWNER_NEXT_STATUS : ADMIN_NEXT_STATUS;
   const statusActions = displayStatus ? (statusMap[displayStatus] ?? []) : [];
   const canRollback =
@@ -1725,6 +1731,63 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 <span className="font-semibold text-gray-900">Grand Total</span>
                 <span className="font-mono text-base font-bold text-gray-900">{fmt(grandTotal)}</span>
               </div>
+
+              {showMobileSummaryBox && (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 shadow-sm">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                      Rincian Total
+                    </span>
+                    <span className="text-[11px] text-slate-400">Mobile Summary</span>
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-xs text-slate-600">
+                      <span>Subtotal</span>
+                      <span className="font-mono">{fmt(preTax)}</span>
+                    </div>
+                    {ppnEnabled && (
+                      <div className="flex items-center justify-between text-xs text-blue-600">
+                        <span>PPN</span>
+                        <span className="font-mono">+{fmt(ppnAmount)}</span>
+                      </div>
+                    )}
+                    {pphEnabled && (
+                      <div className="flex items-center justify-between text-xs text-amber-700">
+                        <span>PPh</span>
+                        <span className="font-mono">-{fmt(pphAmount)}</span>
+                      </div>
+                    )}
+                    {computedDiscount > 0 && (
+                      <div className="flex items-center justify-between text-xs text-green-600">
+                        <span>Diskon</span>
+                        <span className="font-mono">-{fmt(computedDiscount)}</span>
+                      </div>
+                    )}
+                    {shippingCost > 0 && (
+                      <div className="flex items-center justify-between text-xs text-slate-600">
+                        <span>Biaya Kirim</span>
+                        <span className="font-mono">+{fmt(shippingCost)}</span>
+                      </div>
+                    )}
+                    {dpEnabled && computedDp > 0 && (
+                      <>
+                        <div className="flex items-center justify-between text-xs text-blue-600">
+                          <span>DP Dibayar</span>
+                          <span className="font-mono">-{fmt(computedDp)}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-md bg-amber-50 px-2 py-1.5 text-xs">
+                          <span className="font-semibold text-amber-700">Sisa Tagihan</span>
+                          <span className="font-mono font-bold text-amber-700">{fmt(Math.max(0, grandTotal - computedDp))}</span>
+                        </div>
+                      </>
+                    )}
+                    <div className="flex items-center justify-between border-t border-slate-200 pt-2 text-xs font-semibold text-slate-900">
+                      <span>Total Akhir</span>
+                      <span className="font-mono">{fmt(grandTotal)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* DP mobile */}
               {isEdit && canEdit && dpEnabled && (

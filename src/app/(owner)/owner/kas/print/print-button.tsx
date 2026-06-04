@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Printer, Download, X, Loader2 } from "lucide-react";
+import { Printer, Loader2 } from "lucide-react";
 
 export function PrintButton() {
   const [printing, setPrinting] = useState(false);

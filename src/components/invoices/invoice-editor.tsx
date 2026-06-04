@@ -693,7 +693,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const grandTotal = preTax + ppnAmount - pphAmount - computedDiscount + shippingCost;
   const rawDp = Math.max(0, Number(dpInput) || 0);
   const computedDp = dpMode === "pct" ? (grandTotal * rawDp) / 100 : rawDp;
-  const grandTotalBeforeDp = grandTotal;
 
   // ── Derived edit-mode flags ───────────────────────────────────────────
   const canEdit = isEdit ? displayStatus !== "cancelled" : true;

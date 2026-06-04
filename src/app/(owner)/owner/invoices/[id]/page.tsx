@@ -68,6 +68,7 @@ export default async function OwnerInvoiceDetailPage({
       mode="edit"
       basePath={BASE_PATH}
       isOwner={true}
+      dpEnabled={user.featureToggles?.module_invoice_dp === true}
       mechanics={(allMechanics ?? []).map((m) => ({
         id: m.id,
         name: m.full_name ?? "?",

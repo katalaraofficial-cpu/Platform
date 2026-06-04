@@ -968,7 +968,18 @@ export async function updateInvoiceMechanicStatus(
 
   const updateData: { status: "in_progress" | "completed"; completed_at?: string } = { status: newStatus };
   if (newStatus === "completed") {
-    updateData.completed_at = new Date().toISOString();
+    // For retroactive invoices, use invoice_date as completed_at
+    const { data: invDate } = await admin
+      .from("invoices")
+      .select("invoice_date")
+      .eq("id", invoiceId)
+      .single();
+    const today = new Date().toISOString().split("T")[0];
+    const invoiceDate = (invDate as { invoice_date?: string } | null)?.invoice_date;
+    updateData.completed_at =
+      invoiceDate && invoiceDate < today
+        ? new Date(invoiceDate + "T12:00:00").toISOString()
+        : new Date().toISOString();
   }
 
   // 3. Update using service role — bypasses RLS

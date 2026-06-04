@@ -107,6 +107,41 @@ export async function savePlatformSettings(data: {
   }
 }
 
+// ── Tab 2b: Modul Invoice (feature toggle untuk DP) ─────────
+export async function saveInvoiceFeatures(data: {
+  moduleInvoiceDp: boolean;
+}): Promise<SettingsActionState> {
+  try {
+    const ctx = await ownerGuard();
+    const admin = createAdminClient();
+
+    const { data: tenant, error: fetchErr } = await admin
+      .from("tenants")
+      .select("feature_toggles")
+      .eq("id", ctx.tenantId)
+      .single();
+    if (fetchErr) return { error: fetchErr.message };
+
+    const toggles = {
+      ...(tenant?.feature_toggles ?? {}),
+      module_invoice_dp: data.moduleInvoiceDp,
+    };
+
+    const { error } = await admin
+      .from("tenants")
+      .update({ feature_toggles: toggles })
+      .eq("id", ctx.tenantId);
+    if (error) return { error: error.message };
+
+    revalidatePath("/owner/settings");
+    revalidatePath("/owner/invoices", "layout");
+    revalidatePath("/admin/invoices", "layout");
+    return { success: "Modul invoice diperbarui" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 // ── Tab 3: Nota & Printer ───────────────────────────────────
 export async function saveNotaSettings(data: {
   notaTitle: string;

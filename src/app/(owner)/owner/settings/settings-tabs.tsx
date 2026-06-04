@@ -14,10 +14,11 @@ import {
   Upload,
   X,
 } from "lucide-react";
-import type { Settings } from "@/types/database";
+import type { FeatureToggles, Settings } from "@/types/database";
 import {
   saveStoreInfo,
   savePlatformSettings,
+  saveInvoiceFeatures,
   saveNotaSettings,
   saveRewardSettings,
   syncEngineerPoints,
@@ -107,10 +108,12 @@ export function SettingsTabs({
   activeTab,
   settings,
   tenantId,
+  featureToggles,
 }: {
   activeTab: string;
   settings: Settings | null;
   tenantId: string;
+  featureToggles: FeatureToggles | null;
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -139,7 +142,7 @@ export function SettingsTabs({
       {/* Tab content */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         {activeTab === "toko" && <TabToko s={settings} tenantId={tenantId} />}
-        {activeTab === "platform" && <TabPlatform s={settings} />}
+        {activeTab === "platform" && <TabPlatform s={settings} featureToggles={featureToggles} />}
         {activeTab === "nota" && <TabNota s={settings} tenantId={tenantId} />}
         {activeTab === "reward" && <TabReward s={settings} />}
         {activeTab === "reset" && <TabReset />}
@@ -200,7 +203,7 @@ function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
 }
 
 // ── Tab 2: Platform ──────────────────────────────────────────
-function TabPlatform({ s }: { s: Settings | null }) {
+function TabPlatform({ s, featureToggles }: { s: Settings | null; featureToggles: FeatureToggles | null }) {
   const router = useRouter();
   const [markupPct, setMarkupPct] = useState(String(s?.default_markup_pct ?? 20));
   const [pettyCash, setPettyCash] = useState(String(s?.petty_cash_limit ?? 500000));
@@ -227,43 +230,99 @@ function TabPlatform({ s }: { s: Settings | null }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex w-full max-w-lg flex-col gap-5">
-      <h2 className="font-bold text-gray-900 text-lg">Pengaturan Platform</h2>
-      <Field label="Default Markup Sparepart Eksternal (%)">
-        <Input type="number" min={0} max={100} step={0.1} value={markupPct} onChange={(e) => setMarkupPct(e.target.value)} />
-      </Field>
-      <Field label="Limit Kas Kecil (Rp)">
-        <Input type="number" min={0} step={1000} value={pettyCash} onChange={(e) => setPettyCash(e.target.value)} />
-      </Field>
-      <Field label="Kuantitas Desimal">
-        <label className="flex items-center gap-3 cursor-pointer">
-          <div
-            onClick={() => setQtyDecimal(!qtyDecimal)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${qtyDecimal ? "bg-violet-600" : "bg-gray-300"}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${qtyDecimal ? "translate-x-6" : "translate-x-1"}`} />
+    <div className="flex w-full max-w-lg flex-col gap-8">
+      <ModulInvoiceCard featureToggles={featureToggles} />
+
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <h2 className="font-bold text-gray-900 text-lg">Pengaturan Platform</h2>
+        <Field label="Default Markup Sparepart Eksternal (%)">
+          <Input type="number" min={0} max={100} step={0.1} value={markupPct} onChange={(e) => setMarkupPct(e.target.value)} />
+        </Field>
+        <Field label="Limit Kas Kecil (Rp)">
+          <Input type="number" min={0} step={1000} value={pettyCash} onChange={(e) => setPettyCash(e.target.value)} />
+        </Field>
+        <Field label="Kuantitas Desimal">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              onClick={() => setQtyDecimal(!qtyDecimal)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${qtyDecimal ? "bg-violet-600" : "bg-gray-300"}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${qtyDecimal ? "translate-x-6" : "translate-x-1"}`} />
+            </div>
+            <span className="text-sm text-gray-700">{qtyDecimal ? "Aktif (misal 1.5 liter)" : "Nonaktif (bilangan bulat)"}</span>
+          </label>
+        </Field>
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Label Tier Harga</p>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {(["HET", "HG1", "HG2", "HG3"] as const).map((key) => (
+              <Field key={key} label={`Tier ${key}`}>
+                <Input
+                  value={tierLabels[key]}
+                  onChange={(e) => setTierLabels({ ...tierLabels, [key]: e.target.value })}
+                  placeholder={key}
+                />
+              </Field>
+            ))}
           </div>
-          <span className="text-sm text-gray-700">{qtyDecimal ? "Aktif (misal 1.5 liter)" : "Nonaktif (bilangan bulat)"}</span>
-        </label>
-      </Field>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Label Tier Harga</p>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {(["HET", "HG1", "HG2", "HG3"] as const).map((key) => (
-            <Field key={key} label={`Tier ${key}`}>
-              <Input
-                value={tierLabels[key]}
-                onChange={(e) => setTierLabels({ ...tierLabels, [key]: e.target.value })}
-                placeholder={key}
-              />
-            </Field>
-          ))}
         </div>
+        <div className="flex justify-end">
+          <SaveButton pending={pending} />
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ── Tab 2b: Modul Invoice ───────────────────────────────────
+function ModulInvoiceCard({ featureToggles }: { featureToggles: FeatureToggles | null }) {
+  const router = useRouter();
+  const [dpEnabled, setDpEnabled] = useState(featureToggles?.module_invoice_dp === true);
+  const [pending, startTransition] = useTransition();
+
+  function handleToggle(next: boolean) {
+    const prev = dpEnabled;
+    setDpEnabled(next);
+    startTransition(async () => {
+      const res = await saveInvoiceFeatures({ moduleInvoiceDp: next });
+      if (res.error) {
+        setDpEnabled(prev);
+        toast.error(res.error);
+      } else {
+        toast.success(res.success);
+        router.refresh();
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+      <div>
+        <h2 className="font-bold text-gray-900 text-lg">Modul Invoice</h2>
+        <p className="text-xs text-gray-500 mt-1">
+          Aktifkan modul opsional untuk fitur invoice. Modul yang non-aktif tidak akan tampil di halaman invoice.
+        </p>
       </div>
-      <div className="flex justify-end">
-        <SaveButton pending={pending} />
-      </div>
-    </form>
+
+      <label className="flex items-start justify-between gap-4 rounded-xl bg-white border border-gray-200 p-4 cursor-pointer">
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-gray-900">DP / Uang Muka</p>
+          <p className="text-xs text-gray-500 mt-1">
+            Memungkinkan pelanggan membayar sebagian dari total tagihan terlebih dahulu sebelum invoice lunas.
+            Bila non-aktif, kolom DP tidak tampil di editor invoice.
+          </p>
+        </div>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => handleToggle(!dpEnabled)}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${dpEnabled ? "bg-violet-600" : "bg-gray-300"} ${pending ? "opacity-60" : ""}`}
+          aria-pressed={dpEnabled}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${dpEnabled ? "translate-x-6" : "translate-x-1"}`} />
+        </button>
+      </label>
+    </div>
   );
 }
 

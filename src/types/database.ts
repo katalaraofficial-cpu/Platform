@@ -21,6 +21,7 @@ export interface FeatureToggles {
   module_customer_history: boolean;
   module_engineer: boolean;
   module_kas: boolean;
+  module_invoice_dp: boolean;
 }
 
 // ── Vehicle info shape (stored as JSONB in customers) ───────

@@ -51,7 +51,7 @@ export default async function SettingsPage({
         <h1 className="text-2xl font-bold text-gray-900">Pengaturan</h1>
         <p className="text-sm text-gray-500">Kelola konfigurasi platform dan toko</p>
       </div>
-      <SettingsTabs activeTab={activeTab} settings={settings} tenantId={ctx.tenantId} />
+      <SettingsTabs activeTab={activeTab} settings={settings} tenantId={ctx.tenantId} featureToggles={ctx.featureToggles} />
     </div>
   );
 }

@@ -120,6 +120,7 @@ export type InvoiceEditorProps = {
   basePath: string;
   mechanics: MechanicOption[];
   isOwner?: boolean;
+  dpEnabled?: boolean;
 } & (
   | { mode: "create" }
   | {
@@ -696,6 +697,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Derived edit-mode flags ───────────────────────────────────────────
   const canEdit = isEdit ? displayStatus !== "cancelled" : true;
+  const dpEnabled = (props as { dpEnabled?: boolean }).dpEnabled === true;
   const statusMap = props.isOwner ? OWNER_NEXT_STATUS : ADMIN_NEXT_STATUS;
   const statusActions = displayStatus ? (statusMap[displayStatus] ?? []) : [];
   const canRollback =
@@ -1725,7 +1727,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               </div>
 
               {/* DP mobile */}
-              {isEdit && canEdit && (
+              {isEdit && canEdit && dpEnabled && (
                 <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
                   <div className="flex items-center gap-1.5">
                     <span className="text-xs text-gray-500">DP / Uang Muka</span>
@@ -1755,7 +1757,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   )}
                 </div>
               )}
-              {isEdit && !canEdit && computedDp > 0 && (
+              {isEdit && !canEdit && dpEnabled && computedDp > 0 && (
                 <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
                   <div className="flex justify-between text-xs text-blue-600">
                     <span>DP Dibayar</span>
@@ -2189,7 +2191,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             </div>
 
             {/* DP / Uang Muka */}
-            {isEdit && canEdit && (
+            {isEdit && canEdit && dpEnabled && (
               <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
                 <div className="flex items-center gap-1.5">
                   <span className="text-xs text-gray-500">DP / Uang Muka</span>
@@ -2228,7 +2230,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </div>
             )}
-            {isEdit && !canEdit && computedDp > 0 && (
+            {isEdit && !canEdit && dpEnabled && computedDp > 0 && (
               <div className="mt-3 space-y-1.5 border-t border-dashed border-gray-200 pt-3">
                 <div className="flex justify-between text-xs text-blue-600">
                   <span>DP Dibayar</span>

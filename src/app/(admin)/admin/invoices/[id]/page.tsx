@@ -67,6 +67,7 @@ export default async function AdminInvoiceDetailPage({
     <InvoiceEditor
       mode="edit"
       basePath={BASE_PATH}
+      dpEnabled={user.featureToggles?.module_invoice_dp === true}
       mechanics={(allMechanics ?? []).map((m) => ({
         id: m.id,
         name: m.full_name ?? "?",

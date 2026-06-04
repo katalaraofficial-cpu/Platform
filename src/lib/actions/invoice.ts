@@ -714,6 +714,7 @@ export async function processPayment(
       transfer_ref: null,
       notes: `Pembayaran invoice ${inv.invoice_number} via ${methodLabel[method] ?? method}`,
       created_by: ctx.id,
+      created_at: paidAt,
     } as never);
   }
 

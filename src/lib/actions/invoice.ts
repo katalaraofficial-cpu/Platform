@@ -673,11 +673,14 @@ export async function processPayment(
 
   const { data: inv } = await supabase
     .from("invoices")
-    .select("grand_total, invoice_number, status")
+    .select("grand_total, invoice_number, status, customer_id, customer:customers(name)")
     .eq("id", invoiceId)
     .eq("tenant_id", ctx.tenantId)
     .single();
   if (!inv || inv.status !== "completed") return;
+
+  const customerName =
+    (inv as { customer?: { name?: string } | null }).customer?.name?.trim() || null;
 
   // Update invoice to paid
   const paidAt = paymentDate
@@ -704,6 +707,10 @@ export async function processPayment(
       other: "Lainnya",
     };
     const adminClient = createAdminClient();
+    const methodLabelText = methodLabel[method] ?? method;
+    const noteText = customerName
+      ? `${customerName} — Pembayaran ${inv.invoice_number} via ${methodLabelText}`
+      : `Pembayaran invoice ${inv.invoice_number} via ${methodLabelText}`;
     await adminClient.from("ledger").insert({
       tenant_id: ctx.tenantId,
       transaction_type: "kas_masuk",
@@ -712,7 +719,7 @@ export async function processPayment(
       amount,
       reference_id: invoiceId,
       transfer_ref: null,
-      notes: `Pembayaran invoice ${inv.invoice_number} via ${methodLabel[method] ?? method}`,
+      notes: noteText,
       created_by: ctx.id,
       created_at: paidAt,
     } as never);

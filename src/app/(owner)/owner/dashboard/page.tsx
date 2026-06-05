@@ -168,12 +168,13 @@ export default async function OwnerDashboard({
   const nextMonthDate = new Date(selYear, selMonth + 1, 1);
   const firstOfNextMonth = `${nextMonthDate.getFullYear()}-${String(nextMonthDate.getMonth() + 1).padStart(2, "0")}-01`;
 
-  // ISO strings for ledger created_at (timestamptz)
-  const ledgerMonthStart = new Date(selYear, selMonth, 1).toISOString();
-  const ledgerMonthEnd = new Date(selYear, selMonth + 1, 1).toISOString();
+  // Filter ledger pakai transaction_date (DATE) agar konsisten dengan tanggal
+  // transaksi yang dipilih user di form kas, bukan waktu input baris.
+  const ledgerMonthStartDate = firstOfMonth;
+  const ledgerMonthEndDate = firstOfNextMonth;
 
-  // "Today" is always now, independent of selected month
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+  // "Today" sebagai YYYY-MM-DD lokal
+  const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   // Bar chart: relative to selected month, going back barMonths
   const barMonths = period === "12m" ? 12 : period === "3m" ? 3 : 6;
@@ -236,10 +237,10 @@ export default async function OwnerDashboard({
       .not("paid_at", "is", null),
     supabase
       .from("ledger")
-      .select("transaction_type, amount, category, created_at")
+      .select("transaction_type, amount, category, transaction_date")
       .eq("tenant_id", tenantId)
-      .gte("created_at", ledgerMonthStart)
-      .lt("created_at", ledgerMonthEnd),
+      .gte("transaction_date", ledgerMonthStartDate)
+      .lt("transaction_date", ledgerMonthEndDate),
     supabase
       .from("v_mechanic_debt_summary")
       .select("outstanding_balance")
@@ -289,11 +290,8 @@ export default async function OwnerDashboard({
     (e) => e.transaction_type === "kas_masuk" && e.category === "Pembayaran Invoice"
   );
   const monthRevenue = invoicePayments.reduce((s, e) => s + Number(e.amount), 0);
-  // Compare via Date.parse — Supabase mengembalikan ISO dengan offset
-  // "+00:00" sedangkan toISOString() pakai ".000Z"; lex compare bisa salah.
-  const todayStartTs = Date.parse(todayStart);
   const todayRevenue = invoicePayments
-    .filter((e) => e.created_at != null && Date.parse(e.created_at) >= todayStartTs)
+    .filter((e) => (e as { transaction_date?: string }).transaction_date === todayDateStr)
     .reduce((s, e) => s + Number(e.amount), 0);
   const countByStatus = ["draft", "in_progress", "completed", "paid"].reduce<
     Record<string, number>

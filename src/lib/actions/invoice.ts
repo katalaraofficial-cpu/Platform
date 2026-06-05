@@ -318,25 +318,31 @@ export async function removeInvoiceItem(
 export async function updateInvoiceStatus(
   invoiceId: string,
   newStatus: "in_progress" | "completed" | "paid" | "cancelled",
-  basePath: string
+  basePath: string,
+  completedAt?: string
 ) {
   const supabase = await createClient();
   const now = new Date().toISOString();
   const update: Partial<Omit<Invoice, "id" | "created_at">> = { status: newStatus };
 
   if (newStatus === "completed") {
-    // For retroactive invoices, use invoice_date as completed_at
-    const { data: inv } = await supabase
-      .from("invoices")
-      .select("invoice_date")
-      .eq("id", invoiceId)
-      .single();
-    const today = new Date().toISOString().split("T")[0];
-    const invoiceDate = inv?.invoice_date as string | undefined;
-    update.completed_at =
-      invoiceDate && invoiceDate < today
-        ? new Date(invoiceDate + "T12:00:00").toISOString()
-        : now;
+    if (completedAt) {
+      // User-supplied date (YYYY-MM-DD). Use noon UTC so timezone math is stable.
+      update.completed_at = new Date(`${completedAt}T12:00:00Z`).toISOString();
+    } else {
+      // Fallback heuristic untuk invoice retroaktif
+      const { data: inv } = await supabase
+        .from("invoices")
+        .select("invoice_date")
+        .eq("id", invoiceId)
+        .single();
+      const today = new Date().toISOString().split("T")[0];
+      const invoiceDate = inv?.invoice_date as string | undefined;
+      update.completed_at =
+        invoiceDate && invoiceDate < today
+          ? new Date(invoiceDate + "T12:00:00Z").toISOString()
+          : now;
+    }
   }
 
   if (newStatus === "paid") update.paid_at = now;
@@ -937,7 +943,8 @@ export async function searchItemDescriptions(
 // Security is enforced manually: mechanic must be assigned to the invoice.
 export async function updateInvoiceMechanicStatus(
   invoiceId: string,
-  newStatus: "in_progress" | "completed"
+  newStatus: "in_progress" | "completed",
+  completedAt?: string
 ): Promise<{ error?: string }> {
   const ctx = await getUserContext();
   if (ctx.role !== "mechanic") return { error: "Akses ditolak" };
@@ -976,18 +983,22 @@ export async function updateInvoiceMechanicStatus(
 
   const updateData: { status: "in_progress" | "completed"; completed_at?: string } = { status: newStatus };
   if (newStatus === "completed") {
-    // For retroactive invoices, use invoice_date as completed_at
-    const { data: invDate } = await admin
-      .from("invoices")
-      .select("invoice_date")
-      .eq("id", invoiceId)
-      .single();
-    const today = new Date().toISOString().split("T")[0];
-    const invoiceDate = (invDate as { invoice_date?: string } | null)?.invoice_date;
-    updateData.completed_at =
-      invoiceDate && invoiceDate < today
-        ? new Date(invoiceDate + "T12:00:00").toISOString()
-        : new Date().toISOString();
+    if (completedAt) {
+      updateData.completed_at = new Date(`${completedAt}T12:00:00Z`).toISOString();
+    } else {
+      // Fallback heuristic untuk invoice retroaktif
+      const { data: invDate } = await admin
+        .from("invoices")
+        .select("invoice_date")
+        .eq("id", invoiceId)
+        .single();
+      const today = new Date().toISOString().split("T")[0];
+      const invoiceDate = (invDate as { invoice_date?: string } | null)?.invoice_date;
+      updateData.completed_at =
+        invoiceDate && invoiceDate < today
+          ? new Date(invoiceDate + "T12:00:00Z").toISOString()
+          : new Date().toISOString();
+    }
   }
 
   // 3. Update using service role — bypasses RLS

@@ -35,6 +35,18 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
+function lamaKerja(start: string | null | undefined, end: string | null | undefined) {
+  if (!start || !end) return "-";
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return "-";
+  // Hitung selisih hari kalender (inklusif hari mulai)
+  const startDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+  const endDay = Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate());
+  const days = Math.max(1, Math.round((endDay - startDay) / 86400000) + 1);
+  return `${days} hari`;
+}
+
 export default async function OwnerInvoicesPage({
   searchParams,
 }: {
@@ -375,6 +387,19 @@ export default async function OwnerInvoicesPage({
                           {fmt(isPaid ? 0 : invTotal)}
                         </p>
                       </div>
+                      <div>
+                        <p className="text-gray-400">Tgl Selesai</p>
+                        <p className="font-medium text-gray-700">{fmtDate(inv.completed_at)}</p>
+                      </div>
+                      <div>
+                        <p className="text-gray-400">Lama Kerja</p>
+                        <p className="font-medium text-gray-700">
+                          {lamaKerja(
+                            (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
+                            inv.completed_at
+                          )}
+                        </p>
+                      </div>
                     </div>
 
                     <div className="flex items-center justify-between">
@@ -405,6 +430,7 @@ export default async function OwnerInvoicesPage({
                     <th className={`${TH} text-right`}>Kurang</th>
                     <th className={TH}>Engineer</th>
                     <th className={TH}>Tgl Selesai</th>
+                    <th className={TH}>Lama Kerja</th>
                     <th className={TH}>Catatan</th>
                     <th className="w-10 px-3 py-3" />
                   </tr>
@@ -465,6 +491,12 @@ export default async function OwnerInvoicesPage({
                         </td>
                         <td className={`${TD} whitespace-nowrap text-gray-500`}>
                           {fmtDate(inv.completed_at)}
+                        </td>
+                        <td className={`${TD} whitespace-nowrap text-gray-500`}>
+                          {lamaKerja(
+                            (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
+                            inv.completed_at
+                          )}
                         </td>
                         <td className={`${TD} max-w-[140px] text-gray-500`}>
                           {inv.notes ? (

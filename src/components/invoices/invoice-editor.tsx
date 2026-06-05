@@ -668,7 +668,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [isPending, startTransition] = useTransition();
 
   // ── Confirm dialog state ──────────────────────────────────────────────
-  const [pendingConfirm, setPendingConfirm] = useState<"rollback" | "payment" | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<"rollback" | "payment" | "completion" | null>(null);
+  const [completionDate, setCompletionDate] = useState(todayStr());
 
   // ── Save state (create) ───────────────────────────────────────────────
   const [saveError, setSaveError] = useState("");
@@ -1001,6 +1002,12 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // ── Status change ─────────────────────────────────────────────────────
   function handleUpdateStatus(next: InvoiceStatus) {
     if (!isEdit) return;
+    if (next === "completed") {
+      // Default ke tanggal invoice supaya sesuai realita pekerjaan; user boleh ubah.
+      setCompletionDate((invoiceDate || todayStr()).slice(0, 10));
+      setPendingConfirm("completion");
+      return;
+    }
     startTransition(async () => {
       await updateInvoiceStatus(editInvoice!.id, next as Parameters<typeof updateInvoiceStatus>[1], props.basePath);
       router.refresh();
@@ -1029,6 +1036,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     } else if (action === "payment") {
       startTransition(async () => {
         await processPayment(editInvoice!.id, payMethod, payDate, props.basePath);
+        router.refresh();
+      });
+    } else if (action === "completion") {
+      startTransition(async () => {
+        await updateInvoiceStatus(editInvoice!.id, "completed", props.basePath, completionDate);
         router.refresh();
       });
     }
@@ -1124,6 +1136,47 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         onConfirm={executeConfirmedAction}
         onCancel={() => setPendingConfirm(null)}
       />
+      {/* Completion modal with date picker */}
+      {pendingConfirm === "completion" && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+            <h3 className="mb-2 text-base font-bold text-gray-900">Tandai Selesai</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Tentukan tanggal pekerjaan selesai. Nilai ini dipakai untuk laporan & lama kerja.
+            </p>
+            <label className="mb-4 block">
+              <span className="mb-1 block text-xs font-semibold text-gray-600">Tanggal Selesai</span>
+              <input
+                type="date"
+                value={completionDate}
+                max={todayStr()}
+                onChange={(e) => setCompletionDate(e.target.value)}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              />
+            </label>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setPendingConfirm(null)}
+                className="flex-1 rounded-xl border border-gray-300 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={!completionDate || isPending}
+                onClick={executeConfirmedAction}
+                className="flex-1 rounded-xl bg-amber-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-amber-400 disabled:opacity-50"
+              >
+                Simpan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Modals */}
       {showAddCustomer && (
         <QuickAddCustomerModal

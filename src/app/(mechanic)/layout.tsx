@@ -3,6 +3,7 @@ import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
 import { signOut } from "@/lib/actions/auth";
 import { ClipboardList, UploadCloud, BookOpen, LogOut } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
+import { PrivateSidebarToggle } from "@/components/mechanic/private-sidebar-toggle";
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Work Order", href: "/mechanic/dashboard", icon: <ClipboardList className="h-5 w-5" /> },
@@ -48,6 +49,8 @@ export default async function MechanicLayout({
               <LogOut className="h-4 w-4" />
             </button>
           </form>
+
+          <PrivateSidebarToggle fullName={ctx.fullName ?? "Mekanik"} />
         </div>
       </header>
 

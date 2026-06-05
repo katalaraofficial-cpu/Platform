@@ -11,6 +11,7 @@ const COA_KELUAR = [
   // Beban Produksi & Operasional
   { code: "604", name: "Bahan & Sparepart Bengkel (Habis Pakai)" },
   { code: "602", name: "Gaji & Insentif Karyawan" },
+  { code: "108", name: "Kasbon Karyawan" },
   { code: "601", name: "Beban Bulanan (Sewa, Listrik, Air, Wifi)" },
   { code: "603", name: "Konsumsi & Makan Lembur" },
   { code: "605", name: "Transportasi & Bensin Teknisi" },
@@ -44,12 +45,12 @@ function parseAmount(display: string): number {
   return parseInt(display.replace(/\./g, ""), 10) || 0;
 }
 
-// [103] Piutang (masuk) dan [210] Hutang (keluar) memerlukan nama pihak
-const HP_COA_CODES = ["210"];
+// [210] Hutang dan [108] Kasbon karyawan memerlukan nama pihak
+const HP_COA_CODES = ["210", "108"];
 function coaCodeOf(cat: string) { return cat.split(" ")[0]; }
 function isHpCoa(cat: string) { return HP_COA_CODES.includes(coaCodeOf(cat)); }
-function counterpartyLabel(_cat: string) {
-  return "Nama Vendor / Pemasok";
+function counterpartyLabel(cat: string) {
+  return coaCodeOf(cat) === "108" ? "Nama Karyawan" : "Nama Vendor / Pemasok";
 }
 
 const inputCls = "w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40";

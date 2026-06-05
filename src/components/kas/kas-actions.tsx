@@ -37,6 +37,7 @@ const COA_MASUK: CoaEntry[] = [
   { code: "402", name: "Pendapatan Penjualan Barang" },
   { code: "409", name: "Income Lain-lain" },
   { code: "103", name: "Piutang Usaha" },          // penerimaan piutang
+  { code: "108", name: "Angsuran Kasbon Karyawan" }, // cicilan kasbon dari karyawan
   { code: "301", name: "Modal Awal / Setoran" },
   { code: "105", name: "Mutasi Kas dan Bank" },
 ];
@@ -46,6 +47,7 @@ const COA_KELUAR: CoaEntry[] = [
   // Beban Produksi & Operasional
   { code: "604", name: "Bahan & Sparepart Bengkel (Habis Pakai)" },
   { code: "602", name: "Gaji & Insentif Karyawan" },
+  { code: "108", name: "Kasbon Karyawan" },        // pemberian kasbon ke karyawan
   { code: "601", name: "Beban Bulanan (Sewa, Listrik, Air, Wifi)" },
   { code: "603", name: "Konsumsi & Makan Lembur" },
   { code: "605", name: "Transportasi & Bensin Teknisi" },
@@ -68,8 +70,9 @@ const COA_KELUAR: CoaEntry[] = [
 ];
 
 // COA codes that need extra counterparty / due-date fields
-// [103] Piutang → nama pelanggan; [210] Hutang → nama vendor
-const HP_COA_CODES = ["103", "210"];
+// [103] Piutang → nama pelanggan; [210] Hutang → nama vendor;
+// [108] Kasbon karyawan → nama karyawan
+const HP_COA_CODES = ["103", "210", "108"];
 function coaCodeOf(cat: string) {
   return cat.split(" ")[0]; // "103 - Piutang Usaha" → "103"
 }
@@ -80,11 +83,12 @@ function counterpartyLabel(cat: string) {
   const code = coaCodeOf(cat);
   if (code === "103") return "Nama Customer / Pihak Piutang";
   if (code === "210") return "Nama Vendor / Pemasok";
+  if (code === "108") return "Nama Karyawan";
   return "Nama Pihak";
 }
 function hasDueDateField(cat: string) {
   const code = coaCodeOf(cat);
-  return code === "103" || code === "210";
+  return code === "103" || code === "210" || code === "108";
 }
 // Build a structured notes string when HP fields are filled
 function buildHpNotes(counterparty: string, dueDate: string, userNotes: string) {

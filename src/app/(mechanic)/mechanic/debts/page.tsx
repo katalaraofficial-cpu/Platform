@@ -15,13 +15,12 @@ export default async function PiutangSayaPage() {
   const supabase = await createClient();
   const ctx = await getUserContext();
 
-  // Fetch advance entries + outstanding summary in parallel
+  // Fetch debt ledger + outstanding summary in parallel
   const [{ data: ledger }, { data: summaryRaw }] = await Promise.all([
     supabase
       .from("mechanic_debt_ledger")
       .select("*, invoice_items(receipt_image_url)")
       .eq("mechanic_id", ctx.id)
-      .eq("transaction_type", "advance")
       .order("created_at", { ascending: false }),
     supabase
       .from("v_mechanic_debt_summary")
@@ -34,7 +33,9 @@ export default async function PiutangSayaPage() {
     invoice_items: { receipt_image_url: string | null } | null;
   };
 
-  const entries = (ledger ?? []) as unknown as EntryWithReceipt[];
+  const allEntries = (ledger ?? []) as unknown as EntryWithReceipt[];
+  const advanceEntries = allEntries.filter((e) => e.transaction_type === "advance");
+  const reimbursementEntries = allEntries.filter((e) => e.transaction_type === "reimbursement");
 
   // ── FIFO paid status: oldest advance is settled first ─────────
   // This auto-reflects any reimbursement changes without touching is_paid flags.
@@ -42,7 +43,7 @@ export default async function PiutangSayaPage() {
   const outstandingBalance = Math.max(0, Number(summaryRaw?.outstanding_balance ?? 0));
 
   // Sort oldest → newest for FIFO calculation
-  const sortedOldest = [...entries].sort(
+  const sortedOldest = [...advanceEntries].sort(
     (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
   );
   let remainingPaid = totalReimbursed;
@@ -58,7 +59,7 @@ export default async function PiutangSayaPage() {
 
   const unpaidAmount = outstandingBalance;
   const paidAmount = Number(summaryRaw?.total_advanced ?? 0) - outstandingBalance;
-  const itemIds = entries
+  const itemIds = advanceEntries
     .map((e) => e.invoice_item_id)
     .filter(Boolean) as string[];
 
@@ -105,20 +106,20 @@ export default async function PiutangSayaPage() {
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-3">
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs font-medium text-amber-600">Belum Dibayar</p>
+          <p className="text-xs font-medium text-amber-600">Saldo Kasbon</p>
           <p className="mt-1 text-lg font-bold text-amber-700">{formatRp(unpaidAmount)}</p>
         </div>
         <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
-          <p className="text-xs font-medium text-green-600">Sudah Dibayar</p>
+          <p className="text-xs font-medium text-green-600">Total Cicilan Diterima</p>
           <p className="mt-1 text-lg font-bold text-green-700">{formatRp(paidAmount)}</p>
         </div>
       </div>
 
-      {/* List */}
-      {entries.length === 0 ? (
+      {/* Kasbon / Advance list */}
+      {advanceEntries.length === 0 ? (
         <div className="flex flex-col items-center gap-2 py-16 text-center">
           <Wallet className="h-10 w-10 text-gray-300" />
-          <p className="text-sm text-gray-400">Belum ada piutang tercatat.</p>
+          <p className="text-sm text-gray-400">Belum ada kasbon tercatat.</p>
           <p className="text-xs text-gray-400">
             Upload struk pembelian part untuk mulai mencatat.
           </p>
@@ -127,11 +128,11 @@ export default async function PiutangSayaPage() {
         <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
           <div className="border-b border-gray-100 px-4 py-3">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
-              Semua Catatan
+              Riwayat Kasbon
             </span>
           </div>
           <ul className="divide-y divide-gray-100">
-            {entries.map((entry) => {
+            {advanceEntries.map((entry) => {
               const invoiceNum = entry.invoice_item_id
                 ? invoiceMap.get(entry.invoice_item_id)
                 : null;
@@ -204,10 +205,51 @@ export default async function PiutangSayaPage() {
         </div>
       )}
 
+      {/* Cicilan / reimbursement list */}
+      <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white">
+        <div className="border-b border-gray-100 px-4 py-3">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">
+            Riwayat Cicilan Dibayarkan Perusahaan
+          </span>
+        </div>
+        {reimbursementEntries.length === 0 ? (
+          <div className="px-4 py-6 text-center text-sm text-gray-400">
+            Belum ada cicilan kasbon yang diterima.
+          </div>
+        ) : (
+          <ul className="divide-y divide-gray-100">
+            {reimbursementEntries.map((entry) => (
+              <li key={entry.id} className="px-4 py-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-gray-800">
+                      Cicilan kasbon diterima
+                    </p>
+                    <p className="mt-0.5 text-xs text-gray-400">
+                      {new Date(entry.created_at).toLocaleDateString("id-ID", {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </p>
+                    {entry.notes && (
+                      <p className="mt-1 text-xs text-gray-500">{entry.notes}</p>
+                    )}
+                  </div>
+                  <p className="shrink-0 text-sm font-bold text-green-600">
+                    {formatRp(entry.amount)}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       {/* Info note */}
       {unpaidAmount > 0 && (
         <p className="text-center text-xs text-gray-400">
-          Status lunas/belum dibayar dihitung otomatis berdasarkan total reimburse.
+          Saldo kasbon dihitung otomatis: total kasbon dikurangi total cicilan reimbursement.
         </p>
       )}
     </div>

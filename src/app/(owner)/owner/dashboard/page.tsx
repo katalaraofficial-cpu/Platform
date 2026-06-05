@@ -289,8 +289,11 @@ export default async function OwnerDashboard({
     (e) => e.transaction_type === "kas_masuk" && e.category === "Pembayaran Invoice"
   );
   const monthRevenue = invoicePayments.reduce((s, e) => s + Number(e.amount), 0);
+  // Compare via Date.parse — Supabase mengembalikan ISO dengan offset
+  // "+00:00" sedangkan toISOString() pakai ".000Z"; lex compare bisa salah.
+  const todayStartTs = Date.parse(todayStart);
   const todayRevenue = invoicePayments
-    .filter((e) => e.created_at != null && e.created_at >= todayStart)
+    .filter((e) => e.created_at != null && Date.parse(e.created_at) >= todayStartTs)
     .reduce((s, e) => s + Number(e.amount), 0);
   const countByStatus = ["draft", "in_progress", "completed", "paid"].reduce<
     Record<string, number>

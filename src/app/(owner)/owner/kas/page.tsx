@@ -264,7 +264,17 @@ export default async function KasPage({
 
         {/* Table */}
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full table-fixed text-sm">
+            <colgroup>
+              <col className="w-12" />
+              <col className="w-28" />
+              <col className="w-44" />
+              <col className="w-24" />
+              <col />
+              <col className="w-32" />
+              <col className="w-32" />
+              <col className="w-16" />
+            </colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
                 <th className="px-5 py-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
@@ -327,7 +337,10 @@ export default async function KasPage({
                           {isTransfer && (
                             <ArrowLeftRight className="h-3 w-3 shrink-0 text-blue-400" />
                           )}
-                          <span className="font-medium text-gray-800">
+                          <span
+                            className="truncate font-medium text-gray-800"
+                            title={row.category}
+                          >
                             {row.category}
                           </span>
                         </div>
@@ -343,7 +356,10 @@ export default async function KasPage({
                           {row.account_type === "kas_tunai" ? "Kas Tunai" : "Bank"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500 max-w-[200px] truncate">
+                      <td
+                        className="px-4 py-3 text-xs text-gray-500 truncate"
+                        title={row.notes ?? undefined}
+                      >
                         {row.notes ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-semibold">

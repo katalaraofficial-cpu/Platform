@@ -236,7 +236,7 @@ export default async function OwnerDashboard({
       .not("paid_at", "is", null),
     supabase
       .from("ledger")
-      .select("transaction_type, amount, created_at")
+      .select("transaction_type, amount, category, created_at")
       .eq("tenant_id", tenantId)
       .gte("created_at", ledgerMonthStart)
       .lt("created_at", ledgerMonthEnd),
@@ -281,21 +281,16 @@ export default async function OwnerDashboard({
     (customers ?? []).forEach((c) => customerMap.set(c.id, c.name));
   }
 
-  // Stat cards (always current month)
+  // Stat cards: Pendapatan dari ledger (kas_masuk + Pembayaran Invoice).
+  // Sumber tunggal yang sinkron dengan card Kas — mencerminkan uang masuk
+  // pada bulan/hari pembayaran, bukan tanggal nota.
   const all = invoicesMonth ?? [];
-  const monthRevenue = all
-    .filter((i) => i.status === "paid")
-    .reduce((s, i) => s + (i.grand_total ?? 0), 0);
-
-  // "Pendapatan Hari Ini" = all kas_masuk entries created today (includes
-  // auto-entries from invoice payments + manual entries from Kas module)
-  const todayRevenue = (ledgerMonth ?? [])
-    .filter(
-      (e) =>
-        e.transaction_type === "kas_masuk" &&
-        e.created_at != null &&
-        e.created_at >= todayStart
-    )
+  const invoicePayments = (ledgerMonth ?? []).filter(
+    (e) => e.transaction_type === "kas_masuk" && e.category === "Pembayaran Invoice"
+  );
+  const monthRevenue = invoicePayments.reduce((s, e) => s + Number(e.amount), 0);
+  const todayRevenue = invoicePayments
+    .filter((e) => e.created_at != null && e.created_at >= todayStart)
     .reduce((s, e) => s + Number(e.amount), 0);
   const countByStatus = ["draft", "in_progress", "completed", "paid"].reduce<
     Record<string, number>

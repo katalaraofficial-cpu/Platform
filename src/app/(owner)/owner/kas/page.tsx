@@ -156,25 +156,26 @@ export default async function KasPage({
   return (
     <div className="flex flex-col gap-6">
       {/* ── Page header ──────────────────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Kas &amp; Keuangan</h1>
           <p className="text-sm text-gray-500">
             Kelola kas tunai dan rekening bank bisnis Anda
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Action grid: 2x2 on mobile, single row on desktop */}
+        <div className="grid grid-cols-2 gap-2 md:flex md:items-center">
+          <KasQuickActions />
           <a
             href={printUrl()}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors"
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition-colors md:order-first"
             title="Ekspor Jurnal & Buku Besar ke PDF"
           >
             <FileDown className="h-4 w-4 text-gray-500" />
             <span>Export PDF</span>
           </a>
-          <KasQuickActions />
         </div>
       </div>
 
@@ -262,8 +263,8 @@ export default async function KasPage({
           pageSize={String(pageSize)}
         />
 
-        {/* Table */}
-        <div className="overflow-x-auto">
+        {/* Table — desktop only */}
+        <div className="hidden overflow-x-auto md:block">
           <table className="w-full table-fixed text-sm">
             <colgroup>
               <col className="w-10" />
@@ -400,6 +401,83 @@ export default async function KasPage({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile card list — visible only on mobile */}
+        <div className="divide-y divide-gray-100 md:hidden">
+          {rows.length === 0 ? (
+            <div className="px-5 py-12 text-center text-sm text-gray-400">
+              Belum ada transaksi{" "}
+              {accountFilter !== "all" || typeFilter !== "all"
+                ? "yang sesuai filter"
+                : "— mulai tambah dengan tombol di atas"}
+            </div>
+          ) : (
+            rows.map((row, idx) => {
+              const isMasuk = row.transaction_type === "kas_masuk";
+              const isTransfer = !!row.transfer_ref;
+              return (
+                <div key={row.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs text-gray-400">#{from + idx + 1}</span>
+                        <span className="text-xs text-gray-500">
+                          {fmtDate((row as Ledger & { transaction_date?: string }).transaction_date ?? row.created_at)}
+                        </span>
+                        <span
+                          className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            row.account_type === "kas_tunai"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-blue-50 text-blue-700"
+                          }`}
+                        >
+                          {row.account_type === "kas_tunai" ? "Kas Tunai" : "Bank"}
+                        </span>
+                        {isTransfer && (
+                          <span className="inline-flex items-center gap-0.5 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-medium text-indigo-700">
+                            <ArrowLeftRight className="h-2.5 w-2.5" />
+                            Transfer
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm font-semibold text-gray-800 break-words">
+                        {row.category}
+                      </p>
+                      {row.notes && (
+                        <p className="mt-0.5 text-xs text-gray-500 break-words">
+                          {row.notes}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <span
+                        className={`whitespace-nowrap text-sm font-bold ${
+                          isMasuk ? "text-emerald-600" : "text-red-500"
+                        }`}
+                      >
+                        {isMasuk ? "+" : "-"}
+                        {fmt(Number(row.amount))}
+                      </span>
+                      <KasRowActions
+                        entry={{
+                          id: row.id,
+                          category: row.category,
+                          amount: Number(row.amount),
+                          notes: row.notes,
+                          transfer_ref: row.transfer_ref,
+                          transaction_date:
+                            (row as Ledger & { transaction_date?: string }).transaction_date ?? null,
+                          account_type: row.account_type,
+                          transaction_type: row.transaction_type,
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
 
         {/* Pagination */}

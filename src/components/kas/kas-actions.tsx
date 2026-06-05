@@ -599,6 +599,9 @@ function EditModal({
 
 // ============================================================
 // QUICK ACTIONS BAR (top of page)
+// Renders three buttons (Pemasukan, Pengeluaran, Transfer) +
+// modals. Wrapped in a <></> so parent decides layout
+// (mobile: 2-col grid with Export PDF; desktop: inline row).
 // ============================================================
 export function KasQuickActions() {
   const [modal, setModal] = useState<"tambah" | "kurang" | "transfer" | null>(
@@ -607,29 +610,27 @@ export function KasQuickActions() {
 
   return (
     <>
-      <div className="flex gap-2">
-        <button
-          onClick={() => setModal("tambah")}
-          className="flex items-center gap-1.5 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
-        >
-          <Plus className="h-4 w-4" />
-          Pemasukan
-        </button>
-        <button
-          onClick={() => setModal("kurang")}
-          className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors"
-        >
-          <Minus className="h-4 w-4" />
-          Pengeluaran
-        </button>
-        <button
-          onClick={() => setModal("transfer")}
-          className="flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
-        >
-          <ArrowLeftRight className="h-4 w-4" />
-          Transfer
-        </button>
-      </div>
+      <button
+        onClick={() => setModal("tambah")}
+        className="flex items-center justify-center gap-1.5 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-green-700 transition-colors"
+      >
+        <Plus className="h-4 w-4" />
+        Pemasukan
+      </button>
+      <button
+        onClick={() => setModal("kurang")}
+        className="flex items-center justify-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 transition-colors"
+      >
+        <Minus className="h-4 w-4" />
+        Pengeluaran
+      </button>
+      <button
+        onClick={() => setModal("transfer")}
+        className="flex items-center justify-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 transition-colors"
+      >
+        <ArrowLeftRight className="h-4 w-4" />
+        Transfer
+      </button>
 
       <Modal
         open={modal === "tambah"}

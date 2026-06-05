@@ -266,14 +266,14 @@ export default async function KasPage({
         <div className="overflow-x-auto">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col className="w-12" />
-              <col className="w-28" />
-              <col className="w-44" />
+              <col className="w-10" />
               <col className="w-24" />
+              <col className="w-52" />
+              <col className="w-28" />
               <col />
-              <col className="w-32" />
-              <col className="w-32" />
-              <col className="w-16" />
+              <col className="w-36" />
+              <col className="w-36" />
+              <col className="w-20" />
             </colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
@@ -347,7 +347,7 @@ export default async function KasPage({
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
+                          className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                             row.account_type === "kas_tunai"
                               ? "bg-emerald-50 text-emerald-700"
                               : "bg-blue-50 text-blue-700"
@@ -362,7 +362,7 @@ export default async function KasPage({
                       >
                         {row.notes ?? "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
                         {isMasuk ? (
                           <span className="text-emerald-600">
                             +{fmt(Number(row.amount))}
@@ -371,7 +371,7 @@ export default async function KasPage({
                           <span className="text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-right font-semibold">
+                      <td className="px-4 py-3 text-right font-semibold whitespace-nowrap">
                         {!isMasuk ? (
                           <span className="text-red-500">
                             -{fmt(Number(row.amount))}

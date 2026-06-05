@@ -268,12 +268,12 @@ export default async function KasPage({
             <colgroup>
               <col className="w-10" />
               <col className="w-24" />
-              <col className="w-52" />
+              <col className="w-72" />
               <col className="w-28" />
               <col />
               <col className="w-36" />
               <col className="w-36" />
-              <col className="w-20" />
+              <col className="w-14" />
             </colgroup>
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/50 text-left">
@@ -333,12 +333,12 @@ export default async function KasPage({
                         {fmtDate((row as Ledger & { transaction_date?: string }).transaction_date ?? row.created_at)}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-start gap-1.5">
                           {isTransfer && (
-                            <ArrowLeftRight className="h-3 w-3 shrink-0 text-blue-400" />
+                            <ArrowLeftRight className="mt-0.5 h-3 w-3 shrink-0 text-blue-400" />
                           )}
                           <span
-                            className="truncate font-medium text-gray-800"
+                            className="break-words font-medium leading-snug text-gray-800 line-clamp-2"
                             title={row.category}
                           >
                             {row.category}
@@ -380,7 +380,7 @@ export default async function KasPage({
                           <span className="text-gray-300">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-3">
                         <KasRowActions
                           entry={{
                             id: row.id,
@@ -389,6 +389,8 @@ export default async function KasPage({
                             notes: row.notes,
                             transfer_ref: row.transfer_ref,
                             transaction_date: (row as Ledger & { transaction_date?: string }).transaction_date ?? null,
+                            account_type: row.account_type,
+                            transaction_type: row.transaction_type,
                           }}
                         />
                       </td>

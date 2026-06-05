@@ -9,6 +9,8 @@ import {
   Trash2,
   X,
   Loader2,
+  ChevronDown,
+  Eye,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -655,7 +657,7 @@ export function KasQuickActions() {
 }
 
 // ============================================================
-// ROW ACTIONS (edit + delete per row)
+// ROW ACTIONS (menu → detail / edit / delete per row)
 // ============================================================
 type RowEntry = {
   id: string;
@@ -664,14 +666,17 @@ type RowEntry = {
   notes: string | null;
   transfer_ref: string | null;
   transaction_date: string | null;
+  account_type: AccountType;
+  transaction_type: "kas_masuk" | "kas_keluar";
 };
 
 export function KasRowActions({ entry }: { entry: RowEntry }) {
-  const [modal, setModal] = useState<"edit" | "delete" | null>(null);
+  const [modal, setModal] = useState<"menu" | "detail" | "edit" | "delete" | null>(null);
   const [isPending, startTransition] = useTransition();
   const [err, setErr] = useState("");
 
   const isTransfer = !!entry.transfer_ref;
+  const isMasuk = entry.transaction_type === "kas_masuk";
 
   function handleDelete() {
     setErr("");
@@ -686,26 +691,93 @@ export function KasRowActions({ entry }: { entry: RowEntry }) {
     });
   }
 
+  const fmtRp = (n: number) =>
+    new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(n);
+  const fmtTanggal = (iso: string | null) => {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" });
+  };
+
   return (
     <>
-      <div className="flex items-center gap-1">
-        {!isTransfer && (
-          <button
-            onClick={() => setModal("edit")}
-            title="Edit"
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-        )}
+      <div className="flex justify-center">
         <button
-          onClick={() => setModal("delete")}
-          title="Hapus"
-          className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600"
+          onClick={() => setModal("menu")}
+          title="Aksi"
+          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-sm hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700"
         >
-          <Trash2 className="h-3.5 w-3.5" />
+          <ChevronDown className="h-3.5 w-3.5" />
         </button>
       </div>
+
+      {/* Action Menu Modal */}
+      <Modal
+        open={modal === "menu"}
+        onClose={() => setModal(null)}
+        title="Pilih Aksi"
+      >
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={() => setModal("detail")}
+            className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-blue-300 hover:bg-blue-50"
+          >
+            <Eye className="h-4 w-4 text-blue-500" />
+            <span>Lihat Detail</span>
+          </button>
+          {!isTransfer && (
+            <button
+              onClick={() => setModal("edit")}
+              className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-amber-300 hover:bg-amber-50"
+            >
+              <Pencil className="h-4 w-4 text-amber-500" />
+              <span>Edit Transaksi</span>
+            </button>
+          )}
+          <button
+            onClick={() => setModal("delete")}
+            className="flex items-center gap-3 rounded-xl border border-gray-200 px-4 py-3 text-left text-sm font-medium text-gray-700 hover:border-red-300 hover:bg-red-50"
+          >
+            <Trash2 className="h-4 w-4 text-red-500" />
+            <span>Hapus Transaksi</span>
+          </button>
+        </div>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        open={modal === "detail"}
+        onClose={() => setModal(null)}
+        title="Detail Transaksi"
+      >
+        <div className="flex flex-col gap-3 text-sm">
+          <DetailRow label="Tanggal" value={fmtTanggal(entry.transaction_date)} />
+          <DetailRow label="Kategori" value={entry.category} />
+          <DetailRow
+            label="Akun"
+            value={entry.account_type === "kas_tunai" ? "Kas Tunai" : "Bank"}
+          />
+          <DetailRow
+            label="Jenis"
+            value={isMasuk ? "Pemasukan" : "Pengeluaran"}
+            valueClassName={isMasuk ? "text-emerald-600" : "text-red-600"}
+          />
+          <DetailRow
+            label="Jumlah"
+            value={`${isMasuk ? "+" : "-"}${fmtRp(entry.amount)}`}
+            valueClassName={`font-semibold ${isMasuk ? "text-emerald-600" : "text-red-600"}`}
+          />
+          {isTransfer && (
+            <DetailRow label="Tipe" value="Bagian dari transfer antar akun" />
+          )}
+          <DetailRow label="Keterangan" value={entry.notes ?? "—"} multiline />
+          <button
+            onClick={() => setModal(null)}
+            className="mt-2 w-full rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+          >
+            Tutup
+          </button>
+        </div>
+      </Modal>
 
       {/* Edit Modal */}
       <Modal
@@ -751,5 +823,26 @@ export function KasRowActions({ entry }: { entry: RowEntry }) {
         </div>
       </Modal>
     </>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  valueClassName = "",
+  multiline = false,
+}: {
+  label: string;
+  value: string;
+  valueClassName?: string;
+  multiline?: boolean;
+}) {
+  return (
+    <div className={`flex ${multiline ? "flex-col gap-1" : "items-center justify-between gap-3"} border-b border-gray-100 pb-2 last:border-0`}>
+      <span className="text-xs font-medium uppercase tracking-wider text-gray-500">{label}</span>
+      <span className={`${multiline ? "" : "text-right"} text-gray-800 ${valueClassName} ${multiline ? "whitespace-pre-wrap break-words" : ""}`}>
+        {value}
+      </span>
+    </div>
   );
 }

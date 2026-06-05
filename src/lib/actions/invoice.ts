@@ -322,6 +322,15 @@ export async function updateInvoiceStatus(
   completedAt?: string
 ) {
   const supabase = await createClient();
+  const ctx = await getUserContext();
+  const invoiceQuery = supabase
+    .from("invoices")
+    .select("status, grand_total, invoice_number, tenant_id")
+    .eq("id", invoiceId);
+  const scopedInvoiceQuery = ctx.tenantId
+    ? invoiceQuery.eq("tenant_id", ctx.tenantId)
+    : invoiceQuery;
+  const { data: previousInvoice } = await scopedInvoiceQuery.single();
   const now = new Date().toISOString();
   const update: Partial<Omit<Invoice, "id" | "created_at">> = { status: newStatus };
 
@@ -348,6 +357,23 @@ export async function updateInvoiceStatus(
   if (newStatus === "paid") update.paid_at = now;
 
   await supabase.from("invoices").update(update).eq("id", invoiceId);
+
+  const shouldAwardNow = newStatus === "paid";
+  const shouldRemoveAward = previousInvoice?.status === "paid" && newStatus !== "paid";
+  if ((shouldAwardNow || shouldRemoveAward) && previousInvoice?.tenant_id) {
+    try {
+      await reconcileInvoiceMechanicPoints({
+        tenantId: previousInvoice.tenant_id,
+        invoiceId,
+        invoiceNumber: previousInvoice.invoice_number,
+        amount: Number(previousInvoice.grand_total ?? 0),
+        shouldAwardFromInvoice: shouldAwardNow,
+      });
+    } catch {
+      // Point sync is non-critical for status transition.
+    }
+  }
+
   revalidatePath(`${basePath}/invoices`);
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
   // Notify other roles so they see the status update immediately
@@ -384,6 +410,27 @@ export async function assignMechanic(
     return { error: "Gagal menugaskan mekanik: " + error.message };
   }
 
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("status, grand_total, invoice_number")
+    .eq("id", invoiceId)
+    .eq("tenant_id", tenantId)
+    .single();
+
+  if (inv?.status === "paid") {
+    try {
+      await reconcileInvoiceMechanicPoints({
+        tenantId,
+        invoiceId,
+        invoiceNumber: inv.invoice_number,
+        amount: Number(inv.grand_total ?? 0),
+        shouldAwardFromInvoice: true,
+      });
+    } catch {
+      // Point sync is non-critical for assignment changes.
+    }
+  }
+
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
   return {};
 }
@@ -395,7 +442,32 @@ export async function removeMechanic(
   basePath: string
 ) {
   const supabase = await createClient();
+  const ctx = await getUserContext();
   await supabase.from("invoice_mechanics").delete().eq("id", assignmentId);
+
+  if (ctx.tenantId) {
+    const { data: inv } = await supabase
+      .from("invoices")
+      .select("status, grand_total, invoice_number")
+      .eq("id", invoiceId)
+      .eq("tenant_id", ctx.tenantId)
+      .single();
+
+    if (inv?.status === "paid") {
+      try {
+        await reconcileInvoiceMechanicPoints({
+          tenantId: ctx.tenantId,
+          invoiceId,
+          invoiceNumber: inv.invoice_number,
+          amount: Number(inv.grand_total ?? 0),
+          shouldAwardFromInvoice: true,
+        });
+      } catch {
+        // Point sync is non-critical for assignment changes.
+      }
+    }
+  }
+
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 

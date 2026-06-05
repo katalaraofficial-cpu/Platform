@@ -76,11 +76,12 @@ export function PrivateSidebarToggle({ fullName }: PrivateSidebarToggleProps) {
       <button
         type="button"
         onClick={toggleVisibility}
-        className="rounded-full p-2 text-gray-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+        className="inline-flex items-center gap-1 rounded-lg border border-blue-100 px-2 py-1.5 text-xs font-medium text-blue-500 hover:bg-blue-50 transition-colors"
         title="Unhide panel pribadi"
         aria-label="Unhide panel pribadi"
       >
         <PanelRightOpen className="h-4 w-4" />
+        <span>Unhide</span>
       </button>
     );
   }
@@ -90,11 +91,12 @@ export function PrivateSidebarToggle({ fullName }: PrivateSidebarToggleProps) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="rounded-full p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+        className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors"
         title={open ? "Sembunyikan panel pribadi" : "Tampilkan panel pribadi"}
         aria-label={open ? "Sembunyikan panel pribadi" : "Tampilkan panel pribadi"}
       >
         <PanelRightClose className="h-4 w-4" />
+        <span>Panel</span>
       </button>
 
       {open && (

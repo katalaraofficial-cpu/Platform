@@ -280,7 +280,7 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
     const tenantId = ctx.tenantId;
     const admin = createAdminClient();
 
-    const [{ data: mechanics }, { data: transactions }, { data: existingRows }, { data: invoices }] = await Promise.all([
+    const [{ data: mechanics }, { data: transactions }, { data: existingRows }, { data: invoices }, { data: settings }, { data: assignments }] = await Promise.all([
       admin
         .from("profiles")
         .select("id")
@@ -296,13 +296,24 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
         .eq("tenant_id", tenantId),
       admin
         .from("invoices")
-        .select("id, status")
+        .select("id, status, grand_total")
+        .eq("tenant_id", tenantId),
+      admin
+        .from("settings")
+        .select("reward_employee_enabled, reward_spend_per_point, reward_lead_multiplier, reward_helper_multiplier")
+        .eq("tenant_id", tenantId)
+        .single(),
+      admin
+        .from("invoice_mechanics")
+        .select("invoice_id, mechanic_id, mechanic_role")
         .eq("tenant_id", tenantId),
     ]);
 
     const invoiceStatusById = new Map<string, string>();
+    const invoiceAmountById = new Map<string, number>();
     for (const invoice of invoices ?? []) {
       invoiceStatusById.set(invoice.id, invoice.status);
+      invoiceAmountById.set(invoice.id, Number(invoice.grand_total ?? 0));
     }
 
     const invoiceNetByProfile = new Map<string, number>();
@@ -314,18 +325,66 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
       invoiceNetByProfile.set(key, (invoiceNetByProfile.get(key) ?? 0) + Number(tx.points ?? 0));
     }
 
-    for (const [key, netPoints] of invoiceNetByProfile.entries()) {
-      if (netPoints === 0) continue;
+    const expectedByKey = new Map<string, number>();
+    const canAward =
+      Boolean(settings?.reward_employee_enabled) &&
+      Number(settings?.reward_spend_per_point ?? 0) > 0;
+
+    if (canAward) {
+      const assignmentsByInvoice = new Map<string, { mechanic_id: string; mechanic_role: string | null }[]>();
+      for (const row of assignments ?? []) {
+        const list = assignmentsByInvoice.get(row.invoice_id) ?? [];
+        list.push({ mechanic_id: row.mechanic_id, mechanic_role: row.mechanic_role ?? null });
+        assignmentsByInvoice.set(row.invoice_id, list);
+      }
+
+      for (const [invoiceId, status] of invoiceStatusById.entries()) {
+        if (status !== "paid") continue;
+        const amount = Number(invoiceAmountById.get(invoiceId) ?? 0);
+        if (amount <= 0) continue;
+        const basePoints = Math.floor(amount / Number(settings?.reward_spend_per_point ?? 0));
+        if (basePoints <= 0) continue;
+
+        for (const m of assignmentsByInvoice.get(invoiceId) ?? []) {
+          const multiplier = m.mechanic_role === "lead"
+            ? Number(settings?.reward_lead_multiplier ?? 1)
+            : Number(settings?.reward_helper_multiplier ?? 0.5);
+          const expected = Math.floor(basePoints * multiplier);
+          if (expected <= 0) continue;
+          const key = `${invoiceId}:${m.mechanic_id}`;
+          expectedByKey.set(key, expected);
+        }
+      }
+    }
+
+    const reconciliationKeys = new Set<string>([
+      ...invoiceNetByProfile.keys(),
+      ...expectedByKey.keys(),
+    ]);
+
+    for (const key of reconciliationKeys) {
       const [invoiceId, profileId] = key.split(":");
-      if (invoiceStatusById.get(invoiceId) === "paid") continue;
+      const status = invoiceStatusById.get(invoiceId);
+      if (!status) continue;
+
+      const currentNet = Number(invoiceNetByProfile.get(key) ?? 0);
+      const expected = status === "paid" ? Number(expectedByKey.get(key) ?? 0) : 0;
+      const delta = expected - currentNet;
+      if (delta === 0) continue;
+
+      const txType = status === "paid" && delta > 0 ? "earn" : "adjust";
+      const notes =
+        txType === "earn"
+          ? "Sinkronisasi point: menyesuaikan reward invoice lunas berdasarkan assignment engineer saat ini."
+          : "Sinkronisasi point: menormalkan histori agar konsisten dengan status invoice dan assignment engineer saat ini.";
 
       const { error: adjustErr } = await admin.from("employee_point_transactions").insert({
         tenant_id: tenantId,
         profile_id: profileId,
-        transaction_type: "adjust",
-        points: -netPoints,
+        transaction_type: txType,
+        points: delta,
         reference_id: invoiceId,
-        notes: "Penyesuaian point: nota tidak berstatus lunas, maka point dibatalkan saat sinkronisasi.",
+        notes,
         expires_at: null,
       });
       if (adjustErr) {

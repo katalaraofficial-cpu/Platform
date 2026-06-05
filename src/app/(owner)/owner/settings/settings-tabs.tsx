@@ -13,6 +13,8 @@ import {
   AlertTriangle,
   Upload,
   X,
+  Receipt,
+  MapPin,
 } from "lucide-react";
 import type { FeatureToggles, Settings } from "@/types/database";
 import {
@@ -98,6 +100,8 @@ function SaveButton({ pending }: { pending: boolean }) {
 const TABS = [
   { id: "toko", label: "Informasi Toko", icon: Store },
   { id: "platform", label: "Platform", icon: Settings2 },
+  { id: "modul-invoice", label: "Modul Invoice", icon: Receipt },
+  { id: "lokasi", label: "Lokasi Kerja", icon: MapPin },
   { id: "nota", label: "Nota & Printer", icon: FileText },
   { id: "reward", label: "Reward", icon: Gift },
   { id: "reset", label: "Reset Data", icon: Trash2 },
@@ -142,7 +146,9 @@ export function SettingsTabs({
       {/* Tab content */}
       <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">
         {activeTab === "toko" && <TabToko s={settings} tenantId={tenantId} />}
-        {activeTab === "platform" && <TabPlatform s={settings} featureToggles={featureToggles} />}
+        {activeTab === "platform" && <TabPlatform s={settings} />}
+        {activeTab === "modul-invoice" && <TabModulInvoice featureToggles={featureToggles} />}
+        {activeTab === "lokasi" && <TabLokasiKerja />}
         {activeTab === "nota" && <TabNota s={settings} tenantId={tenantId} />}
         {activeTab === "reward" && <TabReward s={settings} />}
         {activeTab === "reset" && <TabReset />}
@@ -203,7 +209,7 @@ function TabToko({ s, tenantId }: { s: Settings | null; tenantId: string }) {
 }
 
 // ── Tab 2: Platform ──────────────────────────────────────────
-function TabPlatform({ s, featureToggles }: { s: Settings | null; featureToggles: FeatureToggles | null }) {
+function TabPlatform({ s }: { s: Settings | null }) {
   const router = useRouter();
   const [markupPct, setMarkupPct] = useState(String(s?.default_markup_pct ?? 20));
   const [pettyCash, setPettyCash] = useState(String(s?.petty_cash_limit ?? 500000));
@@ -230,63 +236,110 @@ function TabPlatform({ s, featureToggles }: { s: Settings | null; featureToggles
   }
 
   return (
-    <div className="flex w-full max-w-lg flex-col gap-8">
-      <ModulInvoiceCard featureToggles={featureToggles} />
-
-      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <h2 className="font-bold text-gray-900 text-lg">Pengaturan Platform</h2>
-        <Field label="Default Markup Sparepart Eksternal (%)">
-          <Input type="number" min={0} max={100} step={0.1} value={markupPct} onChange={(e) => setMarkupPct(e.target.value)} />
-        </Field>
-        <Field label="Limit Kas Kecil (Rp)">
-          <Input type="number" min={0} step={1000} value={pettyCash} onChange={(e) => setPettyCash(e.target.value)} />
-        </Field>
-        <Field label="Kuantitas Desimal">
-          <label className="flex items-center gap-3 cursor-pointer">
-            <div
-              onClick={() => setQtyDecimal(!qtyDecimal)}
-              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${qtyDecimal ? "bg-violet-600" : "bg-gray-300"}`}
-            >
-              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${qtyDecimal ? "translate-x-6" : "translate-x-1"}`} />
-            </div>
-            <span className="text-sm text-gray-700">{qtyDecimal ? "Aktif (misal 1.5 liter)" : "Nonaktif (bilangan bulat)"}</span>
-          </label>
-        </Field>
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Label Tier Harga</p>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {(["HET", "HG1", "HG2", "HG3"] as const).map((key) => (
-              <Field key={key} label={`Tier ${key}`}>
-                <Input
-                  value={tierLabels[key]}
-                  onChange={(e) => setTierLabels({ ...tierLabels, [key]: e.target.value })}
-                  placeholder={key}
-                />
-              </Field>
-            ))}
+    <form onSubmit={handleSubmit} className="flex w-full max-w-lg flex-col gap-5">
+      <h2 className="font-bold text-gray-900 text-lg">Pengaturan Platform</h2>
+      <Field label="Default Markup Sparepart Eksternal (%)">
+        <Input type="number" min={0} max={100} step={0.1} value={markupPct} onChange={(e) => setMarkupPct(e.target.value)} />
+      </Field>
+      <Field label="Limit Kas Kecil (Rp)">
+        <Input type="number" min={0} step={1000} value={pettyCash} onChange={(e) => setPettyCash(e.target.value)} />
+      </Field>
+      <Field label="Kuantitas Desimal">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => setQtyDecimal(!qtyDecimal)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${qtyDecimal ? "bg-violet-600" : "bg-gray-300"}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${qtyDecimal ? "translate-x-6" : "translate-x-1"}`} />
           </div>
+          <span className="text-sm text-gray-700">{qtyDecimal ? "Aktif (misal 1.5 liter)" : "Nonaktif (bilangan bulat)"}</span>
+        </label>
+      </Field>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Label Tier Harga</p>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {(["HET", "HG1", "HG2", "HG3"] as const).map((key) => (
+            <Field key={key} label={`Tier ${key}`}>
+              <Input
+                value={tierLabels[key]}
+                onChange={(e) => setTierLabels({ ...tierLabels, [key]: e.target.value })}
+                placeholder={key}
+              />
+            </Field>
+          ))}
         </div>
-        <div className="flex justify-end">
-          <SaveButton pending={pending} />
-        </div>
-      </form>
+      </div>
+      <div className="flex justify-end">
+        <SaveButton pending={pending} />
+      </div>
+    </form>
+  );
+}
+
+// ── Tab 2b: Modul Invoice (DP / PPN / PPh) ──────────────────
+function TabModulInvoice({ featureToggles }: { featureToggles: FeatureToggles | null }) {
+  return (
+    <div className="flex w-full max-w-2xl flex-col gap-5">
+      <div>
+        <h2 className="font-bold text-gray-900 text-lg">Modul Invoice</h2>
+        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+          Aktifkan modul opsional pada editor invoice. Modul yang non-aktif tidak akan tampil saat membuat invoice baru.
+          Invoice lama yang sudah memiliki nilai DP / PPN / PPh tetap menyimpan datanya sebagai jejak historis.
+        </p>
+      </div>
+
+      <ModuleToggleRow
+        moduleKey="module_invoice_dp"
+        title="DP / Uang Muka"
+        description="Memungkinkan pelanggan membayar sebagian dari total tagihan terlebih dahulu sebelum invoice lunas. Bila non-aktif, kolom DP tidak tampil di editor invoice."
+        enabled={featureToggles?.module_invoice_dp === true}
+      />
+      <ModuleToggleRow
+        moduleKey="module_invoice_ppn"
+        title="PPN (Pajak Pertambahan Nilai)"
+        description="Tambahkan PPN ke perhitungan invoice. PPN dihitung dari subtotal setelah diskon. Bila non-aktif, kolom PPN tidak tampil di editor invoice baru."
+        enabled={featureToggles?.module_invoice_ppn !== false}
+      />
+      <ModuleToggleRow
+        moduleKey="module_invoice_pph"
+        title="PPh (Pajak Penghasilan)"
+        description="Potongan PPh atas tagihan jasa. Dihitung dari subtotal setelah diskon. Bila non-aktif, kolom PPh tidak tampil di editor invoice baru."
+        enabled={featureToggles?.module_invoice_pph !== false}
+      />
     </div>
   );
 }
 
-// ── Tab 2b: Modul Invoice ───────────────────────────────────
-function ModulInvoiceCard({ featureToggles }: { featureToggles: FeatureToggles | null }) {
+function ModuleToggleRow({
+  moduleKey,
+  title,
+  description,
+  enabled: initial,
+}: {
+  moduleKey: "module_invoice_dp" | "module_invoice_ppn" | "module_invoice_pph";
+  title: string;
+  description: string;
+  enabled: boolean;
+}) {
   const router = useRouter();
-  const [dpEnabled, setDpEnabled] = useState(featureToggles?.module_invoice_dp === true);
+  const [enabled, setEnabled] = useState(initial);
   const [pending, startTransition] = useTransition();
 
   function handleToggle(next: boolean) {
-    const prev = dpEnabled;
-    setDpEnabled(next);
+    const prev = enabled;
+    setEnabled(next);
     startTransition(async () => {
-      const res = await saveInvoiceFeatures({ moduleInvoiceDp: next });
+      const payload: {
+        moduleInvoiceDp?: boolean;
+        moduleInvoicePpn?: boolean;
+        moduleInvoicePph?: boolean;
+      } = {};
+      if (moduleKey === "module_invoice_dp") payload.moduleInvoiceDp = next;
+      if (moduleKey === "module_invoice_ppn") payload.moduleInvoicePpn = next;
+      if (moduleKey === "module_invoice_pph") payload.moduleInvoicePph = next;
+      const res = await saveInvoiceFeatures(payload);
       if (res.error) {
-        setDpEnabled(prev);
+        setEnabled(prev);
         toast.error(res.error);
       } else {
         toast.success(res.success);
@@ -296,32 +349,45 @@ function ModulInvoiceCard({ featureToggles }: { featureToggles: FeatureToggles |
   }
 
   return (
-    <div className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-gray-50/60 p-5">
+    <label className="flex items-start justify-between gap-4 rounded-xl bg-white border border-gray-200 p-4 cursor-pointer hover:border-violet-200 transition-colors">
+      <div className="flex-1">
+        <p className="text-sm font-semibold text-gray-900">{title}</p>
+        <p className="text-xs text-gray-500 mt-1 leading-relaxed">{description}</p>
+      </div>
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => handleToggle(!enabled)}
+        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${enabled ? "bg-violet-600" : "bg-gray-300"} ${pending ? "opacity-60" : ""}`}
+        aria-pressed={enabled}
+      >
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${enabled ? "translate-x-6" : "translate-x-1"}`} />
+      </button>
+    </label>
+  );
+}
+
+// ── Tab 2c: Lokasi Kerja (placeholder — fitur menyusul) ─────
+function TabLokasiKerja() {
+  return (
+    <div className="flex w-full max-w-2xl flex-col gap-5">
       <div>
-        <h2 className="font-bold text-gray-900 text-lg">Modul Invoice</h2>
-        <p className="text-xs text-gray-500 mt-1">
-          Aktifkan modul opsional untuk fitur invoice. Modul yang non-aktif tidak akan tampil di halaman invoice.
+        <h2 className="font-bold text-gray-900 text-lg">Lokasi Kerja</h2>
+        <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+          Pengaturan titik koordinat lokasi kerja untuk validasi kehadiran karyawan via GPS.
+          Saat absensi, lokasi karyawan akan dicocokkan dengan radius dari titik yang didaftarkan di sini.
         </p>
       </div>
 
-      <label className="flex items-start justify-between gap-4 rounded-xl bg-white border border-gray-200 p-4 cursor-pointer">
-        <div className="flex-1">
-          <p className="text-sm font-semibold text-gray-900">DP / Uang Muka</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Memungkinkan pelanggan membayar sebagian dari total tagihan terlebih dahulu sebelum invoice lunas.
-            Bila non-aktif, kolom DP tidak tampil di editor invoice.
-          </p>
-        </div>
-        <button
-          type="button"
-          disabled={pending}
-          onClick={() => handleToggle(!dpEnabled)}
-          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${dpEnabled ? "bg-violet-600" : "bg-gray-300"} ${pending ? "opacity-60" : ""}`}
-          aria-pressed={dpEnabled}
-        >
-          <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${dpEnabled ? "translate-x-6" : "translate-x-1"}`} />
-        </button>
-      </label>
+      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-8 text-center">
+        <MapPin className="mx-auto h-10 w-10 text-gray-300" />
+        <p className="mt-3 text-sm font-semibold text-gray-700">Fitur belum aktif</p>
+        <p className="mt-1 text-xs text-gray-500">
+          Modul absensi GPS akan segera tersedia.
+          <br />
+          Konfigurasi titik lokasi & radius geofence dapat diatur di sini setelah modul diluncurkan.
+        </p>
+      </div>
     </div>
   );
 }

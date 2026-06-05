@@ -121,6 +121,8 @@ export type InvoiceEditorProps = {
   mechanics: MechanicOption[];
   isOwner?: boolean;
   dpEnabled?: boolean;
+  ppnModuleEnabled?: boolean;
+  pphModuleEnabled?: boolean;
 } & (
   | { mode: "create" }
   | {
@@ -699,6 +701,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const rawDp = Math.max(0, Number(dpInput) || 0);
   const computedDp = dpMode === "pct" ? (grandTotal * rawDp) / 100 : rawDp;
   const dpEnabled = (props as { dpEnabled?: boolean }).dpEnabled === true;
+  // Module flags from tenant feature_toggles (default: ON). Saat OFF, kontrol PPN/PPh
+  // disembunyikan untuk invoice baru. Invoice lama yang sudah memiliki nilai > 0 tetap
+  // menampilkan kontrol agar nilai historis dapat dilihat / di-edit.
+  const ppnModuleEnabled = (props as { ppnModuleEnabled?: boolean }).ppnModuleEnabled !== false;
+  const pphModuleEnabled = (props as { pphModuleEnabled?: boolean }).pphModuleEnabled !== false;
+  const ppnHistorical = Number(editInvoice?.ppnPct ?? 0) > 0;
+  const pphHistorical = Number(editInvoice?.pphPct ?? 0) > 0;
+  const showPpnControl = ppnModuleEnabled || ppnHistorical;
+  const showPphControl = pphModuleEnabled || pphHistorical;
   const showMobileSummaryBox =
     ppnEnabled ||
     pphEnabled ||
@@ -1679,6 +1690,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
               {showCostDetailsMobile && (
                 <div className="mt-3 space-y-2.5 border-t border-gray-100 pt-3">
+                  {showPpnControl && (
+                  <>
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
                       <input
@@ -1706,7 +1719,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                       className="w-full rounded border border-gray-200 px-2 py-2 text-center text-xs focus:outline-none"
                     />
                   )}
+                  </>
+                  )}
 
+                  {showPphControl && (
+                  <>
                   <div className="flex items-center justify-between text-sm">
                     <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
                       <input
@@ -1733,6 +1750,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                       onBlur={() => { if (isEdit) handleSaveTax(); }}
                       className="w-full rounded border border-gray-200 px-2 py-2 text-center text-xs focus:outline-none"
                     />
+                  )}
+                  </>
                   )}
 
                   <div className="space-y-1.5">
@@ -2181,6 +2200,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             <div className={`${showCostDetailsMobile ? "space-y-2.5" : "hidden"} md:block md:space-y-2.5`}>
 
             {/* PPN */}
+            {showPpnControl && (
             <div className="flex items-center justify-between text-sm">
               <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
                 <input
@@ -2210,8 +2230,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               </label>
               {ppnEnabled && <span className="font-mono text-xs text-gray-600">+{fmt(ppnAmount)}</span>}
             </div>
+            )}
 
             {/* PPh */}
+            {showPphControl && (
             <div className="flex items-center justify-between text-sm">
               <label className="flex cursor-pointer items-center gap-1.5 text-gray-600">
                 <input
@@ -2241,6 +2263,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               </label>
               {pphEnabled && <span className="font-mono text-xs text-gray-600">-{fmt(pphAmount)}</span>}
             </div>
+            )}
 
             {/* Discount */}
             {canEdit ? (
@@ -2588,6 +2611,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 </div>
 
                 {/* PPN */}
+                {showPpnControl && (
                 <div className="flex items-center justify-between text-xs">
                   <label className="flex cursor-pointer items-center gap-1.5 text-gray-700">
                     <input
@@ -2617,8 +2641,10 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   </label>
                   {ppnEnabled && <span className="font-mono text-xs text-blue-600">+{fmt(ppnAmount)}</span>}
                 </div>
+                )}
 
                 {/* PPh */}
+                {showPphControl && (
                 <div className="flex items-center justify-between text-xs">
                   <label className="flex cursor-pointer items-center gap-1.5 text-gray-700">
                     <input
@@ -2648,6 +2674,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                   </label>
                   {pphEnabled && <span className="font-mono text-xs text-amber-700">-{fmt(pphAmount)}</span>}
                 </div>
+                )}
 
                 {/* Diskon */}
                 {canEdit ? (

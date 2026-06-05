@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 import { summarizeEmployeePointsByProfile, type PointTransactionSummaryRow } from "@/lib/employee-point-summary";
+import type { FeatureToggles } from "@/types/database";
 
 export type SettingsActionState = { error?: string; success?: string };
 
@@ -109,7 +110,9 @@ export async function savePlatformSettings(data: {
 
 // ── Tab 2b: Modul Invoice (feature toggle untuk DP) ─────────
 export async function saveInvoiceFeatures(data: {
-  moduleInvoiceDp: boolean;
+  moduleInvoiceDp?: boolean;
+  moduleInvoicePpn?: boolean;
+  moduleInvoicePph?: boolean;
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
@@ -122,14 +125,14 @@ export async function saveInvoiceFeatures(data: {
       .single();
     if (fetchErr) return { error: fetchErr.message };
 
-    const toggles = {
-      ...(tenant?.feature_toggles ?? {}),
-      module_invoice_dp: data.moduleInvoiceDp,
-    };
+    const toggles: Record<string, unknown> = { ...(tenant?.feature_toggles ?? {}) };
+    if (typeof data.moduleInvoiceDp === "boolean") toggles.module_invoice_dp = data.moduleInvoiceDp;
+    if (typeof data.moduleInvoicePpn === "boolean") toggles.module_invoice_ppn = data.moduleInvoicePpn;
+    if (typeof data.moduleInvoicePph === "boolean") toggles.module_invoice_pph = data.moduleInvoicePph;
 
     const { error } = await admin
       .from("tenants")
-      .update({ feature_toggles: toggles })
+      .update({ feature_toggles: toggles as unknown as FeatureToggles })
       .eq("id", ctx.tenantId);
     if (error) return { error: error.message };
 

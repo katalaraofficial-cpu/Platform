@@ -23,6 +23,9 @@ export default async function NewOwnerInvoicePage() {
       mode="create"
       basePath={BASE_PATH}
       isOwner={true}
+      dpEnabled={ctx.featureToggles?.module_invoice_dp === true}
+      ppnModuleEnabled={ctx.featureToggles?.module_invoice_ppn !== false}
+      pphModuleEnabled={ctx.featureToggles?.module_invoice_pph !== false}
       mechanics={(mechanics ?? []).map((m) => ({
         id: m.id,
         name: m.full_name ?? "?",

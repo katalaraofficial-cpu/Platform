@@ -1,8 +1,13 @@
 # Development Progress Log
 
-Last updated: 6 Juni 2026 (commit `4a1036f`)
+Last updated: 6 Juni 2026 (commit `d12cc64`)
 
 ## Ringkasan Status Saat Ini
+
+- **Katalog Item implicit** sudah live: halaman `/owner/katalog` audit klasifikasi `invoice_items` per tenant, reklasifikasi bulk via `reclassifyItemDescription` (admin client, ILIKE per deskripsi).
+- **Autocomplete invoice editor** sekarang autofill tipe + satuan + harga jual + harga beli dari transaksi terakhir, plus warning kuning saat user mengetik nama yang pernah tercatat di tipe berbeda.
+- **WA share invoice** pakai nama bisnis tenant + label status ID + template kustom (`settings.wa_template` dengan placeholder `{items}`); link membuka halaman print publik `/print/invoices/[id]` dengan OG metadata bersih.
+- **Dashboard donut komposisi** menghitung baris invoice_items, bukan menjumlahkan `quantity`.
 
 - Platform aktif stabil di Next.js 15 + Supabase multi-tenant.
 - Modul Kas & Keuangan sudah lengkap dengan COA UMKM + export jurnal PDF + filter berbasis `transaction_date`.
@@ -19,6 +24,10 @@ Last updated: 6 Juni 2026 (commit `4a1036f`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `d12cc64` | feat | Katalog item implicit (`/owner/katalog`) + autofill harga/satuan/tipe dari riwayat + reklasifikasi bulk + warning mismatch tipe di invoice editor |
+| `c29fde4` | fix | Donut komposisi hitung baris (bukan `SUM(quantity)`), `{items}` ditambahkan di template WA, generateMetadata bersih (og:title/description/image) di print page |
+| `16d525a` | feat | WA share pakai nama bisnis tenant + template WA per tenant via `settings.wa_template` (migrasi 038) + halaman print publik `/print/invoices/[id]` lewat middleware allowlist + label status ID (Selesai - Lunas / Selesai - Belum Bayar) |
+| `3145460` | docs | Update progres + pakem AI agent (cutoff `4a1036f`) |
 | `4a1036f` | fix | Pembayaran invoice mengisi `ledger.transaction_date` dari `paymentDate` (bukan default hari ini) |
 | `87aac87` | fix | Nomor invoice anti-duplicate (baca last + retry) + WA template per format + refresh ikon homescreen |
 | `50e247a` | feat | Mekanik klaim non-invoice (bensin/kesehatan/lainnya) + upload galeri + ikon brand Katalara |
@@ -70,6 +79,7 @@ Minimum migration yang harus sudah ada di environment target:
 - `035_invoice_ppn_pph_toggle.sql`
 - `036_mechanic_debt_claim.sql`
 - `037_fix_invoice_ledger_transaction_date.sql` (wajib jalan setelah deploy commit `4a1036f`)
+- `038_settings_wa_template.sql` (kolom `wa_template TEXT` pada `settings`; default template di-resolve dari `DEFAULT_WA_TEMPLATE` lib bila kolom NULL)
 
 Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pending di sebagian environment.
 
@@ -89,6 +99,9 @@ Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pendin
 10. WA share dari modal print: 3 format (struk/nota/invoice) menghasilkan blok pesan benar; format Invoice membawa link preview yang bisa dibuka pelanggan.
 11. Mekanik upload struk: tab `Untuk Invoice` (jika ada assignment) dan tab `Klaim` (bensin/kesehatan/lainnya) keduanya berhasil simpan dengan upload kamera atau galeri.
 12. Halaman `Piutang Saya` mekanik menampilkan badge kategori klaim + thumbnail struk untuk entri non-invoice.
+13. `/owner/katalog`: filter "Tipe campur" menampilkan nama duplikat antar tipe; klik tombol Pindah memperbarui semua `invoice_items` dengan deskripsi sama (ILIKE) dan dashboard donut komposisi ikut berubah setelah refresh.
+14. Input item invoice: ketik nama existing → daftar saran muncul dengan label tipe + harga; klik saran mengisi tipe + satuan + harga jual (+ harga beli kalau part). Pilih tab Jasa tapi nama tercatat sebagai Barang → muncul banner kuning + tombol pindah.
+15. WA share Invoice: link preview membuka `/print/invoices/[id]` tanpa login, title pakai nama bisnis tenant, gambar OG pakai `storeLogoUrl`, status pakai label ID.
 
 ## Catatan Risiko Terbuka
 
@@ -98,3 +111,6 @@ Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pendin
 - Klaim non-invoice (`mechanic_debt_ledger.claim_category`) belum punya approval flow di owner; saat ini langsung tercatat sebagai `advance` dan terhitung di Piutang Mekanik.
 - Generator nomor invoice masih level aplikasi (read-then-insert + retry). Jika trafik konkuren tinggi, pertimbangkan trigger / sequence di DB untuk garansi atomik.
 - Backfill `037` hanya menyentuh ledger `Pembayaran Invoice`. Untuk transaksi kas manual yang salah tanggal, koreksi dilakukan via UI Kas (edit transaksi).
+- Katalog masih implicit (sumber `invoice_items`). Tidak ada tabel master `catalog_items` — mengubah "harga kanonik" berarti memperbarui transaksi terakhir, bukan record master. Bila kebutuhan owner berkembang (mis. harga jual standar per item lepas dari riwayat), pertimbangkan promote ke tabel master.
+- `reclassifyItemDescription` melakukan UPDATE massal lewat admin client (bypass RLS). Tenant scope dijaga manual via `WHERE tenant_id`; jangan ubah signature tanpa mempertahankan filter ini.
+- Halaman print publik `/print/invoices/[id]` dapat diakses tanpa login (allowlist `/print` di middleware). Pastikan tidak menampilkan data sensitif di luar lingkup invoice (mis. data pelanggan lain).

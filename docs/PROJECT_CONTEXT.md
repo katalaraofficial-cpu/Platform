@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 6 Juni 2026 — sync setelah commit `4a1036f`
+> **Last updated:** 6 Juni 2026 — sync setelah commit `d12cc64`
 
 ---
 
@@ -42,8 +42,28 @@
 - Settings owner punya tab **Modul Invoice** dengan toggle `module_invoice_dp/ppn/pph` (default ON via migration `035`).
 - UI invoice (form, totals breakdown) menyembunyikan field DP/PPN/PPh saat modul OFF.
 
+### Update Katalog Item Implicit (6 Juni 2026, commit `d12cc64`)
+- Tidak ada tabel master katalog. Sumber kebenaran adalah `invoice_items` yang sudah ada per tenant.
+- `src/lib/actions/catalog.ts`:
+  - `getItemCatalog()` — owner-only, baca 5000 baris `invoice_items` terbaru, group case-insensitive `description`, hitung distribusi per `item_type`, set `primaryType` via majority vote (tie → paling baru). Return `lastSellPrice` = `final_price/quantity` dari baris paling baru.
+  - `reclassifyItemDescription(description, newType)` — owner-only, pakai `createAdminClient()` (bypass RLS) lalu `UPDATE invoice_items SET item_type=newType WHERE tenant_id=ctx.tenantId AND description ILIKE trimmed`. Wajib jaga `tenant_id` filter saat memodifikasi.
+- Halaman owner: `src/app/(owner)/owner/katalog/page.tsx` (server, guard owner) + `katalog-client.tsx` (filter Semua/Tipe campur/Jasa/Barang, tombol Pindah per baris dengan confirm + sonner toast + `router.refresh()`).
+- Nav link "Katalog Item" (icon `BookOpen`) ditambahkan di `src/app/(owner)/layout.tsx`, posisi setelah Pengaturan.
+- Invoice editor (`src/components/invoices/invoice-editor.tsx`):
+  - `searchItemDescriptions` (di `src/lib/actions/invoice.ts`) diperluas mengembalikan `{description, item_type, unit_price, sell_price, unit_label}`.
+  - Helper `applySuggestion(s)` mengisi `itemType`, `itemUnitLabel`, `itemSellPrice`, dan `itemBuyPrice` (untuk tipe non-service).
+  - `mismatchSuggestion` (useMemo) → banner kuning di atas tombol Tambah item bila nama yang diketik sama persis dengan history tapi tipe historisnya berbeda dari tab aktif; tombol "Pindahkan" memanggil `applySuggestion`.
+
+### Update WhatsApp Share, Print Publik & OG (6 Juni 2026, commit `16d525a` + `c29fde4`)
+- `src/components/invoices/print-options-modal.tsx` dan halaman print `src/app/(print)/print/invoices/[id]/page.tsx` membangun template WA blok ringkas (No, Tgl, Cust, Total, Status, Items). Format Invoice menambahkan link preview agar pelanggan bisa download PDF mandiri.
+- **Template WA per tenant**: `settings.wa_template` (migrasi `038_settings_wa_template.sql`). Default di-resolve dari `DEFAULT_WA_TEMPLATE` di `src/lib/wa-template.ts`. Placeholder didukung: `{customer}`, `{invoice_no}`, `{total}`, `{status}`, `{items}` (via `buildItemsBlock` helper). Diedit di Settings owner.
+- **Halaman print publik**: `/print/invoices/[id]` di-allowlist di `src/middleware.ts`, render pakai `createAdminClient()` dengan scope `id`. `generateMetadata` mengeluarkan og:title (`{nama bisnis} - Invoice {nomor}`), og:description ringkas, og:image = `storeLogoUrl`, dan `robots: noindex` supaya link preview WhatsApp rapi tanpa mengekspos ke search engine.
+- **Label status ID**: `Selesai - Lunas` / `Selesai - Belum Bayar` (bukan literal `paid`/`completed` Inggris). Nama bisnis dipakai sebagai sender brand, bukan literal "AKI KUAT".
+
+### Update Dashboard Komposisi (6 Juni 2026, commit `c29fde4`)
+- Donut "Komposisi Jasa vs Barang" di `src/app/(owner)/owner/dashboard/page.tsx` menghitung **jumlah baris** `invoice_items` per `item_type`, bukan `SUM(quantity)`. Mengoreksi mismatch ekstrem seperti "Jasa 75055" yang muncul karena satu baris dengan qty besar.
+
 ### Update WhatsApp Share & Brand Icon (6 Juni 2026)
-- `src/components/invoices/print-options-modal.tsx` dan halaman print `src/app/(print)/print/invoices/[id]/page.tsx` membangun template WA blok ringkas (No, Tgl, Cust, Total, Status). Format Invoice menambahkan link preview agar pelanggan bisa download PDF mandiri.
 - Icon homescreen pakai logo Katalara (`Logo.jpg` di Supabase storage). Lokasi: `src/app/_brand-logo.ts`, route `src/app/icon-192,/icon-512,/icon-512-maskable,/apple-icon`, plus root `src/app/icon.tsx`. Manifest dan layout menambahkan query `?v=YYYYMMDD` untuk bust cache launcher.
 
 ### Update Sinkron Point Owner (6 Juni 2026)

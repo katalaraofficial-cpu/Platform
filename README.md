@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 6 Juni 2026 — commit `4a1036f`
+**Last updated:** 6 Juni 2026 — commit `d12cc64`
 
 Referensi utama untuk kelanjutan development:
 
@@ -19,6 +19,11 @@ Referensi utama untuk kelanjutan development:
 
 Fitur yang sudah stabil pada branch `main`:
 
+- **Katalog Item implicit** (`/owner/katalog`): audit klasifikasi nama item lintas invoice, filter "Tipe campur", reklasifikasi bulk (`reclassifyItemDescription` admin-client `UPDATE invoice_items` per tenant).
+- **Autocomplete cerdas** di invoice editor: pilih saran → autofill tipe + satuan + harga jual (`final_price/quantity`) + harga beli (`unit_price`). Warning kuning saat nama yang diketik pernah tercatat di tipe berbeda, dengan tombol pindah tab cepat.
+- **Dashboard donut komposisi** menghitung jumlah baris (bukan menjumlahkan `quantity`), sehingga "Jasa vs Barang" mencerminkan jumlah transaksi, bukan total satuan.
+- **WA share invoice**: judul preview pakai nama bisnis tenant (bukan brand platform), label status ID (`Selesai - Lunas` / `Selesai - Belum Bayar`), template WA per tenant dengan placeholder `{customer}`, `{invoice_no}`, `{total}`, `{status}`, `{items}` (di Pengaturan).
+- **Halaman print publik** `/print/invoices/[id]` (lewat `createAdminClient` + middleware allowlist) dengan `generateMetadata` OG bersih (og:title, og:description, og:image = `storeLogoUrl`, robots `noindex`) supaya link preview WhatsApp rapi.
 - Workflow invoice owner/admin end-to-end (draft → in_progress → completed → paid/cancelled)
 - Complaint workflow per assignment mekanik (`invoice_mechanics.is_complaint`)
 - Program point mekanik + klaim redeem + approval owner
@@ -44,6 +49,10 @@ Fitur yang sudah stabil pada branch `main`:
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `d12cc64` | feat | Katalog item implicit + autofill harga & satuan dari riwayat + reklasifikasi bulk + warning mismatch tipe |
+| `c29fde4` | fix | Donut komposisi hitung baris (bukan sum qty), WA template tambah `{items}`, metadata OG bersih untuk link preview |
+| `16d525a` | feat | WA share pakai nama bisnis tenant + template WA kustom + halaman print publik `/print/invoices/[id]` + label status ID |
+| `3145460` | docs | Update progres + pakem AI agent (sampai commit `4a1036f`) |
 | `4a1036f` | fix | Pembayaran invoice mengisi `ledger.transaction_date` sesuai tanggal bayar (bukan default hari ini) |
 | `87aac87` | fix | Nomor invoice anti-duplicate + WA template per format + refresh icon homescreen |
 | `50e247a` | feat | Mekanik klaim non-invoice + upload galeri + ikon brand Katalara |
@@ -117,6 +126,7 @@ Pastikan environment target sudah menjalankan migrasi bisnis terbaru minimal sam
 - `035_invoice_ppn_pph_toggle.sql`
 - `036_mechanic_debt_claim.sql`
 - `037_fix_invoice_ledger_transaction_date.sql`
+- `038_settings_wa_template.sql` (kolom `settings.wa_template` untuk template WhatsApp per tenant)
 
 Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama juga perlu dipastikan status eksekusinya di production.
 
@@ -125,8 +135,10 @@ Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama
 1. Integrasikan data riil tab `Kehadiran` (GPS attendance) dan `Payroll` di dashboard mekanik (Lokasi Kerja sudah ada placeholder di Settings).
 2. Tambahkan modul pelanggan admin (`/admin/customers`) parity dengan owner.
 3. Approval flow klaim non-invoice (`mechanic_debt_ledger.claim_category`) di sisi owner sebelum di-reimburse.
-4. Audit log untuk action sensitif: rollback invoice, sinkron point, delete user, klaim non-invoice.
+4. Audit log untuk action sensitif: rollback invoice, sinkron point, delete user, klaim non-invoice, reklasifikasi katalog.
 5. Perbaikan akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
+6. Subdomain per tenant (`*.katalara.app` vs custom domain) — belum diputuskan, menunggu konfirmasi owner.
+7. Opsional: promote katalog implicit jadi tabel master `catalog_items` jika owner butuh harga kanonik terpisah dari riwayat invoice.
 
 ## Perintah Verifikasi Standar
 
@@ -143,4 +155,6 @@ Jika build lolos, lanjutkan smoke test manual pada alur:
 - owner customers
 - install PWA (A2HS Android / Add to Home Screen iOS) — homescreen icon harus tampil logo Katalara, bukan inisial
 - pembayaran invoice retroaktif: pastikan masuk ke bulan/tanggal `paymentDate`, bukan hari input
-- WA share dari modal print: 3 format (struk/nota/invoice) menghasilkan blok pesan benar + link preview untuk Invoice
+- WA share dari modal print: 3 format (struk/nota/invoice) menghasilkan blok pesan benar + link preview untuk Invoice yang membuka halaman print publik
+- `/owner/katalog`: filter "Tipe campur" menampilkan nama yang pernah dipakai di lebih dari satu `item_type`; tombol pindah berhasil memperbarui semua `invoice_items` terkait
+- input item invoice: pilih saran autocomplete mengisi tipe + satuan + harga jual (+ harga beli untuk part); warning kuning muncul saat tab aktif beda dari tipe historis

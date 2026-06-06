@@ -8,11 +8,13 @@ Kerangka operasional untuk AI agent yang melanjutkan pengembangan platform tanpa
 
 ## 1) Startup Checklist Agent Baru
 
-1. Baca [docs/PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) untuk peta modul dan constraints.
-2. Baca [docs/DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) untuk histori commit terbaru.
-3. Jalankan typecheck cepat: `npx tsc --noEmit` (wajib clean sebelum commit).
-4. Cek migrasi terbaru (sampai `037_fix_invoice_ledger_transaction_date.sql`) sudah dijalankan di environment target.
-5. Saat selesai coding, update README + docs progres + framework sebelum commit akhir.
+1. Baca [docs/AGENT_CONTEXT.md](AGENT_CONTEXT.md) — konteks agent standar (Aturan · State · Path Anchors · Next Actions).
+2. Baca [docs/PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) untuk peta modul dan constraints.
+3. Baca [docs/DEVELOPMENT_PROGRESS.md](DEVELOPMENT_PROGRESS.md) untuk histori commit terbaru.
+4. Jalankan typecheck cepat: `npx tsc --noEmit` (wajib clean sebelum commit).
+5. Cek migrasi terbaru (sampai `038_settings_wa_template.sql`) sudah dijalankan di environment target.
+6. Saat selesai coding, update README + docs progres + framework sebelum commit akhir.
+7. Sebelum menutup sesi, perbarui [docs/AGENT_CONTEXT.md](AGENT_CONTEXT.md) (seksi State + Next Actions) tiap sesi.
 
 ## 2) Peta Area Kode Kritis
 

@@ -10,6 +10,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 
 Referensi utama untuk kelanjutan development:
 
+- ★ Mulai di sini — [docs/AGENT_CONTEXT.md](docs/AGENT_CONTEXT.md) (konteks agent standar 4-seksi: Aturan · State · Path Anchors · Next Actions; aktualisasi progres antar-sesi distandarkan di file ini)
 - Konteks proyek: [docs/PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md)
 - Log progres build: [docs/DEVELOPMENT_PROGRESS.md](docs/DEVELOPMENT_PROGRESS.md)
 - Framework kerja AI agent: [docs/AI_AGENT_FRAMEWORK.md](docs/AI_AGENT_FRAMEWORK.md)

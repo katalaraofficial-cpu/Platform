@@ -799,6 +799,9 @@ export async function processPayment(
   const customerName =
     (inv as { customer?: { name?: string } | null }).customer?.name?.trim() || null;
 
+  const effectivePaymentDate =
+    paymentDate || new Date().toISOString().split("T")[0];
+
   // Update invoice to paid
   const paidAt = paymentDate
     ? new Date(paymentDate).toISOString()
@@ -837,6 +840,7 @@ export async function processPayment(
       reference_id: invoiceId,
       transfer_ref: null,
       notes: noteText,
+      transaction_date: effectivePaymentDate,
       created_by: ctx.id,
       created_at: paidAt,
     } as never);

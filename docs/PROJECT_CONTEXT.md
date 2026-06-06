@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 29 Mei 2026 — sync setelah commit `1fd746d`
+> **Last updated:** 6 Juni 2026 — sync setelah commit `4a1036f`
 
 ---
 
@@ -18,11 +18,37 @@
 
 ---
 
-## Update Cepat (Mei 2026)
+## Update Cepat (Juni 2026)
 
 - Build log terbaru: lihat `docs/DEVELOPMENT_PROGRESS.md`
 - Kerangka operasional agent: lihat `docs/AI_AGENT_FRAMEWORK.md`
 - Rencana mobile + PWA rollout: lihat `docs/MOBILE_PWA_ROLLOUT.md`
+
+### Update Konsistensi Tanggal Dashboard & Kas (6 Juni 2026)
+- Pembayaran invoice (`processPayment` di `src/lib/actions/invoice.ts`) kini WAJIB mengisi `ledger.transaction_date` dari `paymentDate`. Tanpa ini, default `CURRENT_DATE` di kolom membuat pemasukan masuk ke hari input, bukan tanggal bayar bisnis.
+- Dashboard owner (`src/app/(owner)/owner/dashboard/page.tsx`) memakai `transaction_date` untuk "Pendapatan Hari Ini" dan kas bulan ini, serta `invoice_date` untuk "Invoice Terbaru".
+- Migration `037_fix_invoice_ledger_transaction_date.sql` membackfill data lama sehingga selaras dengan `invoices.paid_at`.
+
+### Update Generator Nomor Invoice Anti-Duplicate (6 Juni 2026)
+- Generator `genInvoiceNumber` membaca `invoice_number` terakhir (bukan `count`) dan dibungkus retry up to 5 untuk mengantisipasi race condition + ledger yang dihapus.
+- Pola retry mengenali kode error Postgres `23505` pada constraint `invoices_tenant_id_invoice_number_key` lalu otomatis re-generate.
+
+### Update Klaim Non-Invoice Mekanik (6 Juni 2026)
+- `submitMechanicReceipt` mendukung dua mode: terkait invoice (membuat `invoice_items` part_external + entry kasbon) atau klaim non-invoice (langsung `mechanic_debt_ledger` dengan `claim_category` + `receipt_image_url`).
+- Migration `036_mechanic_debt_claim.sql` menambah kolom `claim_category` dan `receipt_image_url` di `mechanic_debt_ledger`.
+- Form `src/components/mechanic/upload-receipt-form.tsx` menyediakan toggle mode + tombol Foto Langsung dan Pilih dari Galeri.
+
+### Update Modul Invoice Toggle (6 Juni 2026)
+- Settings owner punya tab **Modul Invoice** dengan toggle `module_invoice_dp/ppn/pph` (default ON via migration `035`).
+- UI invoice (form, totals breakdown) menyembunyikan field DP/PPN/PPh saat modul OFF.
+
+### Update WhatsApp Share & Brand Icon (6 Juni 2026)
+- `src/components/invoices/print-options-modal.tsx` dan halaman print `src/app/(print)/print/invoices/[id]/page.tsx` membangun template WA blok ringkas (No, Tgl, Cust, Total, Status). Format Invoice menambahkan link preview agar pelanggan bisa download PDF mandiri.
+- Icon homescreen pakai logo Katalara (`Logo.jpg` di Supabase storage). Lokasi: `src/app/_brand-logo.ts`, route `src/app/icon-192,/icon-512,/icon-512-maskable,/apple-icon`, plus root `src/app/icon.tsx`. Manifest dan layout menambahkan query `?v=YYYYMMDD` untuk bust cache launcher.
+
+### Update Sinkron Point Owner (6 Juni 2026)
+- `syncEngineerPoints` (`src/lib/actions/settings.ts`) merekonsiliasi point berdasarkan assignment terkini + setting reward.
+- Transaksi orphan (referensi ke invoice yang dihapus) di-zero-out via `adjust = -currentNet` agar saldo karyawan tidak menyisakan point dari invoice yang sudah hilang.
 
 ### Mobile UX — Update Terbaru (27 Mei 2026)
 - Owner mobile bottom nav (`src/components/layout/owner-mobile-nav.tsx`):

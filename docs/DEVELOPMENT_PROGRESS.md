@@ -1,22 +1,37 @@
 # Development Progress Log
 
-Last updated: 29 Mei 2026 (commit `1fd746d`)
+Last updated: 6 Juni 2026 (commit `4a1036f`)
 
 ## Ringkasan Status Saat Ini
 
 - Platform aktif stabil di Next.js 15 + Supabase multi-tenant.
-- Alur invoice owner/admin sudah end-to-end dan complaint-aware.
-- Program point mekanik sudah mencakup earn, klaim, approval/reject, dan rollback sync saat invoice diturunkan statusnya.
-- Konsistensi card point engineer sudah diperbaiki (order-agnostic summary + wording histori rollback profesional).
-- Owner customers page sudah aktif sehingga menu pelanggan tidak 404.
-- Owner customers page sudah naik level ke tabel interaktif (pagination, bulk action, preview/edit/hapus, wilayah terstruktur Jateng).
-- Dashboard mekanik telah disiapkan dengan kerangka 4 tab untuk fase lanjutan.
-- PWA install support sudah aktif (manifest + service worker + icon set).
+- Modul Kas & Keuangan sudah lengkap dengan COA UMKM + export jurnal PDF + filter berbasis `transaction_date`.
+- Dashboard owner sudah bersih dari mismatch tanggal: KPI, kas bulan ini, dan invoice terbaru semua mengacu kolom bisnis (`transaction_date` / `invoice_date`).
+- Modul Invoice DP/PPN/PPh dapat dinyalakan/matikan per tenant (`module_invoice_dp/ppn/pph`).
+- Mekanik dapat upload struk untuk pekerjaan invoice maupun klaim non-invoice (bensin/kesehatan/lainnya), dengan upload kamera atau galeri.
+- Sinkron point owner sekarang invoice-aware (assignment terkini + reset transaksi orphan invoice yang sudah dihapus).
+- Generator nomor invoice tahan duplicate karena baca nomor terakhir + retry idempotent.
+- WA share dari modal print menyajikan format pesan blok (Struk/Nota) dan menambahkan link preview untuk Invoice.
+- Brand icon homescreen pakai `Logo.jpg` Katalara via icon route + versioning manifest.
+- Alur lama (point earn/redeem, complaint, owner customers, PWA, mobile UX) tetap berlaku.
 
 ## Milestone Build Terbaru
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `4a1036f` | fix | Pembayaran invoice mengisi `ledger.transaction_date` dari `paymentDate` (bukan default hari ini) |
+| `87aac87` | fix | Nomor invoice anti-duplicate (baca last + retry) + WA template per format + refresh ikon homescreen |
+| `50e247a` | feat | Mekanik klaim non-invoice (bensin/kesehatan/lainnya) + upload galeri + ikon brand Katalara |
+| `d2841a3` | fix | Dashboard `Invoice Terbaru` pakai `invoice_date` + sinkron point membersihkan transaksi orphan |
+| `76628c2` | fix | Dashboard kas bulan ini & pendapatan hari ini bersumber dari `ledger.transaction_date` |
+| `7ac00ba` | fix | Sinkron point berdasarkan assignment terkini + engineer panel toggle |
+| `7a44ef1` | feat | Kasbon karyawan COA `108` + saldo/cicilan + private sidebar toggle mekanik |
+| `cd7b090` | feat | Settings: tab Modul Invoice (DP/PPN/PPh) + placeholder Lokasi Kerja |
+| `bc4e399` | feat | Invoice tanggal selesai eksplisit + kolom lama kerja |
+| `162562b` | feat | Kas mobile layout: action 2x2 grid + card list |
+| `fd7a574` | feat | Keterangan ledger Pembayaran Invoice menyertakan nama pelanggan + migration backfill |
+| `4d419e4` | feat | Kas COA UMKM lengkap + export jurnal PDF |
+| `33824e9` | fix | Dashboard filter `invoice_date`, month picker, top customers by revenue |
 | `1fd746d` | fix | Stabilkan total point engineer + wording riwayat rollback profesional |
 | `35173a0` | feat | Aktivasi PWA install support (manifest, icons, SW) |
 | `b919b08` | fix | Owner delete user + sinkron stale point invoice non-paid |
@@ -45,6 +60,16 @@ Minimum migration yang harus sudah ada di environment target:
 - `025_settings_nota_title_size.sql`
 - `026_point_redemption_requests.sql`
 - `027_invoice_mechanics_complaint.sql`
+- `028_ledger_transaction_date.sql`
+- `029_kas_hutang_piutang.sql`
+- `030_invoice_dp.sql`
+- `031_invoice_dp_toggle.sql`
+- `032_backfill_completed_at.sql`
+- `033_backfill_invoice_ledger_date.sql`
+- `034_backfill_ledger_notes_customer.sql`
+- `035_invoice_ppn_pph_toggle.sql`
+- `036_mechanic_debt_claim.sql`
+- `037_fix_invoice_ledger_transaction_date.sql` (wajib jalan setelah deploy commit `4a1036f`)
 
 Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pending di sebagian environment.
 
@@ -58,10 +83,18 @@ Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pendin
 5. Owner customers page (`/owner/customers`) tampil tanpa 404 dengan KPI + pie lokasi + tabel pelanggan.
 5a. Uji edit pelanggan dengan selector kabupaten/kecamatan Jateng dan chart scope badge.
 6. Settings tab owner tetap persisten setelah save dan refresh (uji lintas tab).
-7. PWA: cek install prompt/Add to Home Screen pada Android/iOS (jika browser mendukung).
+7. PWA: install ke homescreen menampilkan logo Katalara (bukan inisial "V"). Hapus shortcut lama dulu untuk bust cache launcher.
+8. Pembayaran invoice retroaktif: bayar invoice tanggal lalu, cek dashboard → Pendapatan Bulan Ini sesuai tanggal bayar, bukan tanggal input.
+9. Invoice baru: buat 5–10 invoice berurutan (termasuk setelah cancel/delete) tanpa error duplicate `invoices_tenant_id_invoice_number_key`.
+10. WA share dari modal print: 3 format (struk/nota/invoice) menghasilkan blok pesan benar; format Invoice membawa link preview yang bisa dibuka pelanggan.
+11. Mekanik upload struk: tab `Untuk Invoice` (jika ada assignment) dan tab `Klaim` (bensin/kesehatan/lainnya) keduanya berhasil simpan dengan upload kamera atau galeri.
+12. Halaman `Piutang Saya` mekanik menampilkan badge kategori klaim + thumbnail struk untuk entri non-invoice.
 
 ## Catatan Risiko Terbuka
 
 - Persistence settings owner masih perlu validasi ulang di production real traffic.
 - Skema point helper masih rawan nominal kecil karena pembulatan `floor`.
 - Tab `Kehadiran` dan `Payroll` mekanik masih scaffold, belum tersinkron data riil.
+- Klaim non-invoice (`mechanic_debt_ledger.claim_category`) belum punya approval flow di owner; saat ini langsung tercatat sebagai `advance` dan terhitung di Piutang Mekanik.
+- Generator nomor invoice masih level aplikasi (read-then-insert + retry). Jika trafik konkuren tinggi, pertimbangkan trigger / sequence di DB untuk garansi atomik.
+- Backfill `037` hanya menyentuh ledger `Pembayaran Invoice`. Untuk transaksi kas manual yang salah tanggal, koreksi dilakukan via UI Kas (edit transaksi).

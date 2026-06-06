@@ -5,6 +5,7 @@ import {
   useTransition,
   useEffect,
   useRef,
+  useMemo,
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -615,7 +616,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [itemSellPrice, setItemSellPrice] = useState(0);
   const [itemBuyPrice, setItemBuyPrice] = useState(0);
   const [itemPaymentSource, setItemPaymentSource] = useState<PaymentSource>("owner");
-  const [suggestions, setSuggestions] = useState<{ description: string; item_type: string }[]>([]);
+  const [suggestions, setSuggestions] = useState<{ description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null }[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addItemError, setAddItemError] = useState("");
 
@@ -754,6 +755,34 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       setShowSuggestions(res.length > 0);
     }, 250);
   }
+
+  /**
+   * Autofill saat user pilih saran:
+   * - Set tipe item ke tipe historis (mencegah barang kelanjur masuk Jasa).
+   * - Set satuan & harga jual dari transaksi terakhir.
+   * - Untuk tipe part, set harga beli juga (markup tetap dihitung otomatis).
+   */
+  function applySuggestion(s: { description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null }) {
+    setItemDesc(s.description);
+    if (s.item_type !== itemType) setItemType(s.item_type as ItemType);
+    if (s.unit_label) setItemUnitLabel(s.unit_label);
+    if (s.sell_price > 0) setItemSellPrice(s.sell_price);
+    if (s.item_type !== "service" && s.unit_price > 0) setItemBuyPrice(s.unit_price);
+    setShowSuggestions(false);
+  }
+
+  // Cek mismatch: user di tab Jasa tapi nama yang diketik sudah pernah
+  // tercatat sebagai Barang (atau sebaliknya). Pakai untuk menampilkan
+  // peringatan + tombol pintas pindah tab.
+  const mismatchSuggestion = useMemo(() => {
+    if (!itemDesc.trim() || suggestions.length === 0) return null;
+    const exact = suggestions.find(
+      (s) => s.description.toLowerCase() === itemDesc.trim().toLowerCase(),
+    );
+    if (!exact) return null;
+    if (exact.item_type === itemType) return null;
+    return exact;
+  }, [itemDesc, suggestions, itemType]);
 
   // ── Auto-compute H.Jual from H.Beli + margin ─────────────────────────
   useEffect(() => {
@@ -1509,16 +1538,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           <button
                             key={i}
                             type="button"
-                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                            className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setItemDesc(s.description);
-                              if (s.item_type !== "service") setItemType(s.item_type as ItemType);
-                              setShowSuggestions(false);
-                            }}
+                            onClick={() => applySuggestion(s)}
                           >
-                            <span className="text-gray-900">{s.description}</span>
-                            <span className="ml-2 text-xs text-gray-400">{s.item_type}</span>
+                            <span className="truncate text-gray-900">{s.description}</span>
+                            <span className="shrink-0 text-xs text-gray-400">
+                              {s.item_type === "service" ? "Jasa" : s.item_type === "part_internal" ? "stok" : "beli"}
+                              {s.sell_price > 0 ? ` · ${new Intl.NumberFormat("id-ID").format(s.sell_price)}` : ""}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -1592,16 +1620,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           <button
                             key={i}
                             type="button"
-                            className="w-full px-3 py-1.5 text-left text-sm hover:bg-gray-50"
+                            className="flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left text-sm hover:bg-gray-50"
                             onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => {
-                              setItemDesc(s.description);
-                              if (s.item_type !== "service") setItemType(s.item_type as ItemType);
-                              setShowSuggestions(false);
-                            }}
+                            onClick={() => applySuggestion(s)}
                           >
-                            <span className="text-gray-900">{s.description}</span>
-                            <span className="ml-2 text-xs text-gray-400">{s.item_type}</span>
+                            <span className="truncate text-gray-900">{s.description}</span>
+                            <span className="shrink-0 text-xs text-gray-400">
+                              {s.item_type === "service" ? "Jasa" : s.item_type === "part_internal" ? "stok" : "beli"}
+                              {s.sell_price > 0 ? ` · ${new Intl.NumberFormat("id-ID").format(s.sell_price)}` : ""}
+                            </span>
                           </button>
                         ))}
                       </div>
@@ -1670,6 +1697,28 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 </div>
 
                 {addItemError && <span className="col-span-2 text-xs text-red-600">{addItemError}</span>}
+                {mismatchSuggestion && (
+                  <div className="col-span-2 flex items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1.5 text-xs text-amber-800">
+                    <span>
+                      Sebelumnya tercatat sebagai{" "}
+                      <strong>
+                        {mismatchSuggestion.item_type === "service"
+                          ? "Jasa"
+                          : mismatchSuggestion.item_type === "part_internal"
+                            ? "Barang (stok)"
+                            : "Barang (beli)"}
+                      </strong>
+                      . Pindah tab?
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => applySuggestion(mismatchSuggestion)}
+                      className="shrink-0 rounded border border-amber-400 bg-white px-2 py-0.5 font-semibold text-amber-700 hover:bg-amber-100"
+                    >
+                      Pindahkan
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           )}

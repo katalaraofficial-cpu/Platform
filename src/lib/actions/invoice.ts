@@ -1031,26 +1031,40 @@ export async function addMechanicToInvoice(
 
 export async function searchItemDescriptions(
   query: string
-): Promise<{ description: string; item_type: string }[]> {
+): Promise<{ description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null }[]> {
   if (!query.trim()) return [];
   const ctx = await getUserContext();
   if (!ctx.tenantId) return [];
   const supabase = await createClient();
   const { data } = await supabase
     .from("invoice_items")
-    .select("description, item_type")
+    .select("description, item_type, unit_price, quantity, final_price, unit_label")
     .eq("tenant_id", ctx.tenantId)
     .ilike("description", `%${query}%`)
     .order("created_at", { ascending: false })
-    .limit(12);
-  // Deduplicate by description (keep most recent)
+    .limit(60);
+  // Deduplicate by lowercased description (keep most recent → first occurrence)
+  // Sertakan harga jual terakhir (final_price/quantity) agar UI bisa autofill.
   const seen = new Set<string>();
-  return (data ?? []).filter((item) => {
-    const key = item.description.toLowerCase();
-    if (seen.has(key)) return false;
+  const out: { description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null }[] = [];
+  for (const row of data ?? []) {
+    const r = row as { description: string; item_type: string; unit_price: number | string | null; quantity: number | string | null; final_price: number | string | null; unit_label: string | null };
+    const key = r.description.toLowerCase();
+    if (seen.has(key)) continue;
     seen.add(key);
-    return true;
-  });
+    const qty = Number(r.quantity ?? 1) || 1;
+    const final = Number(r.final_price ?? 0);
+    const sell = qty > 0 ? Math.round(final / qty) : 0;
+    out.push({
+      description: r.description,
+      item_type: r.item_type,
+      unit_price: Number(r.unit_price ?? 0),
+      sell_price: sell,
+      unit_label: r.unit_label ?? null,
+    });
+    if (out.length >= 12) break;
+  }
+  return out;
 }
 
 // ── Mechanic: update work order status ───────────────────────

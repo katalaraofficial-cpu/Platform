@@ -10,6 +10,7 @@ import {
   PiggyBank,
   Settings,
   UserCog,
+  BookOpen,
 } from "lucide-react";
 import type { NavItem } from "@/components/layout/types";
 
@@ -50,6 +51,9 @@ export default async function OwnerLayout({
 
     // Always visible
     { label: "Pengaturan", href: "/owner/settings", icon: <Settings className="h-4 w-4" /> },
+
+    // Katalog implicit dari riwayat invoice_items — owner tools untuk audit klasifikasi
+    { label: "Katalog Item", href: "/owner/katalog", icon: <BookOpen className="h-4 w-4" /> },
 
     // User management — always visible for owner
     { label: "Kelola Pengguna", href: "/owner/users", icon: <UserCog className="h-4 w-4" /> },

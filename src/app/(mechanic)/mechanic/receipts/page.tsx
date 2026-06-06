@@ -67,10 +67,10 @@ export default async function UploadReceiptPage() {
       <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         <p className="font-semibold">Cara penggunaan:</p>
         <ol className="mt-1 list-decimal pl-4 text-xs leading-5 text-amber-700">
-          <li>Pilih invoice pekerjaan yang sedang dikerjakan</li>
-          <li>Isi nama part dan nominal pembelian sesuai struk</li>
-          <li>Foto struk belanja sebagai bukti</li>
-          <li>Nominal akan tercatat sebagai piutang di tab Piutang Saya</li>
+          <li>Pilih mode <span className="font-semibold">Untuk Invoice</span> jika pembelian terkait pekerjaan, atau <span className="font-semibold">Klaim</span> untuk bensin / kesehatan / lainnya.</li>
+          <li>Isi keterangan dan nominal sesuai struk.</li>
+          <li>Foto struk langsung atau pilih dari galeri.</li>
+          <li>Nominal akan tercatat sebagai piutang di tab Piutang Saya.</li>
         </ol>
       </div>
 

@@ -174,6 +174,8 @@ export interface MechanicDebtLedger {
   amount: number;
   notes: string | null;
   is_paid: boolean;
+  claim_category?: string | null;
+  receipt_image_url?: string | null;
   created_by: string;
   created_at: string;
 }

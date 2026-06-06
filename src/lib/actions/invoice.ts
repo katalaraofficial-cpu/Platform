@@ -1091,22 +1091,56 @@ export async function updateInvoiceMechanicStatus(
 }
 
 // ── Mechanic: submit receipt (upload struk) ──────────────────
-// Creates an invoice_item (part_external, payment_source=mechanic)
-// and a mechanic_debt_ledger entry (advance).
+// Dua mode:
+//  1. invoiceId terisi → buat invoice_item (part_external) + entry kasbon.
+//  2. invoiceId null + claimCategory terisi → klaim non-invoice (bensin /
+//     kesehatan / lainnya). Hanya entri kasbon yang dibuat, struk disimpan
+//     langsung di mechanic_debt_ledger.receipt_image_url.
 export async function submitMechanicReceipt(payload: {
-  invoiceId: string;
+  invoiceId: string | null;
   description: string;
   amount: number;
   receiptImageUrl: string;
+  claimCategory?: "bensin" | "kesehatan" | "lainnya" | null;
 }): Promise<{ error?: string }> {
   const supabase = await createClient();
   const ctx = await getUserContext();
+
+  const isClaim = !payload.invoiceId;
+
+  if (isClaim) {
+    if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
+    if (!payload.claimCategory) {
+      return { error: "Pilih kategori klaim" };
+    }
+
+    const { error: ledgerError } = await supabase
+      .from("mechanic_debt_ledger")
+      .insert({
+        tenant_id: ctx.tenantId,
+        mechanic_id: ctx.id,
+        invoice_item_id: null,
+        transaction_type: "advance",
+        amount: payload.amount,
+        notes: payload.description,
+        claim_category: payload.claimCategory,
+        receipt_image_url: payload.receiptImageUrl,
+        is_paid: false,
+        created_by: ctx.id,
+      });
+
+    if (ledgerError) return { error: ledgerError.message };
+
+    revalidatePath("/mechanic/receipts");
+    revalidatePath("/mechanic/debts");
+    return {};
+  }
 
   // Verify mechanic is assigned to this invoice
   const { data: assignment } = await supabase
     .from("invoice_mechanics")
     .select("id")
-    .eq("invoice_id", payload.invoiceId)
+    .eq("invoice_id", payload.invoiceId!)
     .eq("mechanic_id", ctx.id)
     .single();
 
@@ -1116,7 +1150,7 @@ export async function submitMechanicReceipt(payload: {
   const { data: inv } = await supabase
     .from("invoices")
     .select("tenant_id")
-    .eq("id", payload.invoiceId)
+    .eq("id", payload.invoiceId!)
     .single();
 
   if (!inv) return { error: "Invoice tidak ditemukan" };
@@ -1125,7 +1159,7 @@ export async function submitMechanicReceipt(payload: {
   const { data: item, error: itemError } = await supabase
     .from("invoice_items")
     .insert({
-      invoice_id: payload.invoiceId,
+      invoice_id: payload.invoiceId!,
       tenant_id: inv.tenant_id,
       item_type: "part_external",
       description: payload.description,

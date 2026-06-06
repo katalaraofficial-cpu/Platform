@@ -137,21 +137,26 @@ export default async function PiutangSayaPage() {
                 ? invoiceMap.get(entry.invoice_item_id)
                 : null;
               const isPaid = paidStatus.get(entry.id) ?? false;
+              const receiptUrl =
+                entry.invoice_items?.receipt_image_url ?? entry.receipt_image_url ?? null;
+              const categoryLabel = entry.claim_category
+                ? entry.claim_category.charAt(0).toUpperCase() + entry.claim_category.slice(1)
+                : null;
 
               return (
                 <li key={entry.id} className="px-4 py-3">
                   <div className="flex items-start gap-3">
                     {/* Receipt thumbnail */}
-                    {entry.invoice_items?.receipt_image_url ? (
+                    {receiptUrl ? (
                       <a
-                        href={entry.invoice_items.receipt_image_url}
+                        href={receiptUrl}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="shrink-0"
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
-                          src={entry.invoice_items.receipt_image_url}
+                          src={receiptUrl}
                           alt="Struk"
                           className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
                         />
@@ -179,6 +184,11 @@ export default async function PiutangSayaPage() {
                           )}
                         </div>
                         <p className="mt-0.5 text-xs text-gray-400">
+                          {categoryLabel && (
+                            <span className="mr-2 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-semibold text-blue-600">
+                              Klaim {categoryLabel}
+                            </span>
+                          )}
                           {invoiceNum && (
                             <span className="mr-2 font-mono">{invoiceNum}</span>
                           )}

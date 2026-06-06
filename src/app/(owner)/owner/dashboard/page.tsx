@@ -224,8 +224,9 @@ export default async function OwnerDashboard({
       .lt("invoice_date", firstOfNextMonth),
     supabase
       .from("invoices")
-      .select("id, invoice_number, customer_id, status, grand_total, created_at")
+      .select("id, invoice_number, customer_id, status, grand_total, invoice_date, created_at")
       .eq("tenant_id", tenantId)
+      .order("invoice_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(7),
     supabase
@@ -801,7 +802,7 @@ export default async function OwnerDashboard({
                         {fmt(inv.grand_total ?? 0)}
                       </td>
                       <td className="px-5 py-3 text-xs text-gray-400">
-                        {fmtDate(inv.created_at)}
+                        {fmtDate(inv.invoice_date ?? inv.created_at)}
                       </td>
                     </tr>
                   ))}

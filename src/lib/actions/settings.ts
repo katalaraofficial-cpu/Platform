@@ -317,12 +317,18 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
     }
 
     const invoiceNetByProfile = new Map<string, number>();
+    const orphanNetByProfile = new Map<string, number>(); // reference_id terisi tapi invoice tidak ada lagi
     for (const tx of transactions ?? []) {
-      const referenceId = tx.reference_id ?? "";
-      if (!invoiceStatusById.has(referenceId)) continue;
       if (!["earn", "adjust"].includes(tx.transaction_type)) continue;
+      const referenceId = tx.reference_id ?? "";
+      if (!referenceId) continue; // skip transaksi manual tanpa reference
       const key = `${referenceId}:${tx.profile_id}`;
-      invoiceNetByProfile.set(key, (invoiceNetByProfile.get(key) ?? 0) + Number(tx.points ?? 0));
+      const points = Number(tx.points ?? 0);
+      if (invoiceStatusById.has(referenceId)) {
+        invoiceNetByProfile.set(key, (invoiceNetByProfile.get(key) ?? 0) + points);
+      } else {
+        orphanNetByProfile.set(key, (orphanNetByProfile.get(key) ?? 0) + points);
+      }
     }
 
     const expectedByKey = new Map<string, number>();
@@ -389,6 +395,26 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
       });
       if (adjustErr) {
         return { error: `Gagal menormalkan histori point invoice: ${adjustErr.message}` };
+      }
+    }
+
+    // Bersihkan saldo dari transaksi yang reference_id-nya sudah tidak terhubung ke invoice manapun
+    // (mis. invoice telah dihapus). Jika tidak dibalik, saldo karyawan akan tetap mencantumkan point
+    // dari invoice yang tidak relevan.
+    for (const [key, currentNet] of orphanNetByProfile.entries()) {
+      if (currentNet === 0) continue;
+      const [referenceId, profileId] = key.split(":");
+      const { error: orphanErr } = await admin.from("employee_point_transactions").insert({
+        tenant_id: tenantId,
+        profile_id: profileId,
+        transaction_type: "adjust",
+        points: -currentNet,
+        reference_id: referenceId,
+        notes: "Sinkronisasi point: membatalkan reward dari invoice yang tidak ditemukan lagi.",
+        expires_at: null,
+      });
+      if (orphanErr) {
+        return { error: `Gagal menormalkan histori point orphan: ${orphanErr.message}` };
       }
     }
 

@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { getInvoiceShareContext } from "@/lib/actions/settings";
 import {
   DEFAULT_WA_TEMPLATE,
+  buildItemsBlock,
   formatDateID,
   formatInvoiceStatusID,
   formatRupiah,
@@ -75,6 +76,7 @@ export function PrintOptionsModal({
       const ctxRes = await getInvoiceShareContext(invoiceId);
       const businessName = ctxRes.data?.businessName ?? "Bengkel";
       const template = ctxRes.data?.template?.trim() ? ctxRes.data.template : DEFAULT_WA_TEMPLATE;
+      const itemsBlock = buildItemsBlock(ctxRes.data?.items ?? []);
 
       const body = renderWATemplate(template, {
         bisnis: businessName,
@@ -84,9 +86,8 @@ export function PrintOptionsModal({
         pelanggan: (customerName ?? "Pelanggan").toUpperCase(),
         total: formatRupiah(grandTotal),
         status: formatInvoiceStatusID(status ?? null, paidAt ?? null),
-        // Selalu sertakan link agar pelanggan bisa cek status realtime
-        // (template default menempatkannya di baris {link}).
         link: previewUrl,
+        items: itemsBlock,
       });
 
       const message = encodeURIComponent(body);

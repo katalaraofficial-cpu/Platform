@@ -1,10 +1,12 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
+import type { Metadata } from "next";
 import { PrintControls } from "@/components/invoices/print-controls";
 import type { InvoiceItem, VehicleInfo } from "@/types/database";
 import {
   DEFAULT_WA_TEMPLATE,
+  buildItemsBlock,
   formatDateID,
   formatInvoiceStatusID,
   formatRupiah,
@@ -649,6 +651,53 @@ function InvoiceTemplate({
 }
 
 // ── Main page ─────────────────────────────────────────────────
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const supabase = createAdminClient();
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("invoice_number, grand_total, status, paid_at, tenant_id, customer_id")
+    .eq("id", id)
+    .single();
+  if (!inv) {
+    return { title: "Invoice tidak ditemukan", robots: { index: false, follow: false } };
+  }
+  const [{ data: settings }, { data: tenant }, { data: cust }] = await Promise.all([
+    supabase.from("settings").select("store_name, store_logo_url").eq("tenant_id", inv.tenant_id).single(),
+    supabase.from("tenants").select("name").eq("id", inv.tenant_id).single(),
+    inv.customer_id
+      ? supabase.from("customers").select("name").eq("id", inv.customer_id).single()
+      : Promise.resolve({ data: null }),
+  ]);
+  const bisnis =
+    (settings as { store_name?: string | null } | null)?.store_name?.trim() ||
+    (tenant as { name?: string | null } | null)?.name ||
+    "Bengkel";
+  const logo = (settings as { store_logo_url?: string | null } | null)?.store_logo_url ?? undefined;
+  const total = formatRupiah(Number(inv.grand_total ?? 0));
+  const statusLabel = formatInvoiceStatusID(inv.status as string, inv.paid_at);
+  const custName = (cust as { name?: string } | null)?.name ?? "Pelanggan";
+  const title = `${inv.invoice_number} — ${bisnis}`;
+  const description = `Invoice untuk ${custName} • Total ${total} • ${statusLabel}.`;
+  return {
+    title,
+    description,
+    robots: { index: false, follow: false },
+    openGraph: {
+      type: "website",
+      siteName: bisnis,
+      title,
+      description,
+      ...(logo ? { images: [{ url: logo }] } : {}),
+    },
+    twitter: { card: "summary", title, description },
+  };
+}
+
 export default async function PrintInvoicePage({
   params,
   searchParams,
@@ -784,6 +833,14 @@ export default async function PrintInvoicePage({
     total: formatRupiah(Number(inv.grand_total)),
     status: formatInvoiceStatusID(inv.status as string, inv.paid_at),
     link: previewUrl,
+    items: buildItemsBlock(
+      ((items ?? []) as InvoiceItem[]).map((it) => ({
+        description: it.description,
+        quantity: Number(it.quantity ?? 1),
+        final_price: Number(it.final_price ?? 0),
+        unit_label: (it as { unit_label?: string | null }).unit_label ?? null,
+      })),
+    ),
   });
   const waMessage = encodeURIComponent(waBody);
   const waLink = customerPhone
@@ -795,7 +852,7 @@ export default async function PrintInvoicePage({
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>{inv.invoice_number} — {format === "struk" ? "Struk" : format === "nota" ? "Nota Kontan" : "Invoice"}</title>
+        <title>{`${tenantName} • ${inv.invoice_number}`}</title>
         <style>{`
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { background: #f3f4f6; font-family: Arial, sans-serif; }

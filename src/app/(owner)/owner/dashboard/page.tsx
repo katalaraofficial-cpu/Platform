@@ -341,11 +341,11 @@ export default async function OwnerDashboard({
 
   let donutSegments: { label: string; value: number; color: string }[];
   if (donutType === "jasa" || donutType === "barang") {
-    // Break down by individual item name (description)
+    // Break down by individual item name (description) — count rows
     const nameCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
-      const item = i as { description: string; quantity: number };
+      const item = i as { description: string };
       const name = item.description || "(tidak ada nama)";
-      acc[name] = (acc[name] ?? 0) + Number(item.quantity ?? 1);
+      acc[name] = (acc[name] ?? 0) + 1;
       return acc;
     }, {});
     donutSegments = Object.entries(nameCounts)
@@ -356,10 +356,12 @@ export default async function OwnerDashboard({
         color: DONUT_COLORS[idx % DONUT_COLORS.length],
       }));
   } else {
-    // Semua: aggregate by type category
+    // Semua: aggregate by type category — hitung jumlah baris (transaksi item),
+    // bukan menjumlahkan kolom quantity, agar nilainya selalu masuk akal
+    // tidak terdistorsi oleh qty besar atau import lama.
     const itemTypeCounts = (itemsRaw ?? []).reduce<Record<string, number>>((acc, i) => {
-      const item = i as { item_type: string; quantity: number };
-      acc[item.item_type] = (acc[item.item_type] ?? 0) + Number(item.quantity ?? 1);
+      const item = i as { item_type: string };
+      acc[item.item_type] = (acc[item.item_type] ?? 0) + 1;
       return acc;
     }, {});
     donutSegments = [

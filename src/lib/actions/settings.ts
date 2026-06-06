@@ -546,6 +546,7 @@ export async function resetAllData(
 export type InvoiceShareContext = {
   businessName: string;
   template: string;
+  items: Array<{ description: string; quantity: number; final_price: number; unit_label: string | null }>;
 };
 
 export async function getInvoiceShareContext(
@@ -561,13 +562,18 @@ export async function getInvoiceShareContext(
       .single();
     if (invErr || !inv) return { error: invErr?.message ?? "Invoice tidak ditemukan" };
 
-    const [{ data: settings }, { data: tenant }] = await Promise.all([
+    const [{ data: settings }, { data: tenant }, { data: itemsRaw }] = await Promise.all([
       admin
         .from("settings")
         .select("store_name, wa_message_template")
         .eq("tenant_id", inv.tenant_id)
         .single(),
       admin.from("tenants").select("name").eq("id", inv.tenant_id).single(),
+      admin
+        .from("invoice_items")
+        .select("description, quantity, final_price, unit_label")
+        .eq("invoice_id", invoiceId)
+        .order("created_at", { ascending: true }),
     ]);
 
     const businessName =
@@ -577,8 +583,16 @@ export async function getInvoiceShareContext(
     const template =
       (settings as { wa_message_template?: string | null } | null)?.wa_message_template?.trim() ||
       "";
+    const items = ((itemsRaw ?? []) as Array<{ description: string; quantity: number | string; final_price: number | string | null; unit_label: string | null }>).map(
+      (it) => ({
+        description: it.description,
+        quantity: Number(it.quantity ?? 1),
+        final_price: Number(it.final_price ?? 0),
+        unit_label: it.unit_label ?? null,
+      }),
+    );
 
-    return { data: { businessName, template } };
+    return { data: { businessName, template, items } };
   } catch (e) {
     return { error: (e as Error).message };
   }

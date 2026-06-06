@@ -1047,6 +1047,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
           <span>{"{no}"}</span>
           <span>{"{tgl}"}</span>
           <span>{"{pelanggan}"}</span>
+          <span>{"{items}"}</span>
           <span>{"{total}"}</span>
           <span>{"{status}"}</span>
           <span>{"{link}"}</span>

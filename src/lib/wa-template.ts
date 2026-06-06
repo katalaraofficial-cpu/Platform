@@ -18,6 +18,8 @@ export const DEFAULT_WA_TEMPLATE = [
   "Tgl  : {tgl}",
   "Cust : {pelanggan}",
   "------------------------------",
+  "{items}",
+  "------------------------------",
   "Total : {total}",
   "Status: {status}",
   "",
@@ -66,6 +68,25 @@ export function formatDateID(iso: string | null | undefined): string {
   });
 }
 
+/**
+ * Bangun blok daftar item untuk pesan WA (placeholder {items}).
+ * Format per baris: `1. Nama Item — qty x Rp harga = Rp subtotal`.
+ */
+export function buildItemsBlock(
+  items: Array<{ description: string; quantity: number | string; final_price?: number | string | null; unit_label?: string | null }>,
+): string {
+  if (!items || items.length === 0) return "(Tidak ada item)";
+  return items
+    .map((it, idx) => {
+      const qty = Number(it.quantity ?? 1);
+      const final = Number(it.final_price ?? 0);
+      const unitLabel = it.unit_label ? ` ${it.unit_label}` : "";
+      const unitPrice = qty > 0 ? final / qty : final;
+      return `${idx + 1}. ${it.description} — ${qty}${unitLabel} x ${formatRupiah(unitPrice)} = ${formatRupiah(final)}`;
+    })
+    .join("\n");
+}
+
 export interface WATemplateVars {
   bisnis: string;
   format: WAFormat;
@@ -75,6 +96,7 @@ export interface WATemplateVars {
   total: string;
   status: string;
   link: string;
+  items: string;
 }
 
 /**
@@ -96,15 +118,16 @@ export function renderWATemplate(
     "{total}": vars.total,
     "{status}": vars.status,
     "{link}": vars.link,
+    "{items}": vars.items,
   };
 
-  const lines = template.split("\n").map((line) => {
-    let out = line;
-    for (const [key, value] of Object.entries(map)) {
-      out = out.split(key).join(value);
-    }
-    return out;
-  });
+  // Replace placeholder pertama lalu pecah jadi baris (penting untuk
+  // {items} yang nilainya bisa multi-baris).
+  let replaced = template;
+  for (const [key, value] of Object.entries(map)) {
+    replaced = replaced.split(key).join(value);
+  }
+  const lines = replaced.split("\n");
 
   // Buang baris yang hanya berisi placeholder kosong (mis. {link} tanpa nilai)
   const cleaned: string[] = [];

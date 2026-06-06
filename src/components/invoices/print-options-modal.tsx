@@ -2,6 +2,15 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
+import { getInvoiceShareContext } from "@/lib/actions/settings";
+import {
+  DEFAULT_WA_TEMPLATE,
+  formatDateID,
+  formatInvoiceStatusID,
+  formatRupiah,
+  renderWATemplate,
+  type WAFormat,
+} from "@/lib/wa-template";
 
 interface PrintOptionsModalProps {
   invoiceId: string;
@@ -10,6 +19,7 @@ interface PrintOptionsModalProps {
   customerName?: string | null;
   invoiceDate?: string | null;
   status?: string | null;
+  paidAt?: string | null;
   grandTotal: number;
 }
 
@@ -42,70 +52,48 @@ export function PrintOptionsModal({
   customerName,
   invoiceDate,
   status,
+  paidAt,
   grandTotal,
 }: PrintOptionsModalProps) {
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("invoice");
+  const [sending, setSending] = useState(false);
 
   function openPreview() {
     window.open(`/print/invoices/${invoiceId}?format=${selected}`, "_blank");
     setOpen(false);
   }
 
-  function sendWhatsApp() {
-    if (!customerPhone) return;
-    const phone = customerPhone.replace(/[^0-9]/g, "").replace(/^0/, "62");
-    const dateLabel = invoiceDate
-      ? new Date(invoiceDate).toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      })
-      : new Date().toLocaleDateString("id-ID", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
+  async function sendWhatsApp() {
+    if (!customerPhone || sending) return;
+    setSending(true);
+    try {
+      const phone = customerPhone.replace(/[^0-9]/g, "").replace(/^0/, "62");
+      const previewUrl = `${window.location.origin}/print/invoices/${invoiceId}?format=${selected}`;
+      const format = selected as WAFormat;
+
+      const ctxRes = await getInvoiceShareContext(invoiceId);
+      const businessName = ctxRes.data?.businessName ?? "Bengkel";
+      const template = ctxRes.data?.template?.trim() ? ctxRes.data.template : DEFAULT_WA_TEMPLATE;
+
+      const body = renderWATemplate(template, {
+        bisnis: businessName,
+        format,
+        no: invoiceNumber,
+        tgl: formatDateID(invoiceDate ?? null),
+        pelanggan: (customerName ?? "Pelanggan").toUpperCase(),
+        total: formatRupiah(grandTotal),
+        status: formatInvoiceStatusID(status ?? null, paidAt ?? null),
+        // Selalu sertakan link agar pelanggan bisa cek status realtime
+        // (template default menempatkannya di baris {link}).
+        link: previewUrl,
       });
-    const customerLabel = (customerName ?? "Pelanggan").toUpperCase();
-    const statusLabel = (status ?? "draft").replace("_", " ").toUpperCase();
-    const total = new Intl.NumberFormat("id-ID", {
-      style: "currency",
-      currency: "IDR",
-      maximumFractionDigits: 0,
-    }).format(grandTotal);
-    const previewUrl = `${window.location.origin}/print/invoices/${invoiceId}?format=${selected}`;
 
-    const formatTitle =
-      selected === "struk"
-        ? "STRUK THERMAL"
-        : selected === "nota"
-          ? "NOTA KONTAN"
-          : "INVOICE";
-
-    const lines = [
-      "AKI KUAT",
-      "------------------------------",
-      `${formatTitle}`,
-      `No    : ${invoiceNumber}`,
-      `Tgl   : ${dateLabel}`,
-      `Cust  : ${customerLabel}`,
-      "------------------------------",
-      `Total : ${total}`,
-      `Status: ${statusLabel}`,
-    ];
-
-    if (selected === "invoice") {
-      lines.push(
-        "",
-        "Preview / Download Invoice:",
-        previewUrl
-      );
+      const message = encodeURIComponent(body);
+      window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
+    } finally {
+      setSending(false);
     }
-
-    lines.push("", "Terima kasih atas kunjungan Anda");
-
-    const message = encodeURIComponent(lines.join("\n"));
-    window.open(`https://wa.me/${phone}?text=${message}`, "_blank");
   }
 
   return (
@@ -181,10 +169,11 @@ export function PrintOptionsModal({
               {customerPhone && (
                 <button
                   onClick={sendWhatsApp}
-                  className="rounded-xl border border-green-500 px-4 py-2.5 text-sm font-semibold text-green-600 hover:bg-green-50 transition-colors"
+                  disabled={sending}
+                  className="rounded-xl border border-green-500 px-4 py-2.5 text-sm font-semibold text-green-600 hover:bg-green-50 transition-colors disabled:opacity-60"
                   title="Kirim via WhatsApp"
                 >
-                  📲 WA
+                  {sending ? "..." : "📲 WA"}
                 </button>
               )}
             </div>

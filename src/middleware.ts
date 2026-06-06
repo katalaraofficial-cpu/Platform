@@ -31,7 +31,9 @@ const ROLE_HOME: Record<UserRole, string> = {
 };
 
 // Public routes that do NOT require authentication
-const PUBLIC_PATHS = ["/", "/login", "/error", "/register", "/auth/callback", "/auth/set-password", "/auth/exchange"];
+// `/print/*` sengaja dibuat publik agar link preview yang dishare ke pelanggan
+// (mis. via WhatsApp) bisa dibuka tanpa login dan menampilkan status realtime.
+const PUBLIC_PATHS = ["/", "/login", "/error", "/register", "/auth/callback", "/auth/set-password", "/auth/exchange", "/print"];
 
 // Auth-flow paths: accessible even when authenticated (invite/reset flows)
 const AUTH_FLOW_PATHS = ["/auth/callback", "/auth/set-password", "/auth/exchange"];
@@ -56,8 +58,10 @@ export async function middleware(request: NextRequest) {
   if (isPublicPath) {
     // Auth-flow paths (callback, set-password) must always be reachable even when
     // authenticated — the invite/password-reset flow depends on them.
+    // /print/* juga harus tetap reachable saat login agar owner bisa preview.
     const isAuthFlow = AUTH_FLOW_PATHS.some((p) => pathname.startsWith(p));
-    if (!isAuthFlow && user) {
+    const isPrint = pathname.startsWith("/print");
+    if (!isAuthFlow && !isPrint && user) {
       // Already logged in on a login/register page → send to role home
       const profile = await getProfile(supabase, user.id);
       if (profile?.role) {

@@ -1,9 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
-import { getUserContext } from "@/lib/get-user-context";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { PrintControls } from "@/components/invoices/print-controls";
 import type { InvoiceItem, VehicleInfo } from "@/types/database";
+import {
+  DEFAULT_WA_TEMPLATE,
+  formatDateID,
+  formatInvoiceStatusID,
+  formatRupiah,
+  renderWATemplate,
+  type WAFormat,
+} from "@/lib/wa-template";
 
 type Format = "struk" | "nota" | "invoice";
 
@@ -652,31 +659,36 @@ export default async function PrintInvoicePage({
   const { id } = await params;
   const { format: rawFormat } = await searchParams;
 
-  const ctx = await getUserContext();
-  if (!ctx.tenantId) notFound();
-
-  const supabase = await createClient();
+  // Halaman ini publik (lihat middleware PUBLIC_PATHS). Pakai admin client
+  // agar bisa fetch invoice tanpa session — tenant_id diambil dari row invoice
+  // itu sendiri, lalu settings tenant dimuat berdasarkan tenant_id tersebut.
+  const supabase = createAdminClient();
   const { data: invoiceData } = await supabase
     .from("invoices")
     .select("*")
     .eq("id", id)
-    .eq("tenant_id", ctx.tenantId)
     .single();
   if (!invoiceData) notFound();
 
-  const [{ data: customer }, { data: items }, { data: settings }] = await Promise.all([
+  const tenantId = invoiceData.tenant_id;
+
+  const [{ data: customer }, { data: items }, { data: settings }, { data: tenantRow }] = await Promise.all([
     invoiceData.customer_id
       ? supabase.from("customers").select("name, phone, vehicle_info").eq("id", invoiceData.customer_id).single()
       : Promise.resolve({ data: null }),
     supabase.from("invoice_items").select("*").eq("invoice_id", id).order("created_at", { ascending: true }),
     supabase
       .from("settings")
-      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_title_size, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format")
-      .eq("tenant_id", ctx.tenantId)
+      .select("store_name, store_address, store_phone, store_email, store_logo_url, nota_title, nota_title_size, nota_jabatan, nota_show_watermark, nota_header, nota_footer, nota_signature_url, nota_stamp_url, nota_active_format, wa_message_template")
+      .eq("tenant_id", tenantId)
       .single(),
+    supabase.from("tenants").select("name").eq("id", tenantId).single(),
   ]);
 
-  const tenantName = (settings as { store_name?: string } | null)?.store_name || ctx.tenantName || "Bengkel";
+  const tenantName =
+    (settings as { store_name?: string } | null)?.store_name ||
+    (tenantRow as { name?: string } | null)?.name ||
+    "Bengkel";
   const storeAddress = (settings as { store_address?: string } | null)?.store_address ?? "";
   const storePhone = (settings as { store_phone?: string } | null)?.store_phone ?? "";
   const storeEmail = (settings as { store_email?: string } | null)?.store_email ?? "";
@@ -760,31 +772,20 @@ export default async function PrintInvoicePage({
     ? `${proto}://${host}/print/invoices/${id}?format=${format}`
     : `/print/invoices/${id}?format=${format}`;
 
-  const formatTitle =
-    format === "struk"
-      ? "STRUK THERMAL"
-      : format === "nota"
-        ? "NOTA KONTAN"
-        : "INVOICE";
-
-  const waLines = [
-    "AKI KUAT",
-    "------------------------------",
-    formatTitle,
-    `No    : ${inv.invoice_number}`,
-    `Tgl   : ${new Date((inv as { invoice_date?: string }).invoice_date ?? inv.created_at).toLocaleDateString("id-ID")}`,
-    `Cust  : ${(customerName ?? "Pelanggan").toUpperCase()}`,
-    "------------------------------",
-    `Total : ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(inv.grand_total))}`,
-    `Status: ${String(inv.status ?? "draft").replace("_", " ").toUpperCase()}`,
-  ];
-
-  if (format === "invoice") {
-    waLines.push("", "Preview / Download Invoice:", previewUrl);
-  }
-
-  waLines.push("", "Terima kasih atas kunjungan Anda");
-  const waMessage = encodeURIComponent(waLines.join("\n"));
+  const waTemplate =
+    (settings as { wa_message_template?: string | null } | null)?.wa_message_template?.trim() ||
+    DEFAULT_WA_TEMPLATE;
+  const waBody = renderWATemplate(waTemplate, {
+    bisnis: tenantName,
+    format: format as WAFormat,
+    no: inv.invoice_number,
+    tgl: formatDateID((inv as { invoice_date?: string }).invoice_date ?? inv.created_at),
+    pelanggan: (customerName ?? "Pelanggan").toUpperCase(),
+    total: formatRupiah(Number(inv.grand_total)),
+    status: formatInvoiceStatusID(inv.status as string, inv.paid_at),
+    link: previewUrl,
+  });
+  const waMessage = encodeURIComponent(waBody);
   const waLink = customerPhone
     ? `https://wa.me/${customerPhone.replace(/[^0-9]/g, "").replace(/^0/, "62")}?text=${waMessage}`
     : null;

@@ -158,8 +158,7 @@ export async function saveNotaSettings(data: {
   notaFooter: string;
   notaSignatureUrl: string;
   notaStampUrl: string;
-  notaActiveFormat: "A4" | "A5" | "thermal";
-}): Promise<SettingsActionState> {
+  notaActiveFormat: "A4" | "A5" | "thermal";  waMessageTemplate?: string;}): Promise<SettingsActionState> {
   const allowed = ["A4", "A5", "thermal"];
   if (!allowed.includes(data.notaActiveFormat))
     return { error: "Format nota tidak valid" };
@@ -184,10 +183,37 @@ export async function saveNotaSettings(data: {
         nota_signature_url: data.notaSignatureUrl.trim(),
         nota_stamp_url: data.notaStampUrl.trim(),
         nota_active_format: data.notaActiveFormat,
+        ...(data.waMessageTemplate !== undefined
+          ? { wa_message_template: data.waMessageTemplate.trim() || null }
+          : {}),
       })
       .eq("tenant_id", ctx.tenantId);
     if (error) {
       const message = error.message.toLowerCase();
+      if (message.includes("wa_message_template")) {
+        // Kolom wa_message_template belum ada (migration 038 belum jalan).
+        // Coba ulang tanpa kolom tersebut agar setting lain tetap tersimpan.
+        const retry = await admin
+          .from("settings")
+          .update({
+            nota_title: data.notaTitle.trim() || null,
+            nota_title_size: Math.max(16, Math.min(42, Math.round(data.notaTitleSize || 28))),
+            nota_subtitle: data.notaSubtitle.trim() || null,
+            nota_customer_layout: data.notaCustomerLayout,
+            nota_signature_layout: data.notaSignatureLayout,
+            nota_jabatan: data.notaJabatan.trim() || null,
+            nota_show_watermark: data.notaShowWatermark,
+            nota_header: data.notaHeader.trim(),
+            nota_footer: data.notaFooter.trim(),
+            nota_signature_url: data.notaSignatureUrl.trim(),
+            nota_stamp_url: data.notaStampUrl.trim(),
+            nota_active_format: data.notaActiveFormat,
+          })
+          .eq("tenant_id", ctx.tenantId);
+        if (retry.error) return { error: retry.error.message };
+        revalidatePath("/owner/settings");
+        return { success: "Pengaturan nota tersimpan. Jalankan migration 038_settings_wa_template.sql untuk mengaktifkan kustom pesan WhatsApp." };
+      }
       if (message.includes("schema cache") || message.includes("nota_customer_layout") || message.includes("nota_signature_layout") || message.includes("nota_title_size")) {
         const legacyUpdate = await admin
           .from("settings")
@@ -513,3 +539,48 @@ export async function resetAllData(
     return { error: (e as Error).message };
   }
 }
+
+// ── Public share context (no auth) ──────────────────────────
+// Dipakai oleh modal share WA agar template + nama bisnis
+// di-resolve dari settings tenant pemilik invoice.
+export type InvoiceShareContext = {
+  businessName: string;
+  template: string;
+};
+
+export async function getInvoiceShareContext(
+  invoiceId: string,
+): Promise<{ data?: InvoiceShareContext; error?: string }> {
+  if (!invoiceId) return { error: "invoiceId kosong" };
+  try {
+    const admin = createAdminClient();
+    const { data: inv, error: invErr } = await admin
+      .from("invoices")
+      .select("tenant_id")
+      .eq("id", invoiceId)
+      .single();
+    if (invErr || !inv) return { error: invErr?.message ?? "Invoice tidak ditemukan" };
+
+    const [{ data: settings }, { data: tenant }] = await Promise.all([
+      admin
+        .from("settings")
+        .select("store_name, wa_message_template")
+        .eq("tenant_id", inv.tenant_id)
+        .single(),
+      admin.from("tenants").select("name").eq("id", inv.tenant_id).single(),
+    ]);
+
+    const businessName =
+      (settings as { store_name?: string | null } | null)?.store_name?.trim() ||
+      (tenant as { name?: string | null } | null)?.name ||
+      "Bengkel";
+    const template =
+      (settings as { wa_message_template?: string | null } | null)?.wa_message_template?.trim() ||
+      "";
+
+    return { data: { businessName, template } };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+

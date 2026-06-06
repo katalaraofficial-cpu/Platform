@@ -28,6 +28,7 @@ import {
 } from "@/lib/actions/settings";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
+import { DEFAULT_WA_TEMPLATE } from "@/lib/wa-template";
 import { useRouter } from "next/navigation";
 
 const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
@@ -923,6 +924,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
   const [signUrl, setSignUrl] = useState(s?.nota_signature_url ?? "");
   const [stampUrl, setStampUrl] = useState(s?.nota_stamp_url ?? "");
   const [format, setFormat] = useState<"A4" | "A5" | "thermal">(s?.nota_active_format ?? "A4");
+  const [waTemplate, setWaTemplate] = useState<string>(s?.wa_message_template ?? "");
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -958,6 +960,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
     setSignUrl(s?.nota_signature_url ?? "");
     setStampUrl(s?.nota_stamp_url ?? "");
     setFormat((s?.nota_active_format ?? "A4") as "A4" | "A5" | "thermal");
+    setWaTemplate(s?.wa_message_template ?? "");
   }, [s]);
 
   function handleSubmit(e: React.FormEvent) {
@@ -976,6 +979,7 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         notaSignatureUrl: signUrl,
         notaStampUrl: stampUrl,
         notaActiveFormat: format,
+        waMessageTemplate: waTemplate,
       });
       if (res.error) {
         toast.error(res.error);
@@ -1022,6 +1026,44 @@ function TabNota({ s, tenantId }: { s: Settings | null; tenantId: string }) {
         setStampUrl={setStampUrl}
         tenantId={tenantId}
       />
+      <div className="space-y-2 rounded-md border border-gray-200 bg-gray-50 p-3">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-gray-800">Pesan WhatsApp Share Invoice</p>
+          <button
+            type="button"
+            onClick={() => setWaTemplate(DEFAULT_WA_TEMPLATE)}
+            className="text-xs font-semibold text-blue-600 hover:underline"
+          >
+            Pakai template default
+          </button>
+        </div>
+        <p className="text-xs text-gray-600">
+          Template pesan yang dipakai saat tombol kirim WhatsApp ditekan dari halaman invoice/preview.
+          Gunakan placeholder berikut (akan diganti otomatis):
+        </p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[11px] font-mono text-gray-700 sm:grid-cols-4">
+          <span>{"{bisnis}"}</span>
+          <span>{"{format}"}</span>
+          <span>{"{no}"}</span>
+          <span>{"{tgl}"}</span>
+          <span>{"{pelanggan}"}</span>
+          <span>{"{total}"}</span>
+          <span>{"{status}"}</span>
+          <span>{"{link}"}</span>
+        </div>
+        <textarea
+          value={waTemplate}
+          onChange={(e) => setWaTemplate(e.target.value)}
+          rows={10}
+          placeholder={DEFAULT_WA_TEMPLATE}
+          className="w-full rounded border border-gray-300 bg-white px-3 py-2 font-mono text-xs text-gray-800 focus:border-blue-500 focus:outline-none"
+        />
+        <p className="text-[11px] text-gray-500">
+          Kosongkan untuk memakai template default. Status invoice akan otomatis ditulis dalam Bahasa Indonesia
+          (mis. <span className="font-semibold">Selesai - Lunas</span> atau <span className="font-semibold">Selesai - Belum Bayar</span>),
+          dan link preview bisa dibuka pelanggan tanpa perlu login untuk cek status realtime.
+        </p>
+      </div>
       <div className="flex justify-end">
         <SaveButton pending={pending} />
       </div>

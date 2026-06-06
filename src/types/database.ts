@@ -86,6 +86,8 @@ export interface Settings {
   nota_signature_url: string | null;
   nota_stamp_url: string | null;
   nota_active_format: "A4" | "A5" | "thermal";
+  // WhatsApp share
+  wa_message_template: string | null;
   // Reward
   reward_employee_enabled: boolean;
   reward_spend_per_point: number;

@@ -1290,6 +1290,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               customerName={editCustomer?.name}
               invoiceDate={invoiceDate}
               status={displayStatus}
+              paidAt={editInvoice!.paidAt}
               grandTotal={grandTotal}
             />
           )}

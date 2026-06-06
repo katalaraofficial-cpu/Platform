@@ -17,12 +17,26 @@ async function genInvoiceNumber(
   tenantId: string
 ): Promise<string> {
   const year = new Date().getFullYear();
-  const { count } = await supabase
+  const prefix = `INV-${year}-`;
+  const { data } = await supabase
     .from("invoices")
-    .select("*", { count: "exact", head: true })
+    .select("invoice_number")
     .eq("tenant_id", tenantId)
-    .gte("created_at", `${year}-01-01`);
-  return `INV-${year}-${String((count ?? 0) + 1).padStart(4, "0")}`;
+    .like("invoice_number", `${prefix}%`)
+    .order("invoice_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const last = data?.invoice_number ?? "";
+  const lastSeq = Number(last.replace(prefix, "")) || 0;
+  return `${prefix}${String(lastSeq + 1).padStart(4, "0")}`;
+}
+
+function isInvoiceNumberUniqueViolation(error?: { code?: string; message?: string } | null): boolean {
+  return Boolean(
+    error?.code === "23505" &&
+    (error?.message ?? "").includes("invoices_tenant_id_invoice_number_key")
+  );
 }
 
 // ── Internal: recalculate invoice totals from items ──────────
@@ -231,20 +245,33 @@ export async function createInvoice(
     .single();
   if (custErr || !customer) return { error: "Gagal menyimpan data pelanggan" };
 
-  const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
-  const { data: invoice, error: invErr } = await supabase
-    .from("invoices")
-    .insert({
-      tenant_id: tenantId,
-      customer_id: customer.id,
-      invoice_number: invoiceNumber,
-      status: "draft" as InvoiceStatus,
-      notes: (formData.get("notes") as string) || null,
-      created_by: user.id,
-      invoice_date: (formData.get("invoice_date") as string) || new Date().toISOString().split("T")[0],
-    })
-    .select("id")
-    .single();
+  let invoice: { id: string } | null = null;
+  let invErr: { code?: string; message?: string } | null = null;
+
+  // Retry jika nomor invoice bentrok karena race condition.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
+    const res = await supabase
+      .from("invoices")
+      .insert({
+        tenant_id: tenantId,
+        customer_id: customer.id,
+        invoice_number: invoiceNumber,
+        status: "draft" as InvoiceStatus,
+        notes: (formData.get("notes") as string) || null,
+        created_by: user.id,
+        invoice_date: (formData.get("invoice_date") as string) || new Date().toISOString().split("T")[0],
+      })
+      .select("id")
+      .single();
+
+    invoice = (res.data as { id: string } | null) ?? null;
+    invErr = res.error as { code?: string; message?: string } | null;
+
+    if (invoice) break;
+    if (!isInvoiceNumberUniqueViolation(invErr)) break;
+  }
+
   if (invErr || !invoice)
     return { error: "Gagal membuat invoice: " + (invErr?.message ?? "") };
 
@@ -523,27 +550,39 @@ export async function createInvoiceWithItems(payload: {
   if (!profile?.tenant_id) return { error: "Akun tidak terhubung ke tenant" };
 
   const tenantId = profile.tenant_id;
-  const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
   const combinedNotes = [payload.jobDescription, payload.notes]
     .map((s) => s.trim())
     .filter(Boolean)
     .join(" | ") || null;
 
-  const { data: invoice, error: invErr } = await supabase
-    .from("invoices")
-    .insert({
-      tenant_id: tenantId,
-      customer_id: payload.customerId || null,
-      invoice_number: invoiceNumber,
-      status: "draft" as InvoiceStatus,
-      notes: combinedNotes,
-      created_by: user.id,
-      invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
-      due_date: payload.dueDate ?? null,
-      shipping_cost: payload.shippingCost ?? 0,
-    })
-    .select("id")
-    .single();
+  let invoice: { id: string } | null = null;
+  let invErr: { code?: string; message?: string } | null = null;
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
+    const res = await supabase
+      .from("invoices")
+      .insert({
+        tenant_id: tenantId,
+        customer_id: payload.customerId || null,
+        invoice_number: invoiceNumber,
+        status: "draft" as InvoiceStatus,
+        notes: combinedNotes,
+        created_by: user.id,
+        invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
+        due_date: payload.dueDate ?? null,
+        shipping_cost: payload.shippingCost ?? 0,
+      })
+      .select("id")
+      .single();
+
+    invoice = (res.data as { id: string } | null) ?? null;
+    invErr = res.error as { code?: string; message?: string } | null;
+
+    if (invoice) break;
+    if (!isInvoiceNumberUniqueViolation(invErr)) break;
+  }
+
   if (invErr || !invoice)
     return { error: "Gagal membuat invoice: " + (invErr?.message ?? "") };
 

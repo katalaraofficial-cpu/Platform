@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { PrintControls } from "@/components/invoices/print-controls";
 import type { InvoiceItem, VehicleInfo } from "@/types/database";
 
@@ -752,9 +753,38 @@ export default async function PrintInvoicePage({
     stampUrl,
   };
 
-  const waMessage = encodeURIComponent(
-    `Halo, berikut adalah invoice ${inv.invoice_number} dengan total ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(inv.grand_total))}. Terima kasih atas kepercayaan Anda!`
-  );
+  const hdrs = await headers();
+  const proto = hdrs.get("x-forwarded-proto") ?? "https";
+  const host = hdrs.get("x-forwarded-host") ?? hdrs.get("host") ?? "";
+  const previewUrl = host
+    ? `${proto}://${host}/print/invoices/${id}?format=${format}`
+    : `/print/invoices/${id}?format=${format}`;
+
+  const formatTitle =
+    format === "struk"
+      ? "STRUK THERMAL"
+      : format === "nota"
+        ? "NOTA KONTAN"
+        : "INVOICE";
+
+  const waLines = [
+    "AKI KUAT",
+    "------------------------------",
+    formatTitle,
+    `No    : ${inv.invoice_number}`,
+    `Tgl   : ${new Date((inv as { invoice_date?: string }).invoice_date ?? inv.created_at).toLocaleDateString("id-ID")}`,
+    `Cust  : ${(customerName ?? "Pelanggan").toUpperCase()}`,
+    "------------------------------",
+    `Total : ${new Intl.NumberFormat("id-ID", { style: "currency", currency: "IDR", maximumFractionDigits: 0 }).format(Number(inv.grand_total))}`,
+    `Status: ${String(inv.status ?? "draft").replace("_", " ").toUpperCase()}`,
+  ];
+
+  if (format === "invoice") {
+    waLines.push("", "Preview / Download Invoice:", previewUrl);
+  }
+
+  waLines.push("", "Terima kasih atas kunjungan Anda");
+  const waMessage = encodeURIComponent(waLines.join("\n"));
   const waLink = customerPhone
     ? `https://wa.me/${customerPhone.replace(/[^0-9]/g, "").replace(/^0/, "62")}?text=${waMessage}`
     : null;

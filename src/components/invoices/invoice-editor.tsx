@@ -1287,6 +1287,9 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               invoiceId={editInvoice!.id}
               invoiceNumber={editInvoice!.invoiceNumber}
               customerPhone={editCustomer?.phone}
+              customerName={editCustomer?.name}
+              invoiceDate={invoiceDate}
+              status={displayStatus}
               grandTotal={grandTotal}
             />
           )}

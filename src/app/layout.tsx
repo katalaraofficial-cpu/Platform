@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
+const ICON_VERSION = "20260606";
 
 export const metadata: Metadata = {
   title: "POS Workshop",
@@ -17,10 +18,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/icon-192" },
-      { url: "/icon-512" },
+      { url: `/icon-192?v=${ICON_VERSION}` },
+      { url: `/icon-512?v=${ICON_VERSION}` },
     ],
-    apple: [{ url: "/apple-icon" }],
+    shortcut: [{ url: `/icon-192?v=${ICON_VERSION}` }],
+    apple: [{ url: `/apple-icon?v=${ICON_VERSION}` }],
   },
 };
 

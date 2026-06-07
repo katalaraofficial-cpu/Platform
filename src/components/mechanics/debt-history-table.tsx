@@ -22,6 +22,7 @@ export type HistoryRow = {
   notes: string | null;
   created_at: string;
   is_paid: boolean;
+  receipt_image_url: string | null;
   invoice_items: { receipt_image_url: string | null } | null;
 };
 
@@ -309,7 +310,10 @@ export function DebtHistoryTable({
                 pageRows.map((row) => {
                   const isAdvance = row.transaction_type === "advance";
                   const info = infoMap.get(row.mechanic_id);
-                  const receiptUrl = row.invoice_items?.receipt_image_url ?? null;
+                  const receiptUrl =
+                    row.invoice_items?.receipt_image_url ??
+                    row.receipt_image_url ??
+                    null;
                   const isSelected = selected.has(row.id);
 
                   return (

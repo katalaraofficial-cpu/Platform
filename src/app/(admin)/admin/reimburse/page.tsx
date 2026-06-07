@@ -58,7 +58,7 @@ export default async function AdminReimbursePage() {
 
     supabase
       .from("mechanic_debt_ledger")
-      .select("id, mechanic_id, transaction_type, invoice_item_id, amount, notes, is_paid, created_at, invoice_items(receipt_image_url)")
+      .select("id, mechanic_id, transaction_type, invoice_item_id, amount, notes, is_paid, created_at, receipt_image_url, invoice_items(receipt_image_url)")
       .eq("tenant_id", tenantId)
       .order("created_at", { ascending: false })
       .limit(500),
@@ -99,6 +99,7 @@ export default async function AdminReimbursePage() {
       notes: string | null;
       is_paid: boolean;
       created_at: string;
+      receipt_image_url: string | null;
       invoice_items: { receipt_image_url: string | null } | null;
     }[] | null
   ) ?? [];

@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 6 Juni 2026 — commit `d12cc64`
+**Last updated:** 7 Juni 2026 — commit `d8d6cc8`
 
 Referensi utama untuk kelanjutan development:
 
@@ -49,6 +49,7 @@ Fitur yang sudah stabil pada branch `main`:
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `d8d6cc8` | feat | Kas: footer total dinamis sesuai filter (in/out/net/count) + search auto-apply (debounce) + transisi mulus dengan `useTransition` |
 | `d12cc64` | feat | Katalog item implicit + autofill harga & satuan dari riwayat + reklasifikasi bulk + warning mismatch tipe |
 | `c29fde4` | fix | Donut komposisi hitung baris (bukan sum qty), WA template tambah `{items}`, metadata OG bersih untuk link preview |
 | `16d525a` | feat | WA share pakai nama bisnis tenant + template WA kustom + halaman print publik `/print/invoices/[id]` + label status ID |

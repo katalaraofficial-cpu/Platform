@@ -81,13 +81,39 @@ export default async function KasPage({
     query = query.or(`category.ilike.%${search}%,notes.ilike.%${search}%`);
   }
 
+  // ── Filtered aggregate query (mirrors filters above, no range) ──
+  let filteredAggQuery = supabase
+    .from("ledger")
+    .select("account_type, transaction_type, amount")
+    .eq("tenant_id", ctx.tenantId);
+  if (accountFilter !== "all") {
+    filteredAggQuery = filteredAggQuery.eq(
+      "account_type",
+      accountFilter as import("@/types/database").AccountType,
+    );
+  }
+  if (typeFilter !== "all") {
+    filteredAggQuery = filteredAggQuery.eq(
+      "transaction_type",
+      typeFilter as import("@/types/database").LedgerType,
+    );
+  }
+  if (fromDate) filteredAggQuery = filteredAggQuery.gte("transaction_date", fromDate);
+  if (toDate) filteredAggQuery = filteredAggQuery.lte("transaction_date", toDate);
+  if (search) {
+    filteredAggQuery = filteredAggQuery.or(
+      `category.ilike.%${search}%,notes.ilike.%${search}%`,
+    );
+  }
+
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
-  const [{ data: allEntries }, { data: entries, count }] = await Promise.all([
+  const [{ data: allEntries }, { data: filteredAgg }, { data: entries, count }] = await Promise.all([
     supabase
       .from("ledger")
       .select("account_type, transaction_type, amount")
       .eq("tenant_id", ctx.tenantId),
+    filteredAggQuery,
     query.range(from, to),
   ]);
 
@@ -111,6 +137,23 @@ export default async function KasPage({
   const totalBalance = kasTunaiBalance + bankBalance;
   const totalIn = kasTunaiIn + bankIn;
   const totalOut = kasTunaiOut + bankOut;
+
+  // Filtered totals (untuk footer sum tabel)
+  let filteredIn = 0;
+  let filteredOut = 0;
+  for (const row of (filteredAgg as Pick<Ledger, "account_type" | "transaction_type" | "amount">[] | null) ?? []) {
+    const amt = Number(row.amount);
+    if (row.transaction_type === "kas_masuk") filteredIn += amt;
+    else filteredOut += amt;
+  }
+  const filteredNet = filteredIn - filteredOut;
+  const filteredCount = (filteredAgg?.length ?? 0);
+  const isFiltered =
+    accountFilter !== "all" ||
+    typeFilter !== "all" ||
+    !!fromDate ||
+    !!toDate ||
+    !!search;
 
   const totalPages = Math.max(1, Math.ceil((count ?? 0) / pageSize));
 
@@ -400,6 +443,30 @@ export default async function KasPage({
                 })
               )}
             </tbody>
+            {rows.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-gray-200 bg-gray-50/80 text-sm font-semibold">
+                  <td colSpan={4} className="px-5 py-3 text-xs uppercase tracking-wider text-gray-600">
+                    {isFiltered ? "Total (sesuai filter)" : "Total Keseluruhan"}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-gray-500">
+                    {filteredCount} transaksi
+                    {filteredNet !== 0 && (
+                      <span className={`ml-2 ${filteredNet < 0 ? "text-red-500" : "text-emerald-600"}`}>
+                        Net: {fmt(filteredNet)}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap text-emerald-600">
+                    +{fmt(filteredIn)}
+                  </td>
+                  <td className="px-4 py-3 text-right whitespace-nowrap text-red-500">
+                    -{fmt(filteredOut)}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            )}
           </table>
         </div>
 
@@ -479,6 +546,22 @@ export default async function KasPage({
             })
           )}
         </div>
+
+        {/* Mobile sum footer */}
+        {rows.length > 0 && (
+          <div className="border-t-2 border-gray-200 bg-gray-50/80 px-4 py-3 md:hidden">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-600">
+              {isFiltered ? "Total (sesuai filter)" : "Total Keseluruhan"} · {filteredCount} transaksi
+            </p>
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="font-semibold text-emerald-600">+{fmt(filteredIn)}</span>
+              <span className="font-semibold text-red-500">-{fmt(filteredOut)}</span>
+              <span className={`font-bold ${filteredNet < 0 ? "text-red-500" : "text-emerald-600"}`}>
+                Net: {fmt(filteredNet)}
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         <div className="flex flex-col items-center gap-3 border-t border-gray-100 px-5 py-3 sm:flex-row sm:justify-between">

@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Search, X } from "lucide-react";
-import { useState } from "react";
+import { Search, X, Loader2 } from "lucide-react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 type Props = {
   accountFilter: string;
@@ -23,6 +23,8 @@ export function KasFilterBar({
 }: Props) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(search);
+  const [isPending, startTransition] = useTransition();
+  const firstRender = useRef(true);
 
   function buildUrl(overrides: Record<string, string>) {
     const params = new URLSearchParams();
@@ -45,14 +47,27 @@ export function KasFilterBar({
     return `/owner/kas?${params.toString()}`;
   }
 
-  function handleSearchSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    router.push(buildUrl({ search: searchInput }));
+  function navigate(url: string) {
+    startTransition(() => router.push(url));
   }
+
+  // Debounced auto-apply for search input
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    if (searchInput === search) return;
+    const t = setTimeout(() => {
+      navigate(buildUrl({ search: searchInput }));
+    }, 350);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
   function clearSearch() {
     setSearchInput("");
-    router.push(buildUrl({ search: "" }));
+    navigate(buildUrl({ search: "" }));
   }
 
   return (
@@ -69,7 +84,7 @@ export function KasFilterBar({
           ).map(([val, label]) => (
             <button
               key={val}
-              onClick={() => router.push(buildUrl({ account: val }))}
+              onClick={() => navigate(buildUrl({ account: val }))}
               className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${
                 accountFilter === val
                   ? "bg-white text-gray-900 shadow-sm"
@@ -91,7 +106,7 @@ export function KasFilterBar({
           ).map(([val, label]) => (
             <button
               key={val}
-              onClick={() => router.push(buildUrl({ type: val }))}
+              onClick={() => navigate(buildUrl({ type: val }))}
               className={`rounded-lg px-3 py-1.5 font-medium transition-colors ${
                 typeFilter === val
                   ? "bg-white text-gray-900 shadow-sm"
@@ -102,13 +117,19 @@ export function KasFilterBar({
             </button>
           ))}
         </div>
+
+        {isPending && (
+          <span className="ml-1 inline-flex items-center gap-1 text-xs text-gray-400">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            Memuat…
+          </span>
+        )}
       </div>
 
       {/* Row 2: search + date range */}
       <div className="flex flex-wrap items-center gap-2">
         {/* Search */}
-        <form
-          onSubmit={handleSearchSubmit}
+        <div
           className="flex flex-1 min-w-[180px] items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-3 py-1.5"
         >
           <Search className="h-3.5 w-3.5 shrink-0 text-gray-400" />
@@ -128,28 +149,28 @@ export function KasFilterBar({
               <X className="h-3.5 w-3.5" />
             </button>
           )}
-        </form>
+        </div>
 
         {/* Date range */}
         <div className="ml-auto flex items-center gap-2">
           <input
             type="date"
             defaultValue={fromDate}
-            onChange={(e) => router.push(buildUrl({ from: e.target.value }))}
+            onChange={(e) => navigate(buildUrl({ from: e.target.value }))}
             className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           <span className="text-xs text-gray-400">–</span>
           <input
             type="date"
             defaultValue={toDate}
-            onChange={(e) => router.push(buildUrl({ to: e.target.value }))}
+            onChange={(e) => navigate(buildUrl({ to: e.target.value }))}
             className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           {(fromDate || toDate || search) && (
             <button
               onClick={() => {
                 setSearchInput("");
-                router.push("/owner/kas");
+                navigate("/owner/kas");
               }}
               className="text-xs text-gray-400 hover:text-red-500"
             >

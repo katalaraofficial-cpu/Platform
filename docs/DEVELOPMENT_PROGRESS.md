@@ -1,8 +1,10 @@
 # Development Progress Log
 
-Last updated: 6 Juni 2026 (commit `d12cc64`)
+Last updated: 7 Juni 2026 (commit `d8d6cc8`)
 
 ## Ringkasan Status Saat Ini
+
+- **Kas filter UX (`d8d6cc8`)**: footer tabel `/owner/kas` sekarang menampilkan total Masuk/Keluar/Net + jumlah transaksi yang otomatis menyesuaikan filter aktif (akun, tipe, rentang tanggal, search). Search auto-apply via debounce 350 ms (tidak perlu Enter) dan semua interaksi filter dibungkus `useTransition` dengan indikator `Memuat…` agar transisi mulus.
 
 - **Katalog Item implicit** sudah live: halaman `/owner/katalog` audit klasifikasi `invoice_items` per tenant, reklasifikasi bulk via `reclassifyItemDescription` (admin client, ILIKE per deskripsi).
 - **Autocomplete invoice editor** sekarang autofill tipe + satuan + harga jual + harga beli dari transaksi terakhir, plus warning kuning saat user mengetik nama yang pernah tercatat di tipe berbeda.
@@ -24,6 +26,7 @@ Last updated: 6 Juni 2026 (commit `d12cc64`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `d8d6cc8` | feat | Kas: footer total mengikuti filter aktif (in/out/net/count) + search auto-apply (debounce) + transisi `useTransition` di filter bar |
 | `d12cc64` | feat | Katalog item implicit (`/owner/katalog`) + autofill harga/satuan/tipe dari riwayat + reklasifikasi bulk + warning mismatch tipe di invoice editor |
 | `c29fde4` | fix | Donut komposisi hitung baris (bukan `SUM(quantity)`), `{items}` ditambahkan di template WA, generateMetadata bersih (og:title/description/image) di print page |
 | `16d525a` | feat | WA share pakai nama bisnis tenant + template WA per tenant via `settings.wa_template` (migrasi 038) + halaman print publik `/print/invoices/[id]` lewat middleware allowlist + label status ID (Selesai - Lunas / Selesai - Belum Bayar) |

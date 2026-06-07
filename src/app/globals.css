@@ -2,6 +2,22 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Offline mutation guard (Poin 3): saat body memiliki class `is-offline`,
+   semua tombol submit/mutasi di-disable secara visual & interaktif.
+   Tandai elemen lain (mis. button non-submit yang memicu mutasi) dengan
+   atribut `data-mutation` agar ikut terkunci. */
+body.is-offline button[type="submit"],
+body.is-offline [data-mutation],
+body.is-offline form button:not([type="button"]):not([data-allow-offline]) {
+  opacity: 0.5;
+  pointer-events: none;
+  cursor: not-allowed;
+}
+
+body.is-offline {
+  padding-top: 2.5rem; /* ruang untuk banner sticky OfflineGuard */
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

@@ -2,6 +2,12 @@ import type { NextConfig } from "next";
 import path from "path";
 import withPWAInit from "@ducanh2912/next-pwa";
 
+// PWA policy (Poin 3 technical debt):
+// - Online-only mutations. Tidak ada background sync queue / mutation queue
+//   yang sengaja didaftarkan. Workbox default tidak meng-cache request non-GET.
+// - Cache strategies hanya untuk GET (static asset, image, /_next/data).
+// - Mutasi yang dilakukan saat offline akan gagal cepat (oleh OfflineGuard
+//   di client) — bukan masuk antrean. Ini menjaga integritas ledger akuntansi.
 const withPWA = withPWAInit({
   dest: "public",
   register: true,

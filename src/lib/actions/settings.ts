@@ -1,6 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createTenantAdminClient } from "@/lib/supabase/tenant-admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 import { summarizeEmployeePointsByProfile, type PointTransactionSummaryRow } from "@/lib/employee-point-summary";
@@ -11,11 +12,10 @@ export type SettingsActionState = { error?: string; success?: string };
 const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
 async function ensureSettingsRow(tenantId: string): Promise<{ error?: string }> {
-  const admin = createAdminClient();
+  const admin = createTenantAdminClient(tenantId);
   const { data: existing, error: selectErr } = await admin
     .from("settings")
     .select("id")
-    .eq("tenant_id", tenantId)
     .limit(1);
 
   if (selectErr) return { error: selectErr.message };
@@ -23,7 +23,7 @@ async function ensureSettingsRow(tenantId: string): Promise<{ error?: string }> 
 
   const { error: insertErr } = await admin
     .from("settings")
-    .insert({ tenant_id: tenantId });
+    .insert({});
 
   // Safe to ignore duplicate insert race.
   if (insertErr && insertErr.code !== "23505") {
@@ -59,7 +59,7 @@ export async function saveStoreInfo(data: {
     const ensured = await ensureSettingsRow(ctx.tenantId);
     if (ensured.error) return { error: ensured.error };
 
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(ctx.tenantId);
     const { error } = await admin
       .from("settings")
       .update({
@@ -68,8 +68,7 @@ export async function saveStoreInfo(data: {
         store_phone: data.storePhone.trim(),
         store_email: data.storeEmail.trim(),
         store_logo_url: data.storeLogoUrl.trim(),
-      })
-      .eq("tenant_id", ctx.tenantId);
+      });
     if (error) return { error: error.message };
     revalidatePath("/owner/settings");
     return { success: "Informasi toko disimpan" };
@@ -90,7 +89,7 @@ export async function savePlatformSettings(data: {
     const ensured = await ensureSettingsRow(ctx.tenantId);
     if (ensured.error) return { error: ensured.error };
 
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(ctx.tenantId);
     const { error } = await admin
       .from("settings")
       .update({
@@ -98,8 +97,7 @@ export async function savePlatformSettings(data: {
         petty_cash_limit: data.pettyCashLimit,
         qty_decimal: data.qtyDecimal,
         price_tier_labels: data.priceTierLabels,
-      })
-      .eq("tenant_id", ctx.tenantId);
+      });
     if (error) return { error: error.message };
     revalidatePath("/owner/settings");
     return { success: "Pengaturan platform disimpan" };
@@ -116,6 +114,8 @@ export async function saveInvoiceFeatures(data: {
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
+    // Tabel `tenants` di-keyed by `id` (bukan tenant_id), jadi pakai admin
+    // mentah dengan filter eksplisit `.eq("id", ctx.tenantId)`.
     const admin = createAdminClient();
 
     const { data: tenant, error: fetchErr } = await admin
@@ -167,7 +167,7 @@ export async function saveNotaSettings(data: {
     const ensured = await ensureSettingsRow(ctx.tenantId);
     if (ensured.error) return { error: ensured.error };
 
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(ctx.tenantId);
     const { error } = await admin
       .from("settings")
       .update({
@@ -186,8 +186,7 @@ export async function saveNotaSettings(data: {
         ...(data.waMessageTemplate !== undefined
           ? { wa_message_template: data.waMessageTemplate.trim() || null }
           : {}),
-      })
-      .eq("tenant_id", ctx.tenantId);
+      });
     if (error) {
       const message = error.message.toLowerCase();
       if (message.includes("wa_message_template")) {
@@ -208,8 +207,7 @@ export async function saveNotaSettings(data: {
             nota_signature_url: data.notaSignatureUrl.trim(),
             nota_stamp_url: data.notaStampUrl.trim(),
             nota_active_format: data.notaActiveFormat,
-          })
-          .eq("tenant_id", ctx.tenantId);
+          });
         if (retry.error) return { error: retry.error.message };
         revalidatePath("/owner/settings");
         return { success: "Pengaturan nota tersimpan. Jalankan migration 038_settings_wa_template.sql untuk mengaktifkan kustom pesan WhatsApp." };
@@ -231,8 +229,7 @@ export async function saveNotaSettings(data: {
             nota_signature_url: data.notaSignatureUrl.trim(),
             nota_stamp_url: data.notaStampUrl.trim(),
             nota_active_format: data.notaActiveFormat,
-          })
-          .eq("tenant_id", ctx.tenantId);
+          });
 
         if (legacyUpdate.error) {
           return { error: "Database belum sinkron dengan konfigurasi Nota & Printer. Jalankan migration 024_settings_nota_config.sql di Supabase, lalu simpan ulang." };
@@ -265,9 +262,8 @@ export async function saveRewardSettings(data: {
     const ensured = await ensureSettingsRow(ctx.tenantId);
     if (ensured.error) return { error: ensured.error };
 
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(ctx.tenantId);
     const payload = {
-      tenant_id: ctx.tenantId,
       reward_employee_enabled: data.enabled,
       reward_spend_per_point: data.spendPerPoint,
       reward_point_value: data.pointValue,
@@ -279,14 +275,12 @@ export async function saveRewardSettings(data: {
 
     const { error } = await admin
       .from("settings")
-      .update(payload)
-      .eq("tenant_id", ctx.tenantId);
+      .update(payload);
     if (error) return { error: error.message };
 
     const { data: verify } = await admin
       .from("settings")
       .select("reward_employee_enabled")
-      .eq("tenant_id", ctx.tenantId)
       .single();
     if (!verify || Boolean(verify.reward_employee_enabled) !== Boolean(data.enabled)) {
       return { error: "Pengaturan reward belum tersimpan konsisten. Coba simpan ulang." };
@@ -304,35 +298,29 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
     const tenantId = ctx.tenantId;
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(tenantId);
 
     const [{ data: mechanics }, { data: transactions }, { data: existingRows }, { data: invoices }, { data: settings }, { data: assignments }] = await Promise.all([
       admin
         .from("profiles")
         .select("id")
-        .eq("tenant_id", tenantId)
         .eq("role", "mechanic"),
       admin
         .from("employee_point_transactions")
-        .select("profile_id, transaction_type, points, reference_id")
-        .eq("tenant_id", tenantId),
+        .select("profile_id, transaction_type, points, reference_id"),
       admin
         .from("employee_points")
-        .select("id, profile_id")
-        .eq("tenant_id", tenantId),
+        .select("id, profile_id"),
       admin
         .from("invoices")
-        .select("id, status, grand_total")
-        .eq("tenant_id", tenantId),
+        .select("id, status, grand_total"),
       admin
         .from("settings")
         .select("reward_employee_enabled, reward_spend_per_point, reward_lead_multiplier, reward_helper_multiplier")
-        .eq("tenant_id", tenantId)
         .single(),
       admin
         .from("invoice_mechanics")
-        .select("invoice_id, mechanic_id, mechanic_role")
-        .eq("tenant_id", tenantId),
+        .select("invoice_id, mechanic_id, mechanic_role"),
     ]);
 
     const invoiceStatusById = new Map<string, string>();
@@ -411,7 +399,6 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
           : "Sinkronisasi point: menormalkan histori agar konsisten dengan status invoice dan assignment engineer saat ini.";
 
       const { error: adjustErr } = await admin.from("employee_point_transactions").insert({
-        tenant_id: tenantId,
         profile_id: profileId,
         transaction_type: txType,
         points: delta,
@@ -431,7 +418,6 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
       if (currentNet === 0) continue;
       const [referenceId, profileId] = key.split(":");
       const { error: orphanErr } = await admin.from("employee_point_transactions").insert({
-        tenant_id: tenantId,
         profile_id: profileId,
         transaction_type: "adjust",
         points: -currentNet,
@@ -446,8 +432,7 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
 
     const refreshedTransactions = await admin
       .from("employee_point_transactions")
-      .select("profile_id, transaction_type, points")
-      .eq("tenant_id", tenantId);
+      .select("profile_id, transaction_type, points");
     if (refreshedTransactions.error) {
       return { error: `Gagal memuat ulang histori point: ${refreshedTransactions.error.message}` };
     }
@@ -471,9 +456,8 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
         total_earned: 0,
         total_redeemed: 0,
       };
-      const existing = (existingRows ?? []).find((row) => row.profile_id === mechanic.id);
+      const existing = (existingRows ?? []).find((row: { id: string; profile_id: string }) => row.profile_id === mechanic.id);
       const payload = {
-        tenant_id: tenantId,
         profile_id: mechanic.id,
         points_balance: Math.max(0, totals.points_balance),
         total_earned: Math.max(0, totals.total_earned),
@@ -511,7 +495,7 @@ export async function resetAllData(
   try {
     const ctx = await ownerGuard();
     const tenantId = ctx.tenantId!;
-    const admin = createAdminClient();
+    const admin = createTenantAdminClient(tenantId);
 
     // Delete in dependency order (children first)
     const tables = [
@@ -528,8 +512,7 @@ export async function resetAllData(
     for (const table of tables) {
       const { error } = await admin
         .from(table)
-        .delete()
-        .eq("tenant_id", tenantId);
+        .delete();
       if (error) return { error: `Gagal hapus ${table}: ${error.message}` };
     }
 

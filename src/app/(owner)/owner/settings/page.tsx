@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createTenantAdminClient } from "@/lib/supabase/tenant-admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { redirect } from "next/navigation";
 import type { Settings } from "@/types/database";
@@ -24,22 +24,20 @@ export default async function SettingsPage({
   const ctx = await getUserContext();
   if (!ctx.tenantId || ctx.role !== "owner") redirect("/owner/dashboard");
 
-  const admin = createAdminClient();
+  const admin = createTenantAdminClient(ctx.tenantId);
   const { data: settingsRows } = await admin
     .from("settings")
     .select("*")
-    .eq("tenant_id", ctx.tenantId)
     .order("updated_at", { ascending: false })
     .limit(1);
 
   let settings = ((settingsRows ?? [])[0] ?? null) as Settings | null;
 
   if (!settings) {
-    await admin.from("settings").insert({ tenant_id: ctx.tenantId });
+    await admin.from("settings").insert({});
     const { data: refetchedRows } = await admin
       .from("settings")
       .select("*")
-      .eq("tenant_id", ctx.tenantId)
       .order("updated_at", { ascending: false })
       .limit(1);
     settings = ((refetchedRows ?? [])[0] ?? null) as Settings | null;

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getUserContext } from "@/lib/get-user-context";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createTenantAdminClient } from "@/lib/supabase/tenant-admin";
 import { revalidatePath } from "next/cache";
 
 export type PointActionState = { error?: string; success?: string };
@@ -73,10 +73,9 @@ export async function redeemEmployeePoints(
     notes: notes || `Redeem ${points} point → Rp ${bonusAmount.toLocaleString("id-ID")}`,
   });
 
-  // Record kas_keluar in ledger (admin client — same pattern as processPayment)
-  const adminClient = createAdminClient();
+  // Record kas_keluar in ledger (tenant-scoped admin: auto-inject tenant_id).
+  const adminClient = createTenantAdminClient(tenantId);
   await adminClient.from("ledger").insert({
-    tenant_id: tenantId,
     transaction_type: "kas_keluar",
     account_type: "kas_tunai",
     category: "Bonus Karyawan",
@@ -85,7 +84,7 @@ export async function redeemEmployeePoints(
     transfer_ref: null,
     notes: notes || `Redeem point karyawan: ${points} point (Rp ${bonusAmount.toLocaleString("id-ID")})`,
     created_by: ctx.id,
-  } as never);
+  });
 
   revalidatePath("/owner/mechanics");
   revalidatePath("/admin/reimburse");
@@ -208,7 +207,7 @@ export async function approvePointRedemptionClaim(
   }
 
   const tenantId = ctx.tenantId;
-  const admin = createAdminClient();
+  const admin = createTenantAdminClient(tenantId);
 
   const { data: request } = await supabase
     .from("point_redemption_requests")
@@ -223,7 +222,6 @@ export async function approvePointRedemptionClaim(
   const { data: ep } = await admin
     .from("employee_points")
     .select("id, points_balance, total_redeemed")
-    .eq("tenant_id", tenantId)
     .eq("profile_id", request.profile_id)
     .single();
 
@@ -244,7 +242,6 @@ export async function approvePointRedemptionClaim(
   const { data: tx, error: txErr } = await admin
     .from("employee_point_transactions")
     .insert({
-      tenant_id: tenantId,
       profile_id: request.profile_id,
       transaction_type: "redeem",
       points: -Number(request.points),
@@ -270,7 +267,6 @@ export async function approvePointRedemptionClaim(
   const { data: ledger, error: ledgerErr } = await admin
     .from("ledger")
     .insert({
-      tenant_id: tenantId,
       transaction_type: "kas_keluar",
       account_type: "kas_tunai",
       category: "Bonus Karyawan",
@@ -281,7 +277,7 @@ export async function approvePointRedemptionClaim(
         request.notes ||
         `Payout redeem point: ${request.points} point (Rp ${Number(request.payout_amount).toLocaleString("id-ID")})`,
       created_by: ctx.id,
-    } as never)
+    })
     .select("id")
     .single();
   if (ledgerErr) {
@@ -339,7 +335,7 @@ export async function rejectPointRedemptionClaim(
     return { error: "Hanya owner yang dapat menolak pengajuan" };
   }
 
-  const admin = createAdminClient();
+  const admin = createTenantAdminClient(ctx.tenantId);
   const { error } = await admin
     .from("point_redemption_requests")
     .update({
@@ -349,7 +345,6 @@ export async function rejectPointRedemptionClaim(
       review_note: reason?.trim() || null,
     })
     .eq("id", requestId)
-    .eq("tenant_id", ctx.tenantId)
     .eq("status", "pending");
 
   if (error) return { error: "Gagal menolak pengajuan: " + error.message };

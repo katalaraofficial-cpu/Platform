@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createTenantAdminClient } from "@/lib/supabase/tenant-admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -60,23 +60,20 @@ async function reconcileInvoiceMechanicPoints(params: {
   shouldAwardFromInvoice: boolean;
 }) {
   const { tenantId, invoiceId, invoiceNumber, amount, shouldAwardFromInvoice } = params;
-  const admin = createAdminClient();
+  const admin = createTenantAdminClient(tenantId);
 
   const [{ data: settings }, { data: mechanics }, { data: pointTxns }] = await Promise.all([
     admin
       .from("settings")
       .select("reward_employee_enabled, reward_spend_per_point, reward_point_validity_days, reward_lead_multiplier, reward_helper_multiplier")
-      .eq("tenant_id", tenantId)
       .single(),
     admin
       .from("invoice_mechanics")
       .select("mechanic_id, mechanic_role")
-      .eq("invoice_id", invoiceId)
-      .eq("tenant_id", tenantId),
+      .eq("invoice_id", invoiceId),
     admin
       .from("employee_point_transactions")
       .select("profile_id, points")
-      .eq("tenant_id", tenantId)
       .eq("reference_id", invoiceId)
       .in("transaction_type", ["earn", "adjust"]),
   ]);
@@ -135,7 +132,6 @@ async function reconcileInvoiceMechanicPoints(params: {
     const { data: ep } = await admin
       .from("employee_points")
       .select("id, points_balance, total_earned, total_redeemed")
-      .eq("tenant_id", tenantId)
       .eq("profile_id", profileId)
       .maybeSingle();
 
@@ -150,7 +146,6 @@ async function reconcileInvoiceMechanicPoints(params: {
         .eq("id", ep.id);
     } else if (delta > 0) {
       await admin.from("employee_points").insert({
-        tenant_id: tenantId,
         profile_id: profileId,
         points_balance: delta,
         total_earned: delta,
@@ -160,7 +155,6 @@ async function reconcileInvoiceMechanicPoints(params: {
 
     const txType = canAward && delta > 0 ? "earn" : "adjust";
     await admin.from("employee_point_transactions").insert({
-      tenant_id: tenantId,
       profile_id: profileId,
       transaction_type: txType,
       points: delta,
@@ -815,13 +809,12 @@ export async function processPayment(
       transfer: "Transfer Bank",
       other: "Lainnya",
     };
-    const adminClient = createAdminClient();
+    const adminClient = createTenantAdminClient(ctx.tenantId);
     const methodLabelText = methodLabel[method] ?? method;
     const noteText = customerName
       ? `${customerName} — Pembayaran ${inv.invoice_number} via ${methodLabelText}`
       : `Pembayaran invoice ${inv.invoice_number} via ${methodLabelText}`;
     await adminClient.from("ledger").insert({
-      tenant_id: ctx.tenantId,
       transaction_type: "kas_masuk",
       account_type: method === "transfer" ? "bank" : "kas_tunai",
       category: "Pembayaran Invoice",
@@ -832,7 +825,7 @@ export async function processPayment(
       transaction_date: effectivePaymentDate,
       created_by: ctx.id,
       created_at: paidAt,
-    } as never);
+    });
   }
 
   // Keep point state equal to current invoice state (paid => expected earn).
@@ -903,7 +896,7 @@ export async function rollbackInvoiceStatus(invoiceId: string, basePath: string)
   if (inv.status === "paid") {
     update.paid_at = null;
     update.payment_method = null;
-    const adminClient = createAdminClient();
+    const adminClient = createTenantAdminClient(ctx.tenantId);
     await adminClient.from("ledger").delete().eq("reference_id", invoiceId);
   }
   if (inv.status === "completed") {
@@ -965,12 +958,11 @@ export async function addItemToInvoice(params: {
   const trimmedDesc = description.trim();
   if (trimmedDesc) {
     const sellPrice = unitPrice * (1 + markupPct / 100);
-    const adminClient = createAdminClient();
+    const adminClient = createTenantAdminClient(params.tenantId);
     const { error: upsertCatalogError } = await adminClient
       .from('catalog_items')
       .upsert(
         {
-          tenant_id: params.tenantId,
           description: trimmedDesc,
           item_type: itemType,
           unit_label: params.unitLabel ?? null,
@@ -1090,9 +1082,12 @@ export async function updateInvoiceMechanicStatus(
 ): Promise<{ error?: string }> {
   const ctx = await getUserContext();
   if (ctx.role !== "mechanic") return { error: "Akses ditolak" };
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan" };
 
   const supabase = await createClient(); // user client for ownership checks
-  const admin = createAdminClient();     // service role for the actual update
+  // Tenant-scoped admin: auto-filter tenant_id pada semua query (mechanic
+  // tidak bisa menyentuh invoice di tenant lain meski lewat service_role).
+  const admin = createTenantAdminClient(ctx.tenantId);
 
   // 1. Verify this mechanic is assigned to the invoice
   const { data: assignment } = await supabase
@@ -1104,7 +1099,7 @@ export async function updateInvoiceMechanicStatus(
 
   if (!assignment) return { error: "Anda tidak ditugaskan pada invoice ini" };
 
-  // 2. Fetch current status (via admin so tenant isolation is done manually)
+  // 2. Fetch current status (wrapper auto-filter tenant_id).
   const { data: inv } = await admin
     .from("invoices")
     .select("status, tenant_id")
@@ -1112,7 +1107,6 @@ export async function updateInvoiceMechanicStatus(
     .single();
 
   if (!inv) return { error: "Invoice tidak ditemukan" };
-  if (inv.tenant_id !== ctx.tenantId) return { error: "Akses ditolak" };
 
   const transitions: Record<string, string> = {
     draft: "in_progress",

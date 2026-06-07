@@ -1,9 +1,8 @@
 "use server";
 
-import { createAdminClient } from "@/lib/supabase/admin";
-import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 import { createClient } from "./../supabase/server";
+import { getUserContext } from "@/lib/get-user-context";
 
 export type CatalogItem = {
   id: string;

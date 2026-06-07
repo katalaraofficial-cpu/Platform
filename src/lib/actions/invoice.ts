@@ -218,18 +218,22 @@ export async function createInvoice(
   if (custErr || !customer) return { error: "Gagal menyimpan data pelanggan" };
 
   // --- ATOMIC INVOICE NUMBER GENERATION ---
-  const year = new Date().getFullYear();
+  // Format: INV-MMYY-NNNN (contoh: INV-0126-0001). Counter reset per tahun per tenant.
+  const _nowInv = new Date();
+  const year = _nowInv.getFullYear();
+  const mm = String(_nowInv.getMonth() + 1).padStart(2, "0");
+  const yy = String(year).slice(-2);
   const { data: sequence, error: sequenceError } = await supabase
     .rpc('get_next_invoice_sequence', { p_tenant_id: tenantId, p_year: year });
 
-  if (sequenceError || !sequence) {
+  if (sequenceError || sequence === null || sequence === undefined) {
     console.error("Gagal mendapatkan nomor urut invoice:", sequenceError);
     return {
       error: "Terjadi kesalahan pada server saat membuat nomor invoice. Silakan coba lagi.",
     };
   }
 
-  const invoiceNumber = `INV-${year}-${String(sequence).padStart(4, "0")}`;
+  const invoiceNumber = `INV-${mm}${yy}-${String(sequence).padStart(4, "0")}`;
   // --- END OF ATOMIC GENERATION ---
 
   const { data: invoice, error: invErr } = await supabase
@@ -532,18 +536,22 @@ export async function createInvoiceWithItems(payload: {
     .join(" | ") || null;
 
   // --- ATOMIC INVOICE NUMBER GENERATION ---
-  const year = new Date().getFullYear();
+  // Format: INV-MMYY-NNNN (contoh: INV-0126-0001). Counter reset per tahun per tenant.
+  const _nowInv = new Date();
+  const year = _nowInv.getFullYear();
+  const mm = String(_nowInv.getMonth() + 1).padStart(2, "0");
+  const yy = String(year).slice(-2);
   const { data: sequence, error: sequenceError } = await supabase
     .rpc('get_next_invoice_sequence', { p_tenant_id: tenantId, p_year: year });
 
-  if (sequenceError || !sequence) {
+  if (sequenceError || sequence === null || sequence === undefined) {
     console.error("Gagal mendapatkan nomor urut invoice:", sequenceError);
     return {
       error: "Terjadi kesalahan pada server saat membuat nomor invoice. Silakan coba lagi.",
     };
   }
 
-  const invoiceNumber = `INV-${year}-${String(sequence).padStart(4, "0")}`;
+  const invoiceNumber = `INV-${mm}${yy}-${String(sequence).padStart(4, "0")}`;
   // --- END OF ATOMIC GENERATION ---
 
   const { data: invoice, error: invErr } = await supabase
@@ -951,26 +959,33 @@ export async function addItemToInvoice(params: {
   const { description, itemType, quantity, unitPrice, markupPct, paymentSource } = params;
 
   // --- Upsert to Catalog ---
-  // Every time an item is added, ensure it exists in the master catalog.
-  // This keeps the catalog growing organically.
-  const sellPrice = unitPrice * (1 + markupPct / 100);
-  const adminClient = createAdminClient();
-  await adminClient
-    .from('catalog_items')
-    .upsert(
-      {
-        tenant_id: params.tenantId,
-        description: description.trim(),
-        item_type: itemType,
-        unit_label: params.unitLabel ?? null,
-        default_buy_price: itemType !== 'service' ? unitPrice : 0,
-        default_sell_price: sellPrice,
-        updated_at: new Date().toISOString(),
-      },
-      {
-        onConflict: 'tenant_id,description',
-      }
-    );
+  // Setiap kali item ditambahkan, sinkronkan master katalog (auto-belajar harga terbaru).
+  // onConflict menarget unique index (tenant_id, description_norm, item_type)
+  // di mana description_norm = lower(btrim(description)) (generated column).
+  const trimmedDesc = description.trim();
+  if (trimmedDesc) {
+    const sellPrice = unitPrice * (1 + markupPct / 100);
+    const adminClient = createAdminClient();
+    const { error: upsertCatalogError } = await adminClient
+      .from('catalog_items')
+      .upsert(
+        {
+          tenant_id: params.tenantId,
+          description: trimmedDesc,
+          item_type: itemType,
+          unit_label: params.unitLabel ?? null,
+          default_buy_price: itemType !== 'service' ? unitPrice : 0,
+          default_sell_price: sellPrice,
+          updated_at: new Date().toISOString(),
+        },
+        {
+          onConflict: 'tenant_id,description_norm,item_type',
+        }
+      );
+    if (upsertCatalogError) {
+      console.error("Gagal upsert ke catalog_items:", upsertCatalogError);
+    }
+  }
   // --- End Upsert to Catalog ---
 
   if (!description.trim()) return { error: "Deskripsi wajib diisi" };

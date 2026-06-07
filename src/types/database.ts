@@ -417,6 +417,39 @@ export interface Database {
         Update: never;
         Relationships: never[];
       };
+      catalog_items: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          description: string;
+          item_type: ItemType;
+          unit_label: string | null;
+          default_buy_price: number;
+          default_sell_price: number;
+          created_at: string;
+          updated_at: string;
+        } & Record<string, unknown>;
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          description: string;
+          item_type: ItemType;
+          unit_label?: string | null;
+          default_buy_price?: number;
+          default_sell_price?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<{
+          description: string;
+          item_type: ItemType;
+          unit_label: string | null;
+          default_buy_price: number;
+          default_sell_price: number;
+          updated_at: string;
+        }>;
+        Relationships: never[];
+      };
     };
     Views: {
       v_mechanic_debt_summary: {
@@ -452,6 +485,10 @@ export interface Database {
       get_my_tenant_id: { Args: Record<string, never>; Returns: string | null };
       get_my_role: { Args: Record<string, never>; Returns: UserRole | null };
       is_super_admin: { Args: Record<string, never>; Returns: boolean };
+      get_next_invoice_sequence: {
+        Args: { p_tenant_id: string; p_year: number };
+        Returns: number;
+      };
     };
     Enums: {
       user_role: UserRole;

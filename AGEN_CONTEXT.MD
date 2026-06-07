@@ -5,7 +5,7 @@
 > mendalam tetap di `docs/PROJECT_CONTEXT.md`; histori commit lengkap di
 > `docs/DEVELOPMENT_PROGRESS.md`; pakem operasional di `docs/AI_AGENT_FRAMEWORK.md`.
 
-Terakhir Diperbarui: 2026-06-07 (commit acuan: `d8d6cc8`)
+Terakhir Diperbarui: 2026-06-07 (commit acuan: `b46e5f6`)
 Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + Tailwind v3.4
 
 ---
@@ -42,7 +42,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [SELESAI] Katalog item implicit `/owner/katalog` + autofill tipe/satuan/harga + reklasifikasi bulk + warning mismatch tipe.
 * [SELESAI] WA share + halaman print publik `/print/invoices/[id]` + template WA per tenant (`settings.wa_template`) + OG metadata bersih.
 * [SELESAI] Modul Kas & Keuangan (COA UMKM, jurnal PDF, hutang/piutang) berbasis `transaction_date`.
-* [SELESAI] Kas filter UX: footer total mengikuti filter aktif (in/out/net/count) di tabel desktop & ringkasan mobile; search auto-apply (debounce 350 ms) + indikator `useTransition` (`d8d6cc8`).
+* [SELESAI] Kas filter UX: footer total mengikuti filter aktif (in/out/net/count) di tabel desktop & ringkasan mobile; search auto-apply (debounce 350 ms) + indikator `useTransition`; filter tanggal pakai state lokal (`fromInput`/`toInput`) untuk tahan race condition saat user pilih `from` lalu cepat ke `to` (`b46e5f6`).
 * [SELESAI] Point mekanik (earn/redeem/rollback idempotent) + sinkron owner invoice-aware + complaint badge.
 * [SELESAI] Kasbon karyawan (COA `108`) + klaim non-invoice (bensin/kesehatan/lainnya, upload kamera+galeri).
 * [SELESAI] Modul Invoice DP/PPN/PPh toggle per tenant + PWA installable (manifest/icon/SW) + brand icon Katalara.

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Minus, X, Loader2 } from "lucide-react";
+import { X, Loader2, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { addKasKeluar } from "@/lib/actions/kas-admin";
 import type { AccountType } from "@/types/database";

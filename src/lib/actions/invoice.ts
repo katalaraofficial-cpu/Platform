@@ -11,34 +11,6 @@ export type ActionState = { error?: string };
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
-// ── Internal: generate next invoice number ───────────────────
-async function genInvoiceNumber(
-  supabase: SupabaseClient,
-  tenantId: string
-): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
-  const { data } = await supabase
-    .from("invoices")
-    .select("invoice_number")
-    .eq("tenant_id", tenantId)
-    .like("invoice_number", `${prefix}%`)
-    .order("invoice_number", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const last = data?.invoice_number ?? "";
-  const lastSeq = Number(last.replace(prefix, "")) || 0;
-  return `${prefix}${String(lastSeq + 1).padStart(4, "0")}`;
-}
-
-function isInvoiceNumberUniqueViolation(error?: { code?: string; message?: string } | null): boolean {
-  return Boolean(
-    error?.code === "23505" &&
-    (error?.message ?? "").includes("invoices_tenant_id_invoice_number_key")
-  );
-}
-
 // ── Internal: recalculate invoice totals from items ──────────
 async function syncTotals(supabase: SupabaseClient, invoiceId: string) {
   const [{ data: items }, { data: invData }] = await Promise.all([
@@ -245,35 +217,39 @@ export async function createInvoice(
     .single();
   if (custErr || !customer) return { error: "Gagal menyimpan data pelanggan" };
 
-  let invoice: { id: string } | null = null;
-  let invErr: { code?: string; message?: string } | null = null;
+  // --- ATOMIC INVOICE NUMBER GENERATION ---
+  const year = new Date().getFullYear();
+  const { data: sequence, error: sequenceError } = await supabase
+    .rpc('get_next_invoice_sequence', { p_tenant_id: tenantId, p_year: year });
 
-  // Retry jika nomor invoice bentrok karena race condition.
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
-    const res = await supabase
-      .from("invoices")
-      .insert({
-        tenant_id: tenantId,
-        customer_id: customer.id,
-        invoice_number: invoiceNumber,
-        status: "draft" as InvoiceStatus,
-        notes: (formData.get("notes") as string) || null,
-        created_by: user.id,
-        invoice_date: (formData.get("invoice_date") as string) || new Date().toISOString().split("T")[0],
-      })
-      .select("id")
-      .single();
-
-    invoice = (res.data as { id: string } | null) ?? null;
-    invErr = res.error as { code?: string; message?: string } | null;
-
-    if (invoice) break;
-    if (!isInvoiceNumberUniqueViolation(invErr)) break;
+  if (sequenceError || !sequence) {
+    console.error("Gagal mendapatkan nomor urut invoice:", sequenceError);
+    return {
+      error: "Terjadi kesalahan pada server saat membuat nomor invoice. Silakan coba lagi.",
+    };
   }
 
-  if (invErr || !invoice)
-    return { error: "Gagal membuat invoice: " + (invErr?.message ?? "") };
+  const invoiceNumber = `INV-${year}-${String(sequence).padStart(4, "0")}`;
+  // --- END OF ATOMIC GENERATION ---
+
+  const { data: invoice, error: invErr } = await supabase
+    .from("invoices")
+    .insert({
+      tenant_id: tenantId,
+      customer_id: customer.id,
+      invoice_number: invoiceNumber,
+      status: "draft" as InvoiceStatus,
+      notes: (formData.get("notes") as string) || null,
+      created_by: user.id,
+      invoice_date: (formData.get("invoice_date") as string) || new Date().toISOString().split("T")[0],
+    })
+    .select("id")
+    .single();
+
+  if (invErr || !invoice) {
+    console.error("Gagal membuat invoice:", invErr);
+    return { error: "Gagal membuat invoice: " + (invErr?.message ?? "Kesalahan tidak diketahui.") };
+  }
 
   revalidatePath(`${basePath}/invoices`);
   redirect(`${basePath}/invoices/${invoice.id}`);
@@ -555,36 +531,41 @@ export async function createInvoiceWithItems(payload: {
     .filter(Boolean)
     .join(" | ") || null;
 
-  let invoice: { id: string } | null = null;
-  let invErr: { code?: string; message?: string } | null = null;
+  // --- ATOMIC INVOICE NUMBER GENERATION ---
+  const year = new Date().getFullYear();
+  const { data: sequence, error: sequenceError } = await supabase
+    .rpc('get_next_invoice_sequence', { p_tenant_id: tenantId, p_year: year });
 
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    const invoiceNumber = await genInvoiceNumber(supabase, tenantId);
-    const res = await supabase
-      .from("invoices")
-      .insert({
-        tenant_id: tenantId,
-        customer_id: payload.customerId || null,
-        invoice_number: invoiceNumber,
-        status: "draft" as InvoiceStatus,
-        notes: combinedNotes,
-        created_by: user.id,
-        invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
-        due_date: payload.dueDate ?? null,
-        shipping_cost: payload.shippingCost ?? 0,
-      })
-      .select("id")
-      .single();
-
-    invoice = (res.data as { id: string } | null) ?? null;
-    invErr = res.error as { code?: string; message?: string } | null;
-
-    if (invoice) break;
-    if (!isInvoiceNumberUniqueViolation(invErr)) break;
+  if (sequenceError || !sequence) {
+    console.error("Gagal mendapatkan nomor urut invoice:", sequenceError);
+    return {
+      error: "Terjadi kesalahan pada server saat membuat nomor invoice. Silakan coba lagi.",
+    };
   }
 
-  if (invErr || !invoice)
-    return { error: "Gagal membuat invoice: " + (invErr?.message ?? "") };
+  const invoiceNumber = `INV-${year}-${String(sequence).padStart(4, "0")}`;
+  // --- END OF ATOMIC GENERATION ---
+
+  const { data: invoice, error: invErr } = await supabase
+    .from("invoices")
+    .insert({
+      tenant_id: tenantId,
+      customer_id: payload.customerId || null,
+      invoice_number: invoiceNumber,
+      status: "draft" as InvoiceStatus,
+      notes: combinedNotes,
+      created_by: user.id,
+      invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
+      due_date: payload.dueDate ?? null,
+      shipping_cost: payload.shippingCost ?? 0,
+    })
+    .select("id")
+    .single();
+
+  if (invErr || !invoice) {
+    console.error("Gagal membuat invoice:", invErr);
+    return { error: "Gagal membuat invoice: " + (invErr?.message ?? "Kesalahan tidak diketahui.") };
+  }
 
   const invoiceId = invoice.id;
 
@@ -968,6 +949,30 @@ export async function addItemToInvoice(params: {
   if (!user) return { error: "Unauthorized" };
 
   const { description, itemType, quantity, unitPrice, markupPct, paymentSource } = params;
+
+  // --- Upsert to Catalog ---
+  // Every time an item is added, ensure it exists in the master catalog.
+  // This keeps the catalog growing organically.
+  const sellPrice = unitPrice * (1 + markupPct / 100);
+  const adminClient = createAdminClient();
+  await adminClient
+    .from('catalog_items')
+    .upsert(
+      {
+        tenant_id: params.tenantId,
+        description: description.trim(),
+        item_type: itemType,
+        unit_label: params.unitLabel ?? null,
+        default_buy_price: itemType !== 'service' ? unitPrice : 0,
+        default_sell_price: sellPrice,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'tenant_id,description',
+      }
+    );
+  // --- End Upsert to Catalog ---
+
   if (!description.trim()) return { error: "Deskripsi wajib diisi" };
 
   const qty = Math.max(0.01, quantity);
@@ -1037,34 +1042,27 @@ export async function searchItemDescriptions(
   if (!ctx.tenantId) return [];
   const supabase = await createClient();
   const { data } = await supabase
-    .from("invoice_items")
-    .select("description, item_type, unit_price, quantity, final_price, unit_label")
+    .from("catalog_items")
+    .select("description, item_type, default_buy_price, default_sell_price, unit_label")
     .eq("tenant_id", ctx.tenantId)
     .ilike("description", `%${query}%`)
-    .order("created_at", { ascending: false })
-    .limit(60);
-  // Deduplicate by lowercased description (keep most recent → first occurrence)
-  // Sertakan harga jual terakhir (final_price/quantity) agar UI bisa autofill.
-  const seen = new Set<string>();
-  const out: { description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null }[] = [];
-  for (const row of data ?? []) {
-    const r = row as { description: string; item_type: string; unit_price: number | string | null; quantity: number | string | null; final_price: number | string | null; unit_label: string | null };
-    const key = r.description.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const qty = Number(r.quantity ?? 1) || 1;
-    const final = Number(r.final_price ?? 0);
-    const sell = qty > 0 ? Math.round(final / qty) : 0;
-    out.push({
-      description: r.description,
-      item_type: r.item_type,
-      unit_price: Number(r.unit_price ?? 0),
-      sell_price: sell,
-      unit_label: r.unit_label ?? null,
-    });
-    if (out.length >= 12) break;
-  }
-  return out;
+    .order("description", { ascending: true })
+    .limit(12);
+
+  if (!data) return [];
+
+  // Map the data to the format expected by the frontend
+  return data.map(item => {
+    const buyPrice = Number(item.default_buy_price ?? 0);
+    const sellPrice = Number(item.default_sell_price ?? 0);
+    return {
+      description: item.description,
+      item_type: item.item_type,
+      unit_price: buyPrice, // 'unit_price' in suggestions refers to buy price
+      sell_price: sellPrice,
+      unit_label: item.unit_label ?? null,
+    };
+  });
 }
 
 // ── Mechanic: update work order status ───────────────────────

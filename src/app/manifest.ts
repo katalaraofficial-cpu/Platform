@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
-  const iconVersion = "20260607";
+  const iconVersion = "20260607b";
   return {
     // `id` membuat Chrome/Edge mengenali aplikasi sebagai installable PWA
     // (bukan sekadar "Create shortcut"). Harus stabil seumur hidup aplikasi.
@@ -24,19 +24,19 @@ export default function manifest(): MetadataRoute.Manifest {
       {
         src: `/icon-192?v=${iconVersion}`,
         sizes: "192x192",
-        type: "image/jpeg",
+        type: "image/png",
         purpose: "any",
       },
       {
         src: `/icon-512?v=${iconVersion}`,
         sizes: "512x512",
-        type: "image/jpeg",
+        type: "image/png",
         purpose: "any",
       },
       {
         src: `/icon-512-maskable?v=${iconVersion}`,
         sizes: "512x512",
-        type: "image/jpeg",
+        type: "image/png",
         purpose: "maskable",
       },
     ],

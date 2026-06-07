@@ -23,8 +23,18 @@ export function KasFilterBar({
 }: Props) {
   const router = useRouter();
   const [searchInput, setSearchInput] = useState(search);
+  const [fromInput, setFromInput] = useState(fromDate);
+  const [toInput, setToInput] = useState(toDate);
   const [isPending, startTransition] = useTransition();
   const firstRender = useRef(true);
+
+  // Keep local date state in sync if URL changes from outside (e.g. Reset)
+  useEffect(() => {
+    setFromInput(fromDate);
+  }, [fromDate]);
+  useEffect(() => {
+    setToInput(toDate);
+  }, [toDate]);
 
   function buildUrl(overrides: Record<string, string>) {
     const params = new URLSearchParams();
@@ -32,8 +42,8 @@ export function KasFilterBar({
     const merged = {
       account: accountFilter,
       type: typeFilter,
-      from: fromDate,
-      to: toDate,
+      from: fromInput,
+      to: toInput,
       search: searchInput,
       size: pageSize,
       ...overrides,
@@ -155,21 +165,31 @@ export function KasFilterBar({
         <div className="ml-auto flex items-center gap-2">
           <input
             type="date"
-            defaultValue={fromDate}
-            onChange={(e) => navigate(buildUrl({ from: e.target.value }))}
+            value={fromInput}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFromInput(v);
+              navigate(buildUrl({ from: v }));
+            }}
             className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
           <span className="text-xs text-gray-400">–</span>
           <input
             type="date"
-            defaultValue={toDate}
-            onChange={(e) => navigate(buildUrl({ to: e.target.value }))}
+            value={toInput}
+            onChange={(e) => {
+              const v = e.target.value;
+              setToInput(v);
+              navigate(buildUrl({ to: v }));
+            }}
             className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs text-gray-600 focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
-          {(fromDate || toDate || search) && (
+          {(fromInput || toInput || search) && (
             <button
               onClick={() => {
                 setSearchInput("");
+                setFromInput("");
+                setToInput("");
                 navigate("/owner/kas");
               }}
               className="text-xs text-gray-400 hover:text-red-500"

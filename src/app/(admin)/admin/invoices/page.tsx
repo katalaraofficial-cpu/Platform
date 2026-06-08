@@ -14,6 +14,7 @@ const KPI_STATUSES = [
   { label: "Draft",      value: "draft",       numClass: "text-yellow-700",  activeClass: "bg-yellow-50 border-yellow-300 text-yellow-900" },
   { label: "Dikerjakan", value: "in_progress", numClass: "text-blue-700",    activeClass: "bg-blue-50 border-blue-300 text-blue-900" },
   { label: "Selesai",    value: "completed",   numClass: "text-green-700",   activeClass: "bg-green-50 border-green-300 text-green-900" },
+  { label: "Komplain",   value: "complaint",   numClass: "text-orange-700",  activeClass: "bg-orange-50 border-orange-300 text-orange-900" },
   { label: "Lunas",      value: "paid",        numClass: "text-emerald-700", activeClass: "bg-emerald-50 border-emerald-300 text-emerald-900" },
   { label: "Dibatalkan", value: "cancelled",   numClass: "text-red-600",     activeClass: "bg-red-50 border-red-300 text-red-900" },
 ];
@@ -54,7 +55,7 @@ export default async function AdminInvoicesPage({
   const offset = (page - 1) * PAGE_SIZE;
 
   // KPI counts (respects date range)
-  let kpiQuery = supabase.from("invoices").select("status").eq("tenant_id", tenantId);
+  let kpiQuery = supabase.from("invoices").select("id, status").eq("tenant_id", tenantId);
   if (dateFrom) kpiQuery = kpiQuery.gte("created_at", dateFrom);
   if (dateTo) kpiQuery = kpiQuery.lte("created_at", dateTo + "T23:59:59");
 
@@ -68,20 +69,40 @@ export default async function AdminInvoicesPage({
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false })
     .range(offset, offset + PAGE_SIZE - 1);
-  if (status) tableQuery = tableQuery.eq("status", status as InvoiceStatus);
+  if (status && status !== "complaint") {
+    tableQuery = tableQuery.eq("status", status as InvoiceStatus);
+  }
   if (dateFrom) tableQuery = tableQuery.gte("created_at", dateFrom);
   if (dateTo) tableQuery = tableQuery.lte("created_at", dateTo + "T23:59:59");
 
-  const [{ data: kpiData }, { data: invoices, count: totalCount }] = await Promise.all([
-    kpiQuery,
-    tableQuery,
-  ]);
+  const { data: kpiData } = await kpiQuery;
+
+  const filteredInvoiceIds = (kpiData ?? []).map((row) => row.id);
+  const { data: complaintRows } = filteredInvoiceIds.length
+    ? await supabase
+        .from("invoice_mechanics")
+        .select("invoice_id")
+        .in("invoice_id", filteredInvoiceIds)
+        .eq("is_complaint", true)
+    : { data: [] as { invoice_id: string }[] };
+  const complaintInvoiceIds = [...new Set((complaintRows ?? []).map((row) => row.invoice_id))];
+
+  if (status === "complaint") {
+    if (complaintInvoiceIds.length === 0) {
+      tableQuery = tableQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      tableQuery = tableQuery.in("id", complaintInvoiceIds);
+    }
+  }
+
+  const { data: invoices, count: totalCount } = await tableQuery;
 
   // Compute per-status counts
   const kpiCounts: Record<string, number> = {};
   for (const row of kpiData ?? []) {
     kpiCounts[row.status] = (kpiCounts[row.status] ?? 0) + 1;
   }
+  kpiCounts.complaint = complaintInvoiceIds.length;
   const kpiTotal = kpiData?.length ?? 0;
 
   // Fetch customers for current page
@@ -95,6 +116,18 @@ export default async function AdminInvoicesPage({
       ? await supabase.from("customers").select("id, name").in("id", customerIds)
       : { data: [] as { id: string; name: string }[] };
   const customerMap = Object.fromEntries((customers ?? []).map((c) => [c.id, c.name]));
+
+  const invoiceIds = (invoices ?? []).map((inv) => inv.id);
+  const { data: complaintAssignments } = invoiceIds.length
+    ? await supabase
+        .from("invoice_mechanics")
+        .select("invoice_id, is_complaint")
+        .in("invoice_id", invoiceIds)
+    : { data: [] as { invoice_id: string; is_complaint: boolean }[] };
+  const complaintMap: Record<string, boolean> = {};
+  for (const row of complaintAssignments ?? []) {
+    complaintMap[row.invoice_id] = complaintMap[row.invoice_id] || Boolean(row.is_complaint);
+  }
 
   const total = totalCount ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -181,7 +214,7 @@ export default async function AdminInvoicesPage({
                         {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                       </p>
                     </div>
-                    <StatusBadge status={inv.status as InvoiceStatus} />
+                    <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                   </div>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <div>
@@ -230,7 +263,7 @@ export default async function AdminInvoicesPage({
                         {customerMap[inv.customer_id ?? ""] ?? "-"}
                       </td>
                       <td className="px-4 py-3">
-                        <StatusBadge status={inv.status as InvoiceStatus} />
+                        <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
                         {fmt(Number(inv.grand_total))}

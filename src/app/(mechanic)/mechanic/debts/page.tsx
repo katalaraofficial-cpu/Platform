@@ -228,30 +228,57 @@ export default async function PiutangSayaPage() {
           </div>
         ) : (
           <ul className="divide-y divide-gray-100">
-            {reimbursementEntries.map((entry) => (
-              <li key={entry.id} className="px-4 py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-800">
-                      Cicilan kasbon diterima
-                    </p>
-                    <p className="mt-0.5 text-xs text-gray-400">
-                      {new Date(entry.created_at).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })}
-                    </p>
-                    {entry.notes && (
-                      <p className="mt-1 text-xs text-gray-500">{entry.notes}</p>
+            {reimbursementEntries.map((entry) => {
+              const reimbursementProof =
+                entry.invoice_items?.receipt_image_url ?? entry.receipt_image_url ?? null;
+
+              return (
+                <li key={entry.id} className="px-4 py-3">
+                  <div className="flex items-start gap-3">
+                    {reimbursementProof ? (
+                      <a
+                        href={reimbursementProof}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="shrink-0"
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={reimbursementProof}
+                          alt="Bukti transfer"
+                          className="h-12 w-12 rounded-xl border border-gray-200 object-cover"
+                        />
+                      </a>
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50">
+                        <ImageIcon className="h-5 w-5 text-gray-300" />
+                      </div>
                     )}
+
+                    <div className="flex flex-1 items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-800">
+                          Cicilan kasbon diterima
+                        </p>
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {new Date(entry.created_at).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </p>
+                        {entry.notes && (
+                          <p className="mt-1 text-xs text-gray-500">{entry.notes}</p>
+                        )}
+                      </div>
+                      <p className="shrink-0 text-sm font-bold text-green-600">
+                        {formatRp(entry.amount)}
+                      </p>
+                    </div>
                   </div>
-                  <p className="shrink-0 text-sm font-bold text-green-600">
-                    {formatRp(entry.amount)}
-                  </p>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

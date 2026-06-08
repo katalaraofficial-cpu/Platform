@@ -14,6 +14,7 @@ const KPI_STATUSES = [
   { label: "Draft",      value: "draft",       numClass: "text-yellow-700",  activeClass: "bg-yellow-50 border-yellow-300 text-yellow-900" },
   { label: "Dikerjakan", value: "in_progress", numClass: "text-blue-700",    activeClass: "bg-blue-50 border-blue-300 text-blue-900" },
   { label: "Selesai",    value: "completed",   numClass: "text-green-700",   activeClass: "bg-green-50 border-green-300 text-green-900" },
+  { label: "Komplain",   value: "complaint",   numClass: "text-orange-700",  activeClass: "bg-orange-50 border-orange-300 text-orange-900" },
   { label: "Lunas",      value: "paid",        numClass: "text-emerald-700", activeClass: "bg-emerald-50 border-emerald-300 text-emerald-900" },
   { label: "Dibatalkan", value: "cancelled",   numClass: "text-red-600",     activeClass: "bg-red-50 border-red-300 text-red-900" },
 ];
@@ -84,7 +85,7 @@ export default async function OwnerInvoicesPage({
   // KPI counts (respects date range)
   let kpiQuery = supabase
     .from("invoices")
-    .select("status, grand_total")
+    .select("id, status, grand_total")
     .eq("tenant_id", tenantId);
   if (dateFrom) kpiQuery = kpiQuery.gte("created_at", dateFrom);
   if (dateTo) kpiQuery = kpiQuery.lte("created_at", dateTo + "T23:59:59");
@@ -108,7 +109,9 @@ export default async function OwnerInvoicesPage({
     .order("created_at", { ascending: false })
     .order("invoice_number", { ascending: false })
     .range(offset, offset + pageSize - 1);
-  if (status) tableQuery = tableQuery.eq("status", status as InvoiceStatus);
+  if (status && status !== "complaint") {
+    tableQuery = tableQuery.eq("status", status as InvoiceStatus);
+  }
   if (dateFrom) tableQuery = tableQuery.gte("created_at", dateFrom);
   if (dateTo) tableQuery = tableQuery.lte("created_at", dateTo + "T23:59:59");
   if (matchedCustomerIds) {
@@ -119,10 +122,27 @@ export default async function OwnerInvoicesPage({
     }
   }
 
-  const [{ data: kpiData }, { data: invoices, count: totalCount }] = await Promise.all([
-    kpiQuery,
-    tableQuery,
-  ]);
+  const { data: kpiData } = await kpiQuery;
+
+  const filteredInvoiceIds = (kpiData ?? []).map((row) => row.id);
+  const { data: complaintRows } = filteredInvoiceIds.length
+    ? await supabase
+        .from("invoice_mechanics")
+        .select("invoice_id")
+        .in("invoice_id", filteredInvoiceIds)
+        .eq("is_complaint", true)
+    : { data: [] as { invoice_id: string }[] };
+  const complaintInvoiceIds = [...new Set((complaintRows ?? []).map((row) => row.invoice_id))];
+
+  if (status === "complaint") {
+    if (complaintInvoiceIds.length === 0) {
+      tableQuery = tableQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      tableQuery = tableQuery.in("id", complaintInvoiceIds);
+    }
+  }
+
+  const { data: invoices, count: totalCount } = await tableQuery;
 
   // Compute per-status counts
   const kpiCounts: Record<string, number> = {};
@@ -134,6 +154,7 @@ export default async function OwnerInvoicesPage({
     if (row.status === "paid") totalPaidAmount += amount;
     else if (row.status !== "cancelled") totalUnpaidAmount += amount;
   }
+  kpiCounts.complaint = complaintInvoiceIds.length;
   const kpiTotal = kpiData?.length ?? 0;
 
   // Fetch customers + mechanics for current page

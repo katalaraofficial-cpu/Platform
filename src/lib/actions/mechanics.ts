@@ -23,16 +23,22 @@ export async function reimburseDebt(data: {
   const supabase = await createClient();
 
   // 1. Record reimbursement in mechanic debt ledger
-  const { error: debtError } = await supabase.from("mechanic_debt_ledger").insert({
-    tenant_id: ctx.tenantId,
-    mechanic_id: data.mechanicId,
-    transaction_type: "reimbursement",
-    invoice_item_id: null,
-    amount: data.amount,
-    notes: data.notes || null,
-    is_paid: true,
-    created_by: ctx.id,
-  });
+  const { data: debtRow, error: debtError } = await supabase
+    .from("mechanic_debt_ledger")
+    .insert({
+      tenant_id: ctx.tenantId,
+      mechanic_id: data.mechanicId,
+      transaction_type: "reimbursement",
+      invoice_item_id: null,
+      amount: data.amount,
+      notes: data.notes || null,
+      // Engineer page reads reimbursement proof from debt ledger.
+      receipt_image_url: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
+      is_paid: true,
+      created_by: ctx.id,
+    })
+    .select("id")
+    .single();
 
   if (debtError) return { error: debtError.message };
 
@@ -47,7 +53,7 @@ export async function reimburseDebt(data: {
     notes: data.notes || null,
     proof_url: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
     transfer_ref: null,
-    reference_id: null,
+    reference_id: debtRow?.id ?? null,
     created_by: ctx.id,
   })) as { error: { message: string } | null };
 

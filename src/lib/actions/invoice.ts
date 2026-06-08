@@ -926,6 +926,7 @@ export async function addItemToInvoice(params: {
   description: string;
   quantity: number;
   unitPrice: number;
+  sellPrice?: number;
   markupPct: number;
   paymentSource: PaymentSource | null;
   unitLabel?: string;
@@ -949,7 +950,13 @@ export async function addItemToInvoice(params: {
   } = await supabase.auth.getUser();
   if (!user) return { error: "Unauthorized" };
 
-  const { description, itemType, quantity, unitPrice, markupPct, paymentSource } = params;
+  const { description, itemType, quantity, unitPrice, sellPrice, markupPct, paymentSource } = params;
+  const effectiveSellPrice = Math.max(
+    0,
+    sellPrice !== undefined
+      ? Number(sellPrice)
+      : unitPrice * (1 + markupPct / 100),
+  );
 
   // --- Upsert to Catalog ---
   // Setiap kali item ditambahkan, sinkronkan master katalog (auto-belajar harga terbaru).
@@ -957,7 +964,6 @@ export async function addItemToInvoice(params: {
   // di mana description_norm = lower(btrim(description)) (generated column).
   const trimmedDesc = description.trim();
   if (trimmedDesc) {
-    const sellPrice = unitPrice * (1 + markupPct / 100);
     const adminClient = createTenantAdminClient(params.tenantId);
     const { error: upsertCatalogError } = await adminClient
       .from('catalog_items')
@@ -967,7 +973,7 @@ export async function addItemToInvoice(params: {
           item_type: itemType,
           unit_label: params.unitLabel ?? null,
           default_buy_price: itemType !== 'service' ? unitPrice : 0,
-          default_sell_price: sellPrice,
+          default_sell_price: effectiveSellPrice,
           updated_at: new Date().toISOString(),
         },
         {
@@ -983,7 +989,11 @@ export async function addItemToInvoice(params: {
   if (!description.trim()) return { error: "Deskripsi wajib diisi" };
 
   const qty = Math.max(0.01, quantity);
-  const finalPrice = unitPrice * qty * (1 + markupPct / 100);
+  const finalPrice = effectiveSellPrice * qty;
+  const normalizedMarkupPct =
+    itemType !== "service" && unitPrice > 0
+      ? Math.max(0, ((effectiveSellPrice - unitPrice) / unitPrice) * 100)
+      : 0;
 
   const { data, error } = await supabase
     .from("invoice_items")
@@ -994,7 +1004,7 @@ export async function addItemToInvoice(params: {
       description: description.trim(),
       quantity: qty,
       unit_price: unitPrice,
-      markup_pct: markupPct,
+      markup_pct: normalizedMarkupPct,
       final_price: finalPrice,
       unit_label: params.unitLabel ?? null,
       payment_source: paymentSource,

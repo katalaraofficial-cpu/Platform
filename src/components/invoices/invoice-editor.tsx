@@ -829,6 +829,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           description: itemDesc.trim(),
           quantity: Math.max(0.01, itemQty),
           unitPrice: isPart ? itemBuyPrice : itemSellPrice,
+          sellPrice: itemSellPrice,
           markupPct: isPart ? markupPct : 0,
           paymentSource: itemType === "part_external" ? itemPaymentSource : null,
           unitLabel: itemUnitLabel.trim() || undefined,

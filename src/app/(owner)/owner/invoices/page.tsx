@@ -9,15 +9,22 @@ const BASE_PATH = "/owner";
 const DEFAULT_PAGE_SIZE = 15;
 const PAGE_SIZE_OPTIONS = [15, 25, 50] as const;
 
-const KPI_STATUSES = [
-  { label: "Semua",      value: "",            numClass: "text-gray-800",    activeClass: "bg-gray-900 text-white border-gray-900" },
-  { label: "Draft",      value: "draft",       numClass: "text-yellow-700",  activeClass: "bg-yellow-50 border-yellow-300 text-yellow-900" },
-  { label: "Dikerjakan", value: "in_progress", numClass: "text-blue-700",    activeClass: "bg-blue-50 border-blue-300 text-blue-900" },
-  { label: "Selesai",    value: "completed",   numClass: "text-green-700",   activeClass: "bg-green-50 border-green-300 text-green-900" },
-  { label: "Komplain",   value: "complaint",   numClass: "text-orange-700",  activeClass: "bg-orange-50 border-orange-300 text-orange-900" },
-  { label: "Lunas",      value: "paid",        numClass: "text-emerald-700", activeClass: "bg-emerald-50 border-emerald-300 text-emerald-900" },
-  { label: "Dibatalkan", value: "cancelled",   numClass: "text-red-600",     activeClass: "bg-red-50 border-red-300 text-red-900" },
+const KPI_CARDS = [
+  { label: "Semua", value: "all", numClass: "text-gray-800" },
+  { label: "Draft", value: "draft", numClass: "text-yellow-700" },
+  { label: "Dikerjakan", value: "in_progress", numClass: "text-blue-700" },
+  { label: "Selesai", value: "completed", numClass: "text-green-700" },
 ];
+
+const STATUS_FILTER_OPTIONS = [
+  { label: "Semua Status", value: "" },
+  { label: "Draft", value: "draft" },
+  { label: "Dikerjakan", value: "in_progress" },
+  { label: "Selesai", value: "completed" },
+  { label: "Lunas", value: "paid" },
+  { label: "Komplain", value: "complaint" },
+  { label: "Dibatalkan", value: "cancelled" },
+] as const;
 
 function fmt(n: number) {
   return new Intl.NumberFormat("id-ID", {
@@ -235,6 +242,13 @@ export default async function OwnerInvoicesPage({
     return `${BASE_PATH}/invoices${qs ? "?" + qs : ""}`;
   }
 
+  const kpiCardCount: Record<string, number> = {
+    all: kpiTotal,
+    draft: kpiCounts.draft ?? 0,
+    in_progress: kpiCounts.in_progress ?? 0,
+    completed: kpiCounts.completed ?? 0,
+  };
+
   const TH =
     "px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 whitespace-nowrap";
   const TD = "px-3 py-3 text-sm";
@@ -256,25 +270,14 @@ export default async function OwnerInvoicesPage({
       </div>
 
       {/* KPI Boxes */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {KPI_STATUSES.map((k) => {
-          const count = k.value === "" ? kpiTotal : (kpiCounts[k.value] ?? 0);
-          const isActive = status === k.value;
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {KPI_CARDS.map((k) => {
+          const count = kpiCardCount[k.value] ?? 0;
           return (
-            <Link
-              key={k.value}
-              href={buildUrl({ status: k.value, page: 1 })}
-              className={`rounded-xl border p-3 text-center transition-all ${
-                isActive
-                  ? k.activeClass + " shadow-sm"
-                  : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              <p className={`text-2xl font-bold ${isActive ? "" : k.numClass}`}>{count}</p>
-              <p className={`mt-0.5 text-xs font-medium ${isActive ? "opacity-80" : "text-gray-500"}`}>
-                {k.label}
-              </p>
-            </Link>
+            <div key={k.value} className="rounded-xl border border-gray-200 bg-white p-3 text-center">
+              <p className={`text-2xl font-bold ${k.numClass}`}>{count}</p>
+              <p className="mt-0.5 text-xs font-medium text-gray-500">{k.label}</p>
+            </div>
           );
         })}
       </div>
@@ -294,7 +297,6 @@ export default async function OwnerInvoicesPage({
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-100 px-4 py-3">
           <form method="get" action={`${BASE_PATH}/invoices`} className="flex flex-wrap items-end gap-3">
-            {status ? <input type="hidden" name="status" value={status} /> : null}
             <div>
               <label className="mb-1 block text-xs text-gray-500">Dari</label>
               <input
@@ -313,7 +315,21 @@ export default async function OwnerInvoicesPage({
                 className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
-            <div className="min-w-[220px] flex-1">
+            <div className="w-[180px]">
+              <label className="mb-1 block text-xs text-gray-500">Status</label>
+              <select
+                name="status"
+                defaultValue={status}
+                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              >
+                {STATUS_FILTER_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="min-w-[280px] flex-[1.2]">
               <label className="mb-1 block text-xs text-gray-500">Cari Pelanggan</label>
               <input
                 type="text"
@@ -390,7 +406,7 @@ export default async function OwnerInvoicesPage({
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div>
                         <p className="text-gray-400">Pelanggan</p>
-                        <p className="truncate font-medium text-gray-700">{customer?.name ?? "-"}</p>
+                        <p className="font-medium text-gray-700 break-words">{customer?.name ?? "-"}</p>
                       </div>
                       <div>
                         <p className="text-gray-400">Engineer</p>
@@ -444,7 +460,7 @@ export default async function OwnerInvoicesPage({
                   <tr>
                     <th className={TH}>No. Nota</th>
                     <th className={TH}>Tanggal</th>
-                    <th className={TH}>Pelanggan</th>
+                    <th className={`${TH} w-[240px]`}>Pelanggan</th>
                     <th className={TH}>Status</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
@@ -475,8 +491,10 @@ export default async function OwnerInvoicesPage({
                         <td className={`${TD} whitespace-nowrap text-gray-500`}>
                           {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                         </td>
-                        <td className={`${TD} max-w-[140px] truncate text-gray-900`}>
-                          {customer?.name ?? "-"}
+                        <td className={`${TD} max-w-[240px] whitespace-normal break-words text-gray-900`}>
+                          <span className="line-clamp-2" title={customer?.name ?? "-"}>
+                            {customer?.name ?? "-"}
+                          </span>
                         </td>
                         <td className={TD}>
                           <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
@@ -519,7 +537,7 @@ export default async function OwnerInvoicesPage({
                             inv.completed_at
                           )}
                         </td>
-                        <td className={`${TD} max-w-[140px] text-gray-500`}>
+                        <td className={`${TD} max-w-[120px] text-gray-500`}>
                           {inv.notes ? (
                             <span className="block truncate" title={inv.notes}>
                               {inv.notes}

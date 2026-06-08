@@ -654,9 +654,23 @@ export async function updateInvoiceItem(
   itemId: string,
   invoiceId: string,
   basePath: string,
-  data: { description: string; quantity: number; unitPrice: number; sellPrice?: number; unitLabel?: string }
+  data: {
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    itemType?: ItemType;
+    sellPrice?: number;
+    unitLabel?: string;
+    syncCatalogMaster?: boolean;
+  }
 ) {
   const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+
+  const newItemType = data.itemType;
+  const isService = newItemType === "service";
+  const resolvedUnitPrice = isService && data.sellPrice !== undefined ? data.sellPrice : data.unitPrice;
   let markupPct: number;
   let finalPrice: number;
 
@@ -664,17 +678,18 @@ export async function updateInvoiceItem(
     // Explicit sell price provided — recalculate markup from buy/sell
     finalPrice = data.sellPrice * data.quantity;
     markupPct =
-      data.unitPrice > 0
-        ? Math.max(0, ((data.sellPrice - data.unitPrice) / data.unitPrice) * 100)
+      !isService && resolvedUnitPrice > 0
+        ? Math.max(0, ((data.sellPrice - resolvedUnitPrice) / resolvedUnitPrice) * 100)
         : 0;
     await supabase
       .from("invoice_items")
       .update({
         description: data.description,
         quantity: data.quantity,
-        unit_price: data.unitPrice,
+        unit_price: resolvedUnitPrice,
         markup_pct: markupPct,
         final_price: finalPrice,
+        ...(newItemType ? { item_type: newItemType } : {}),
         ...(data.unitLabel !== undefined ? { unit_label: data.unitLabel || null } : {}),
       })
       .eq("id", itemId);
@@ -686,17 +701,27 @@ export async function updateInvoiceItem(
       .eq("id", itemId)
       .single();
     markupPct = Number(item?.markup_pct ?? 0);
-    finalPrice = data.unitPrice * data.quantity * (1 + markupPct / 100);
+    finalPrice = resolvedUnitPrice * data.quantity * (1 + markupPct / 100);
     await supabase
       .from("invoice_items")
       .update({
         description: data.description,
         quantity: data.quantity,
-        unit_price: data.unitPrice,
+        unit_price: resolvedUnitPrice,
+        ...(newItemType ? { item_type: newItemType } : {}),
         final_price: finalPrice,
         ...(data.unitLabel !== undefined ? { unit_label: data.unitLabel || null } : {}),
       })
       .eq("id", itemId);
+  }
+
+  if (data.syncCatalogMaster && newItemType) {
+    // Optional: keep snapshot change in sync with catalog master for this tenant.
+    await supabase
+      .from("catalog_items")
+      .update({ item_type: newItemType, updated_at: new Date().toISOString() })
+      .eq("tenant_id", ctx.tenantId)
+      .eq("description", data.description.trim());
   }
 
   await syncTotals(supabase, invoiceId);

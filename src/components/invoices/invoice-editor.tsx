@@ -627,6 +627,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   const [editUnitLabel, setEditUnitLabel] = useState("");
   const [editSellPrice, setEditSellPrice] = useState(0);
   const [editBuyPrice, setEditBuyPrice] = useState(0); // for part rows
+  const [editItemType, setEditItemType] = useState<ItemType>("service");
+  const [editSyncCatalogMaster, setEditSyncCatalogMaster] = useState(false);
 
   // ── Margin profit state ───────────────────────────────────────────────
   const [marginEnabled, setMarginEnabled] = useState(false);
@@ -881,6 +883,8 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     setEditUnitLabel(item.unitLabel);
     setEditSellPrice(item.sellPrice);
     setEditBuyPrice(item.unitPrice);
+    setEditItemType(item.itemType);
+    setEditSyncCatalogMaster(false);
   }
 
   function saveEditRow(item: EditorItem) {
@@ -889,41 +893,60 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     const newSell = editSellPrice;
     const newBuy = editBuyPrice;
     const newUnitLabel = editUnitLabel.trim();
+    const newItemType = editItemType;
+    const isService = newItemType === "service";
 
     if (!isEdit) {
       setItems((prev) =>
         prev.map((i) =>
           i.id === item.id
-            ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, unitLabel: newUnitLabel }
+            ? {
+                ...i,
+                description: newDesc,
+                qty: newQty,
+                sellPrice: newSell,
+                unitPrice: isService ? newSell : newBuy,
+                itemType: newItemType,
+                markupPct: isService
+                  ? 0
+                  : newBuy > 0 && newSell > 0
+                    ? Math.max(0, ((newSell - newBuy) / newBuy) * 100)
+                    : i.markupPct,
+                unitLabel: newUnitLabel,
+              }
             : i
         )
       );
       setEditRowId(null);
     } else {
       startTransition(async () => {
-        if (item.itemType === "service") {
-          await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
-            description: newDesc,
-            quantity: newQty,
-            unitPrice: newSell, // for services unit_price = sell_price
-            unitLabel: newUnitLabel,
-          });
-        } else {
-          await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
-            description: newDesc,
-            quantity: newQty,
-            unitPrice: newBuy,  // H.Beli
-            sellPrice: newSell > 0 ? newSell : undefined, // H.Jual override
-            unitLabel: newUnitLabel,
-          });
-        }
-        const newMarkupPct = newBuy > 0 && newSell > 0
-          ? Math.max(0, ((newSell - newBuy) / newBuy) * 100)
-          : item.markupPct;
+        await updateInvoiceItem(item.id, editInvoice!.id, props.basePath, {
+          description: newDesc,
+          quantity: newQty,
+          unitPrice: isService ? newSell : newBuy,
+          itemType: newItemType,
+          sellPrice: newSell > 0 ? newSell : 0,
+          unitLabel: newUnitLabel,
+          syncCatalogMaster: editSyncCatalogMaster,
+        });
+        const newMarkupPct = isService
+          ? 0
+          : newBuy > 0 && newSell > 0
+            ? Math.max(0, ((newSell - newBuy) / newBuy) * 100)
+            : item.markupPct;
         setItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? { ...i, description: newDesc, qty: newQty, sellPrice: newSell, unitPrice: newBuy, markupPct: newMarkupPct, unitLabel: newUnitLabel }
+              ? {
+                  ...i,
+                  description: newDesc,
+                  qty: newQty,
+                  sellPrice: newSell,
+                  unitPrice: isService ? newSell : newBuy,
+                  itemType: newItemType,
+                  markupPct: newMarkupPct,
+                  unitLabel: newUnitLabel,
+                }
               : i
           )
         );
@@ -1983,6 +2006,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                             value={editDesc}
                             onChange={(e) => setEditDesc(e.target.value)}
                           />
+                          <select
+                            className="w-full rounded border border-blue-300 px-2 py-1.5 text-xs focus:outline-none"
+                            value={editItemType}
+                            onChange={(e) => setEditItemType(e.target.value as ItemType)}
+                          >
+                            <option value="service">Jasa</option>
+                            <option value="part_internal">Barang (Stok)</option>
+                            <option value="part_external">Barang (Beli)</option>
+                          </select>
                           <div className="grid grid-cols-2 gap-2">
                             <input
                               type="text"
@@ -1998,7 +2030,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                               onChange={(e) => setEditQty(Number(e.target.value))}
                             />
                           </div>
-                          {item.itemType !== "service" && (
+                          {editItemType !== "service" && (
                             <input
                               type="number" min="0" step="any"
                               className="w-full rounded border border-blue-300 px-2 py-1.5 text-right text-xs focus:outline-none"
@@ -2017,6 +2049,14 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           <div className="text-right font-mono text-xs text-gray-600">
                             {fmt(editSellPrice * editQty)}
                           </div>
+                          <label className="inline-flex items-center gap-2 text-xs text-gray-600">
+                            <input
+                              type="checkbox"
+                              checked={editSyncCatalogMaster}
+                              onChange={(e) => setEditSyncCatalogMaster(e.target.checked)}
+                            />
+                            Perbarui katalog master
+                          </label>
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -2102,7 +2142,26 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                             value={editDesc}
                             onChange={(e) => setEditDesc(e.target.value)}
                           />
-                          {item.itemType !== "service" && (
+                          <div className="mt-1 flex items-center gap-2">
+                            <select
+                              className="rounded border border-blue-300 px-2 py-0.5 text-xs focus:outline-none"
+                              value={editItemType}
+                              onChange={(e) => setEditItemType(e.target.value as ItemType)}
+                            >
+                              <option value="service">Jasa</option>
+                              <option value="part_internal">Barang (Stok)</option>
+                              <option value="part_external">Barang (Beli)</option>
+                            </select>
+                            <label className="inline-flex items-center gap-1 text-[10px] text-gray-500">
+                              <input
+                                type="checkbox"
+                                checked={editSyncCatalogMaster}
+                                onChange={(e) => setEditSyncCatalogMaster(e.target.checked)}
+                              />
+                              Perbarui katalog
+                            </label>
+                          </div>
+                          {editItemType !== "service" && (
                             <div className="mt-1 flex items-center gap-1">
                               <span className="text-[10px] text-gray-400">H.Beli</span>
                               <input

@@ -1,4 +1,6 @@
 import { getUserContext } from "@/lib/get-user-context";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { OwnerMobileNav } from "@/components/layout/owner-mobile-nav";
 import {
@@ -20,7 +22,16 @@ export default async function OwnerLayout({
   children: React.ReactNode;
 }) {
   const ctx = await getUserContext();
+  if (!ctx.tenantId) redirect("/login");
   const toggles = ctx.featureToggles;
+  const supabase = await createClient();
+
+  const { data: settingsRow } = await supabase
+    .from("settings")
+    .select("feature_catalog_enabled")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  const featureCatalogEnabled = Boolean(settingsRow?.feature_catalog_enabled);
 
   // ── Build nav dynamically based on feature toggles ──────────
   // Some items are always visible; others depend on toggles set by Super Admin.
@@ -52,8 +63,10 @@ export default async function OwnerLayout({
     // Always visible
     { label: "Pengaturan", href: "/owner/settings", icon: <Settings className="h-4 w-4" /> },
 
-    // Katalog implicit dari riwayat invoice_items — owner tools untuk audit klasifikasi
-    { label: "Katalog Item", href: "/owner/katalog", icon: <BookOpen className="h-4 w-4" /> },
+    // Modul katalog optional per-tenant (Poin 5)
+    ...(featureCatalogEnabled
+      ? [{ label: "Katalog Item", href: "/owner/katalog", icon: <BookOpen className="h-4 w-4" /> }]
+      : []),
 
     // User management — always visible for owner
     { label: "Kelola Pengguna", href: "/owner/users", icon: <UserCog className="h-4 w-4" /> },

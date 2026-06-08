@@ -29,6 +29,16 @@ export async function getItemCatalog(): Promise<{
   }
 
   const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("feature_catalog_enabled")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+
+  if (!settings?.feature_catalog_enabled) {
+    return { error: "Modul katalog belum diaktifkan" };
+  }
+
   const { data, error } = await supabase
     .from("catalog_items")
     .select("id, description, item_type, unit_label, default_buy_price, default_sell_price, updated_at")
@@ -68,6 +78,15 @@ export async function reclassifyItemDescription(
   }
 
   const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("feature_catalog_enabled")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+  if (!settings?.feature_catalog_enabled) {
+    return { error: "Modul katalog belum diaktifkan" };
+  }
+
   const { data, error } = await supabase
     .from("catalog_items")
     .update({ item_type: newType })

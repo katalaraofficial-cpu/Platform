@@ -66,6 +66,7 @@ export interface Settings {
   default_markup_pct: number;
   petty_cash_limit: number;
   qty_decimal: boolean;
+  feature_catalog_enabled: boolean;
   price_tier_labels: { HET: string; HG1: string; HG2: string; HG3: string };
   // Store info
   store_name: string | null;

@@ -82,6 +82,7 @@ export async function savePlatformSettings(data: {
   defaultMarkupPct: number;
   pettyCashLimit: number;
   qtyDecimal: boolean;
+  featureCatalogEnabled: boolean;
   priceTierLabels: { HET: string; HG1: string; HG2: string; HG3: string };
 }): Promise<SettingsActionState> {
   try {
@@ -96,10 +97,13 @@ export async function savePlatformSettings(data: {
         default_markup_pct: data.defaultMarkupPct,
         petty_cash_limit: data.pettyCashLimit,
         qty_decimal: data.qtyDecimal,
+        feature_catalog_enabled: data.featureCatalogEnabled,
         price_tier_labels: data.priceTierLabels,
       });
     if (error) return { error: error.message };
     revalidatePath("/owner/settings");
+    revalidatePath("/owner", "layout");
+    revalidatePath("/owner/katalog");
     return { success: "Pengaturan platform disimpan" };
   } catch (e) {
     return { error: (e as Error).message };

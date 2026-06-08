@@ -215,6 +215,9 @@ function TabPlatform({ s }: { s: Settings | null }) {
   const [markupPct, setMarkupPct] = useState(String(s?.default_markup_pct ?? 20));
   const [pettyCash, setPettyCash] = useState(String(s?.petty_cash_limit ?? 500000));
   const [qtyDecimal, setQtyDecimal] = useState(s?.qty_decimal ?? false);
+  const [featureCatalogEnabled, setFeatureCatalogEnabled] = useState(
+    s?.feature_catalog_enabled ?? false,
+  );
   const defaultLabels = s?.price_tier_labels ?? { HET: "HET", HG1: "HG1", HG2: "HG2", HG3: "HG3" };
   const [tierLabels, setTierLabels] = useState(defaultLabels);
   const [pending, startTransition] = useTransition();
@@ -226,6 +229,7 @@ function TabPlatform({ s }: { s: Settings | null }) {
         defaultMarkupPct: parseFloat(markupPct) || 20,
         pettyCashLimit: parseInt(pettyCash) || 500000,
         qtyDecimal,
+        featureCatalogEnabled,
         priceTierLabels: tierLabels,
       });
       if (res.error) toast.error(res.error);
@@ -254,6 +258,19 @@ function TabPlatform({ s }: { s: Settings | null }) {
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${qtyDecimal ? "translate-x-6" : "translate-x-1"}`} />
           </div>
           <span className="text-sm text-gray-700">{qtyDecimal ? "Aktif (misal 1.5 liter)" : "Nonaktif (bilangan bulat)"}</span>
+        </label>
+      </Field>
+      <Field label="Modul Katalog Item">
+        <label className="flex items-center gap-3 cursor-pointer">
+          <div
+            onClick={() => setFeatureCatalogEnabled(!featureCatalogEnabled)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${featureCatalogEnabled ? "bg-violet-600" : "bg-gray-300"}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${featureCatalogEnabled ? "translate-x-6" : "translate-x-1"}`} />
+          </div>
+          <span className="text-sm text-gray-700">
+            {featureCatalogEnabled ? "Aktif (menu Katalog Item ditampilkan)" : "Nonaktif (menu Katalog Item disembunyikan)"}
+          </span>
         </label>
       </Field>
       <div>

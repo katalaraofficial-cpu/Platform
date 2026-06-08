@@ -1,11 +1,23 @@
 import { redirect } from "next/navigation";
 import { getUserContext } from "@/lib/get-user-context";
+import { createClient } from "@/lib/supabase/server";
 import { getItemCatalog } from "@/lib/actions/catalog";
 import { KatalogClient } from "./katalog-client";
 
 export default async function KatalogPage() {
   const ctx = await getUserContext();
   if (!ctx.tenantId || ctx.role !== "owner") redirect("/owner/dashboard");
+
+  const supabase = await createClient();
+  const { data: settings } = await supabase
+    .from("settings")
+    .select("feature_catalog_enabled")
+    .eq("tenant_id", ctx.tenantId)
+    .maybeSingle();
+
+  if (!settings?.feature_catalog_enabled) {
+    redirect("/owner/dashboard");
+  }
 
   const res = await getItemCatalog();
   const items = res.data ?? [];

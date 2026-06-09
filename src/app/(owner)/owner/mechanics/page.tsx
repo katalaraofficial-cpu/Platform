@@ -491,7 +491,7 @@ export default async function MechanicsPage({
       </div>
 
       {/* ── Tab bar ────────────────────────────────────────────── */}
-      <div className="flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+      <div className="mx-auto flex gap-1 rounded-xl bg-gray-100 p-1 w-fit">
         {(
           [
             ["performa", "Performa Mekanik"],
@@ -514,7 +514,7 @@ export default async function MechanicsPage({
 
       {tab === "performa" && (
         <>
-          <div className="flex flex-wrap gap-1 rounded-xl bg-gray-100 p-1 w-fit">
+          <div className="mx-auto flex flex-wrap justify-center gap-1 rounded-xl bg-gray-100 p-1 w-fit">
             {(
               [
                 ["activity", "Log Aktivitas"],

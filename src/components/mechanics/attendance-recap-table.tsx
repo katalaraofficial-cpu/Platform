@@ -129,6 +129,23 @@ export function AttendanceRecapTable({
     return total;
   }
 
+  function rowPresentDays(engineerId: string) {
+    const days = recordMap.get(engineerId);
+    if (!days) return 0;
+    let count = 0;
+    if (weekDays.length > 0) {
+      for (const wd of weekDays) {
+        const rec = days.get(wd.date);
+        if (rec && rec.status === "present") count++;
+      }
+    } else {
+      for (const rec of days.values()) {
+        if (rec.status === "present") count++;
+      }
+    }
+    return count;
+  }
+
   function handleBulkDelete() {
     const ids: string[] = [];
     for (const engId of selected) {
@@ -318,13 +335,14 @@ export function AttendanceRecapTable({
                 <th className="px-3 py-3 text-center">Hari Hadir</th>
               )}
               <th className="px-3 py-3 text-center">Total Jam</th>
+              <th className="px-3 py-3 text-center">Rata-rata Jam/Hari</th>
               <th className="px-3 py-3 text-center">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {pageEngineers.length === 0 ? (
               <tr>
-                <td colSpan={weekDays.length + 5} className="px-4 py-10 text-center text-gray-400">
+                <td colSpan={weekDays.length + 6} className="px-4 py-10 text-center text-gray-400">
                   Belum ada engineer
                 </td>
               </tr>
@@ -332,6 +350,8 @@ export function AttendanceRecapTable({
               pageEngineers.map((eng, idx) => {
                 const days = recordMap.get(eng.id);
                 const total = rowTotal(eng.id);
+                const presentDays = rowPresentDays(eng.id);
+                const avg = presentDays > 0 ? total / presentDays : 0;
                 return (
                   <tr key={eng.id} className="border-b border-gray-50 last:border-0 hover:bg-gray-50/50">
                     <td className="px-3 py-2.5">
@@ -381,6 +401,9 @@ export function AttendanceRecapTable({
                     )}
                     <td className="px-3 py-2.5 text-center font-bold tabular-nums text-gray-800">
                       {fmtHours(total)}j
+                    </td>
+                    <td className="px-3 py-2.5 text-center tabular-nums text-gray-600">
+                      {presentDays > 0 ? `${fmtHours(avg)}j` : "—"}
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <span className="text-[11px] text-gray-400">

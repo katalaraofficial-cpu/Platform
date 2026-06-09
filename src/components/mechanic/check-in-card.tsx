@@ -2,9 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { MapPin, Clock, CheckCircle2, LogIn } from "lucide-react";
+import { MapPin, CheckCircle2, LogIn, LogOut, HeartHandshake } from "lucide-react";
 import { toast } from "sonner";
-import { submitCheckIn } from "@/lib/actions/attendance";
+import { submitCheckIn, submitCheckOut } from "@/lib/actions/attendance";
 import type { AttendanceRecord } from "@/types/database";
 
 function fmtTime(iso: string) {
@@ -57,6 +57,18 @@ export function CheckInCard({
     );
   }
 
+  function handleCheckOut() {
+    if (!confirm("Konfirmasi pulang / checkout sekarang?")) return;
+    startTransition(async () => {
+      const res = await submitCheckOut();
+      if (res.error) toast.error(res.error);
+      else {
+        toast.success(res.success);
+        router.refresh();
+      }
+    });
+  }
+
   // Modul aktif tapi owner belum set lokasi.
   if (!hasActiveLocation) {
     return (
@@ -73,31 +85,36 @@ export function CheckInCard({
   // Sudah absen hari ini.
   if (todayRecord) {
     const isField = todayRecord.mode === "field";
+    const isCheckedOut = Boolean(todayRecord.checked_out_at);
     return (
       <div className="rounded-2xl border border-emerald-100 bg-emerald-50 p-6">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="h-6 w-6 text-emerald-500" />
-          <p className="text-base font-bold text-emerald-800">Sudah absen hari ini</p>
+          <p className="text-base font-bold text-emerald-800">
+            {isCheckedOut ? "Kehadiran selesai" : "Sudah absen hari ini"}
+          </p>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="rounded-xl bg-white/70 px-4 py-3">
             <div className="flex items-center gap-1.5 text-emerald-500">
               <LogIn className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide">Masuk</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide">Jam Masuk</span>
             </div>
             <p className="mt-1 text-xl font-bold text-emerald-700 tabular-nums">
               {fmtTime(todayRecord.check_in_at)}
             </p>
           </div>
-          <div className="rounded-xl bg-white/70 px-4 py-3">
-            <div className="flex items-center gap-1.5 text-emerald-500">
-              <Clock className="h-3.5 w-3.5" />
-              <span className="text-[11px] font-semibold uppercase tracking-wide">Keluar (auto)</span>
+          {isCheckedOut && (
+            <div className="rounded-xl bg-white/70 px-4 py-3">
+              <div className="flex items-center gap-1.5 text-emerald-500">
+                <LogOut className="h-3.5 w-3.5" />
+                <span className="text-[11px] font-semibold uppercase tracking-wide">Jam Pulang</span>
+              </div>
+              <p className="mt-1 text-xl font-bold text-emerald-700 tabular-nums">
+                {fmtTime(todayRecord.check_out_at)}
+              </p>
             </div>
-            <p className="mt-1 text-xl font-bold text-emerald-700 tabular-nums">
-              {fmtTime(todayRecord.check_out_at)}
-            </p>
-          </div>
+          )}
         </div>
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <span
@@ -113,13 +130,26 @@ export function CheckInCard({
               {locationName}
             </span>
           )}
-          {todayRecord.distance_m !== null && (
-            <span className="text-xs text-emerald-500">±{todayRecord.distance_m} m dari titik</span>
-          )}
         </div>
-        <p className="mt-3 text-xs text-emerald-600">
-          Jam keluar tercatat otomatis 8 jam setelah absen masuk.
-        </p>
+        <div className="mt-4 flex items-center gap-2 rounded-xl bg-white/60 px-4 py-3">
+          <HeartHandshake className="h-5 w-5 shrink-0 text-emerald-500" />
+          <p className="text-sm font-medium text-emerald-700">
+            {isCheckedOut
+              ? "Terima kasih atas kerja kerasnya hari ini. Sampai jumpa!"
+              : "Terima kasih sudah hadir. Selamat bekerja!"}
+          </p>
+        </div>
+        {!isCheckedOut && (
+          <button
+            type="button"
+            onClick={handleCheckOut}
+            disabled={pending}
+            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-300 bg-white px-5 py-3 text-sm font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-50"
+          >
+            <LogOut className="h-4 w-4" />
+            {pending ? "Memproses..." : "Pulang / Check Out"}
+          </button>
+        )}
       </div>
     );
   }
@@ -143,9 +173,6 @@ export function CheckInCard({
         <LogIn className="h-4 w-4" />
         {geoPending ? "Mengambil lokasi..." : pending ? "Memproses..." : "Absen Masuk Sekarang"}
       </button>
-      <p className="mt-3 text-[11px] text-gray-400">
-        Jam keluar akan tercatat otomatis 8 jam setelah absen masuk.
-      </p>
     </div>
   );
 }

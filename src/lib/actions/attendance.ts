@@ -249,6 +249,59 @@ export async function submitCheckIn(coords: {
   }
 }
 
+// ── Engineer checkout manual (pulang lebih awal, opsional) ──
+export async function submitCheckOut(): Promise<AttendanceActionState> {
+  try {
+    const ctx = await getUserContext();
+    if (!ctx.tenantId || ctx.role !== "mechanic")
+      return { error: "Hanya engineer yang dapat melakukan checkout" };
+    if (ctx.featureToggles?.module_attendance !== true)
+      return { error: "Modul absensi belum diaktifkan oleh admin platform" };
+
+    const admin = createTenantAdminClient(ctx.tenantId);
+    const todayStr = jakartaToday();
+
+    // Ambil kehadiran hari ini.
+    const { data: recRows } = await admin
+      .from("attendance_records")
+      .select("id, check_in_at, check_out_at, checked_out_at")
+      .eq("tenant_id", ctx.tenantId)
+      .eq("profile_id", ctx.id)
+      .eq("attendance_date", todayStr)
+      .limit(1);
+    const rec = (recRows ?? [])[0] as
+      | { id: string; check_in_at: string; check_out_at: string; checked_out_at: string | null }
+      | undefined;
+    if (!rec) return { error: "Anda belum absen masuk hari ini" };
+    if (rec.checked_out_at) return { error: "Anda sudah checkout hari ini" };
+
+    const now = new Date();
+    const inMs = new Date(rec.check_in_at).getTime();
+    if (now.getTime() <= inMs)
+      return { error: "Waktu checkout tidak valid" };
+
+    // Checkout aktual = sekarang (boleh kurang dari 8 jam → durasi berkurang).
+    const autoOutMs = new Date(rec.check_out_at).getTime();
+    const actualOutMs = Math.min(now.getTime(), autoOutMs); // tidak melebihi auto 8 jam
+    const actualOut = new Date(actualOutMs).toISOString();
+
+    const { error } = await admin
+      .from("attendance_records")
+      .update({
+        check_out_at: actualOut,
+        checked_out_at: now.toISOString(),
+      })
+      .eq("id", rec.id)
+      .eq("tenant_id", ctx.tenantId);
+    if (error) return { error: error.message };
+
+    revalidatePath("/mechanic/dashboard");
+    return { success: "Checkout berhasil. Hati-hati di jalan!" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
 // ── Owner: sesuaikan jam kehadiran (override durasi manual) ──
 // Mendukung skenario terlambat: owner set jam masuk/keluar aktual.
 // Bila recordId kosong → buat entri manual untuk tanggal tsb.

@@ -292,6 +292,7 @@ export interface AttendanceRecord {
   attendance_date: string;
   check_in_at: string;
   check_out_at: string;
+  checked_out_at: string | null;
   check_in_lat: number | null;
   check_in_lng: number | null;
   distance_m: number | null;

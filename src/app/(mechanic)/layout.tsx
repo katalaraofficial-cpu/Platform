@@ -1,15 +1,8 @@
 import { getUserContext } from "@/lib/get-user-context";
-import { MobileBottomNav } from "@/components/layout/mobile-bottom-nav";
+import { MechanicBottomNav } from "@/components/mechanic/mechanic-bottom-nav";
 import { signOut } from "@/lib/actions/auth";
-import { ClipboardList, UploadCloud, BookOpen, LogOut } from "lucide-react";
-import type { NavItem } from "@/components/layout/types";
+import { LogOut } from "lucide-react";
 import { PrivateSidebarToggle } from "@/components/mechanic/private-sidebar-toggle";
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Work Order", href: "/mechanic/dashboard", icon: <ClipboardList className="h-5 w-5" /> },
-  { label: "Upload Struk", href: "/mechanic/receipts", icon: <UploadCloud className="h-5 w-5" /> },
-  { label: "Piutang Saya", href: "/mechanic/debts", icon: <BookOpen className="h-5 w-5" /> },
-];
 
 export default async function MechanicLayout({
   children,
@@ -61,7 +54,7 @@ export default async function MechanicLayout({
       </main>
 
       {/* ── Bottom navigation ── */}
-      <MobileBottomNav navItems={NAV_ITEMS} />
+      <MechanicBottomNav />
     </div>
   );
 }

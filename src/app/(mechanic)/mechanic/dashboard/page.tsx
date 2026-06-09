@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
 import { SubmitPointClaimCard } from "@/components/mechanics/submit-point-claim-card";
 import { CheckInCard } from "@/components/mechanic/check-in-card";
+import { AttendanceLogTable } from "@/components/mechanic/attendance-log-table";
 import { summarizeEmployeePoints } from "@/lib/employee-point-summary";
 import type {
   Invoice,
@@ -185,6 +186,7 @@ export default async function MechanicDashboard({
   // 8. Attendance data (only when tab active)
   let todayAttendance: AttendanceRecord | null = null;
   let activeLocations: WorkLocation[] = [];
+  let attendanceLog: AttendanceRecord[] = [];
   if (activeTab === "kehadiran" && ctx.tenantId) {
     const todayJakarta = new Intl.DateTimeFormat("en-CA", {
       timeZone: "Asia/Jakarta",
@@ -192,7 +194,7 @@ export default async function MechanicDashboard({
       month: "2-digit",
       day: "2-digit",
     }).format(new Date());
-    const [{ data: recRows }, { data: locRows }] = await Promise.all([
+    const [{ data: recRows }, { data: locRows }, { data: logRows }] = await Promise.all([
       supabase
         .from("attendance_records")
         .select("*")
@@ -205,9 +207,17 @@ export default async function MechanicDashboard({
         .select("*")
         .eq("tenant_id", ctx.tenantId)
         .eq("is_active", true),
+      supabase
+        .from("attendance_records")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("profile_id", ctx.id)
+        .order("attendance_date", { ascending: false })
+        .limit(30),
     ]);
     todayAttendance = ((recRows ?? [])[0] as AttendanceRecord | null) ?? null;
     activeLocations = (locRows as WorkLocation[] | null) ?? [];
+    attendanceLog = (logRows as AttendanceRecord[] | null) ?? [];
   }
   const todayLocationName =
     todayAttendance?.location_id
@@ -524,14 +534,7 @@ export default async function MechanicDashboard({
             todayRecord={todayAttendance}
             locationName={todayLocationName}
           />
-          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
-            <p className="font-semibold">Info Absensi</p>
-            <ul className="mt-1 space-y-1 text-xs text-blue-600">
-              <li>Absen masuk dilakukan manual saat tiba di lokasi kerja.</li>
-              <li>Posisi GPS Anda divalidasi dengan radius lokasi kerja.</li>
-              <li>Jam keluar tercatat otomatis 8 jam setelah absen masuk.</li>
-            </ul>
-          </div>
+          <AttendanceLogTable records={attendanceLog} />
         </div>
       )}
     </div>

@@ -9,6 +9,7 @@ interface FeatureToggles {
   module_mechanic_portal: boolean;
   module_customer_history: boolean;
   module_engineer: boolean;
+  module_attendance: boolean;
 }
 
 interface Props {
@@ -24,6 +25,7 @@ const TOGGLE_LABELS: Record<keyof FeatureToggles, string> = {
   module_mechanic_portal: "Portal Mekanik & Hutang",
   module_customer_history: "Riwayat Pelanggan",
   module_engineer: "Engineer (Performa & Reimburse)",
+  module_attendance: "Absensi & Kehadiran (GPS)",
 };
 
 export function TenantDetailForms({ tenantId, isActive, toggles }: Props) {

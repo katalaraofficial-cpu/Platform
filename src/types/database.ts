@@ -24,6 +24,7 @@ export interface FeatureToggles {
   module_invoice_dp: boolean;
   module_invoice_ppn: boolean;
   module_invoice_pph: boolean;
+  module_attendance: boolean;
 }
 
 // ── Vehicle info shape (stored as JSONB in customers) ───────
@@ -266,6 +267,39 @@ export interface TenantRequest {
   created_at: string;
 }
 
+export interface WorkLocation {
+  id: string;
+  tenant_id: string;
+  name: string;
+  latitude: number;
+  longitude: number;
+  radius_m: number;
+  allow_field_work: boolean;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export type AttendanceMode = "office" | "field";
+export type AttendanceStatus = "present" | "invalid";
+
+export interface AttendanceRecord {
+  id: string;
+  tenant_id: string;
+  profile_id: string;
+  location_id: string | null;
+  mode: AttendanceMode;
+  attendance_date: string;
+  check_in_at: string;
+  check_out_at: string;
+  check_in_lat: number | null;
+  check_in_lng: number | null;
+  distance_m: number | null;
+  status: AttendanceStatus;
+  notes: string | null;
+  created_at: string;
+}
+
 // ============================================================
 // Supabase Database schema type (for createClient<Database>)
 // ============================================================
@@ -449,6 +483,22 @@ export interface Database {
           default_sell_price: number;
           updated_at: string;
         }>;
+        Relationships: never[];
+      };
+      work_locations: {
+        Row: WorkLocation & Record<string, unknown>;
+        Insert: Pick<WorkLocation, "tenant_id" | "name" | "latitude" | "longitude"> &
+          Partial<Omit<WorkLocation, "id" | "tenant_id" | "name" | "latitude" | "longitude" | "created_at" | "updated_at">> &
+          Partial<Pick<WorkLocation, "id" | "created_at" | "updated_at">>;
+        Update: Partial<Omit<WorkLocation, "id" | "tenant_id" | "created_at">>;
+        Relationships: never[];
+      };
+      attendance_records: {
+        Row: AttendanceRecord & Record<string, unknown>;
+        Insert: Pick<AttendanceRecord, "tenant_id" | "profile_id" | "check_out_at"> &
+          Partial<Omit<AttendanceRecord, "tenant_id" | "profile_id" | "check_out_at" | "created_at">> &
+          Partial<Pick<AttendanceRecord, "created_at">>;
+        Update: Partial<Omit<AttendanceRecord, "id" | "tenant_id" | "profile_id" | "created_at">>;
         Relationships: never[];
       };
     };

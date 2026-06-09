@@ -171,6 +171,7 @@ export async function updateFeatureToggles(
     module_invoice_dp: formData.get("module_invoice_dp") === "on",
     module_invoice_ppn: formData.get("module_invoice_ppn") === "on",
     module_invoice_pph: formData.get("module_invoice_pph") === "on",
+    module_attendance: formData.get("module_attendance") === "on",
   };
 
   const { error } = await supabase
@@ -352,6 +353,7 @@ export async function approveRegistration(
         module_invoice_dp: false,
         module_invoice_ppn: true,
         module_invoice_pph: true,
+        module_attendance: false,
       },
     })
     .select("id")

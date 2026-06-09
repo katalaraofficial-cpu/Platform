@@ -86,15 +86,15 @@ async function reconcileInvoiceMechanicPoints(params: {
     Number(settings?.reward_spend_per_point ?? 0) > 0;
 
   if (canAward) {
-    const basePoints = Math.floor(amount / Number(settings?.reward_spend_per_point ?? 0));
-    if (basePoints > 0) {
-      for (const m of mechanics ?? []) {
-        const multiplier = m.mechanic_role === "lead"
-          ? Number(settings?.reward_lead_multiplier ?? 1)
-          : Number(settings?.reward_helper_multiplier ?? 0.5);
-        const earned = Math.floor(basePoints * multiplier);
-        if (earned > 0) expectedByProfile.set(m.mechanic_id, earned);
-      }
+    const spendPerPoint = Number(settings?.reward_spend_per_point ?? 0);
+    for (const m of mechanics ?? []) {
+      const multiplier = m.mechanic_role === "lead"
+        ? Number(settings?.reward_lead_multiplier ?? 1)
+        : Number(settings?.reward_helper_multiplier ?? 0.5);
+      // Floor sekali pada (amount * multiplier) / spendPerPoint agar fraksi point
+      // helper (multiplier < 1) tidak hilang karena pembulatan ganda.
+      const earned = Math.floor((amount * multiplier) / spendPerPoint);
+      if (earned > 0) expectedByProfile.set(m.mechanic_id, earned);
     }
   }
 

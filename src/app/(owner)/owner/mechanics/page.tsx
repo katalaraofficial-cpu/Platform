@@ -309,36 +309,36 @@ export default async function MechanicsPage({
       </div>
 
       {/* ── KPI row ────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Users className="h-4 w-4 text-gray-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Engineer</span>
+            <Users className="h-4 w-4 shrink-0 text-gray-400" />
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-gray-500">Total Engineer</span>
           </div>
-          <p className="text-3xl font-bold text-gray-900">{mechanics.length}</p>
+          <p className="truncate text-3xl font-bold text-gray-900 tabular-nums">{mechanics.length}</p>
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-violet-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Total Revenue</span>
+            <TrendingUp className="h-4 w-4 shrink-0 text-violet-400" />
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-gray-500">Total Revenue</span>
           </div>
-          <p className="text-2xl font-bold text-violet-600">{fmt(totalRevenueAll)}</p>
-          <p className="mt-1 text-xs text-gray-400">dari invoice lunas</p>
+          <p className="truncate text-xl font-bold text-violet-600 tabular-nums sm:text-2xl" title={fmt(totalRevenueAll)}>{fmt(totalRevenueAll)}</p>
+          <p className="mt-1 truncate text-xs text-gray-400">dari invoice lunas</p>
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-red-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Hutang Belum Bayar</span>
+            <Wallet className="h-4 w-4 shrink-0 text-red-400" />
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-gray-500">Hutang Belum Bayar</span>
           </div>
-          <p className="text-2xl font-bold text-red-600">{fmt(totalOutstanding)}</p>
+          <p className="truncate text-xl font-bold text-red-600 tabular-nums sm:text-2xl" title={fmt(totalOutstanding)}>{fmt(totalOutstanding)}</p>
         </div>
-        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <div className="min-w-0 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <AlertCircle className="h-4 w-4 text-amber-400" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-500">Belum Lunas</span>
+            <AlertCircle className="h-4 w-4 shrink-0 text-amber-400" />
+            <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wider text-gray-500">Belum Lunas</span>
           </div>
-          <p className="text-3xl font-bold text-amber-600">{mechanicsWithDebt}</p>
-          <p className="mt-1 text-xs text-gray-400">dari {mechanics.length} engineer</p>
+          <p className="truncate text-3xl font-bold text-amber-600 tabular-nums">{mechanicsWithDebt}</p>
+          <p className="mt-1 truncate text-xs text-gray-400">dari {mechanics.length} engineer</p>
         </div>
       </div>
 
@@ -438,15 +438,15 @@ export default async function MechanicsPage({
                         <p className="truncate font-semibold text-gray-900">{mechanic.full_name}</p>
                         <p className="text-xs text-gray-400">Engineer</p>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex shrink-0 flex-col items-end gap-1">
                         {perf.leadCount > 0 && (
-                          <span className="flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
-                            <Star className="h-3 w-3" />
+                          <span className="flex items-center gap-1 whitespace-nowrap rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700">
+                            <Star className="h-3 w-3 shrink-0" />
                             Lead ×{perf.leadCount}
                           </span>
                         )}
                         {perf.helperCount > 0 && (
-                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
+                          <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                             Helper ×{perf.helperCount}
                           </span>
                         )}
@@ -541,33 +541,33 @@ export default async function MechanicsPage({
                     )}
 
                     {/* Job stats grid */}
-                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
-                      <div className="rounded-xl bg-blue-50 p-2.5 text-center">
-                        <p className="text-lg font-bold text-blue-700">{perf.inProgress}</p>
-                        <p className="text-[10px] text-blue-400 font-medium">Aktif</p>
+                    <div className="mt-3 grid grid-cols-3 gap-1.5 sm:grid-cols-5">
+                      <div className="min-w-0 rounded-xl bg-blue-50 p-2 text-center">
+                        <p className="text-lg font-bold text-blue-700 tabular-nums">{perf.inProgress}</p>
+                        <p className="truncate text-[10px] font-medium text-blue-400">Aktif</p>
                       </div>
-                      <div className="rounded-xl bg-emerald-50 p-2.5 text-center">
-                        <p className="text-lg font-bold text-emerald-700">{perf.completed + perf.paid}</p>
-                        <p className="text-[10px] text-emerald-400 font-medium">Selesai</p>
+                      <div className="min-w-0 rounded-xl bg-emerald-50 p-2 text-center">
+                        <p className="text-lg font-bold text-emerald-700 tabular-nums">{perf.completed + perf.paid}</p>
+                        <p className="truncate text-[10px] font-medium text-emerald-400">Selesai</p>
                       </div>
-                      <div className="rounded-xl bg-gray-50 p-2.5 text-center">
-                        <p className="text-lg font-bold text-gray-700">{perf.total}</p>
-                        <p className="text-[10px] text-gray-400 font-medium">Total</p>
+                      <div className="min-w-0 rounded-xl bg-gray-50 p-2 text-center">
+                        <p className="text-lg font-bold text-gray-700 tabular-nums">{perf.total}</p>
+                        <p className="truncate text-[10px] font-medium text-gray-400">Total</p>
                       </div>
-                      <div className="rounded-xl bg-rose-50 p-2.5 text-center">
-                        <p className="text-lg font-bold text-rose-600">{perf.complaintCount}</p>
-                        <p className="inline-flex items-center gap-1 text-[10px] font-medium text-rose-400">
-                          <MessageSquareWarning className="h-3 w-3" />
-                          Komplain
+                      <div className="min-w-0 rounded-xl bg-rose-50 p-2 text-center">
+                        <p className="text-lg font-bold text-rose-600 tabular-nums">{perf.complaintCount}</p>
+                        <p className="flex items-center justify-center gap-0.5 text-[10px] font-medium text-rose-400">
+                          <MessageSquareWarning className="h-3 w-3 shrink-0" />
+                          <span className="truncate">Komplain</span>
                         </p>
                       </div>
-                      <div className="rounded-xl bg-amber-50 p-2.5 text-center">
-                        <p className="text-lg font-bold text-amber-600">
+                      <div className="min-w-0 rounded-xl bg-amber-50 p-2 text-center">
+                        <p className="text-lg font-bold text-amber-600 tabular-nums">
                           {perf.attendancePct === null ? "-" : `${perf.attendancePct}%`}
                         </p>
-                        <p className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-500">
-                          <CalendarCheck2 className="h-3 w-3" />
-                          Kehadiran
+                        <p className="flex items-center justify-center gap-0.5 text-[10px] font-medium text-amber-500">
+                          <CalendarCheck2 className="h-3 w-3 shrink-0" />
+                          <span className="truncate">Kehadiran</span>
                         </p>
                       </div>
                     </div>

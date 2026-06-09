@@ -362,18 +362,19 @@ export async function syncEngineerPoints(): Promise<SettingsActionState> {
         assignmentsByInvoice.set(row.invoice_id, list);
       }
 
+      const spendPerPoint = Number(settings?.reward_spend_per_point ?? 0);
       for (const [invoiceId, status] of invoiceStatusById.entries()) {
         if (status !== "paid") continue;
         const amount = Number(invoiceAmountById.get(invoiceId) ?? 0);
         if (amount <= 0) continue;
-        const basePoints = Math.floor(amount / Number(settings?.reward_spend_per_point ?? 0));
-        if (basePoints <= 0) continue;
 
         for (const m of assignmentsByInvoice.get(invoiceId) ?? []) {
           const multiplier = m.mechanic_role === "lead"
             ? Number(settings?.reward_lead_multiplier ?? 1)
             : Number(settings?.reward_helper_multiplier ?? 0.5);
-          const expected = Math.floor(basePoints * multiplier);
+          // Floor sekali pada (amount * multiplier) / spendPerPoint agar fraksi point
+          // helper (multiplier < 1) tidak hilang karena pembulatan ganda.
+          const expected = Math.floor((amount * multiplier) / spendPerPoint);
           if (expected <= 0) continue;
           const key = `${invoiceId}:${m.mechanic_id}`;
           expectedByKey.set(key, expected);

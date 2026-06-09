@@ -264,6 +264,53 @@ export default async function MechanicsPage({
     perfMap.set(row.mechanic_id, prev);
   }
 
+  // ── Attendance (bulan berjalan, WIB) ─────────────────────────
+  const jakartaNow = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Jakarta",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  const todayStr = jakartaNow; // YYYY-MM-DD
+  const monthStartStr = todayStr.slice(0, 8) + "01";
+  const elapsedDays = Number(todayStr.slice(8, 10)) || 1;
+
+  const { data: attendanceRaw } = await supabase
+    .from("attendance_records")
+    .select("profile_id, attendance_date, check_in_at, check_out_at, mode, status")
+    .eq("tenant_id", tenantId)
+    .gte("attendance_date", monthStartStr)
+    .lte("attendance_date", todayStr);
+
+  type AttRow = {
+    profile_id: string;
+    attendance_date: string;
+    check_in_at: string;
+    check_out_at: string;
+    mode: string;
+    status: string;
+  };
+  const attRows = (attendanceRaw as AttRow[] | null) ?? [];
+  type AttStat = { presentDays: number; today: AttRow | null };
+  const attendanceMap = new Map<string, AttStat>();
+  for (const r of attRows) {
+    const prev = attendanceMap.get(r.profile_id) ?? { presentDays: 0, today: null };
+    if (r.status === "present") prev.presentDays++;
+    if (r.attendance_date === todayStr) prev.today = r;
+    attendanceMap.set(r.profile_id, prev);
+  }
+  // Isi attendancePct ke perfMap.
+  for (const m of mechanics) {
+    const stat = attendanceMap.get(m.id);
+    const perf = perfMap.get(m.id);
+    if (perf) {
+      perf.attendancePct =
+        stat && elapsedDays > 0
+          ? Math.min(100, Math.round((stat.presentDays / elapsedDays) * 100))
+          : 0;
+    }
+  }
+
   // KPIs
   const totalOutstanding = [...debtMap.values()].reduce(
     (s, r) => s + Math.max(0, Number(r.outstanding_balance)),
@@ -485,26 +532,59 @@ export default async function MechanicsPage({
                       </div>
                     )}
 
-                    {ownerView === "attendance" && (
-                      <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3">
-                        <p className="text-xs font-medium text-amber-500">Kehadiran</p>
-                        <div className="mt-2 grid grid-cols-3 gap-2">
-                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
-                            <p className="text-lg font-bold text-amber-700">{perf.total}</p>
-                            <p className="text-[10px] text-amber-500">Assignment</p>
+                    {ownerView === "attendance" && (() => {
+                      const att = attendanceMap.get(mechanic.id);
+                      const today = att?.today ?? null;
+                      const fmtT = (iso: string) =>
+                        new Date(iso).toLocaleTimeString("id-ID", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                          timeZone: "Asia/Jakarta",
+                        });
+                      return (
+                        <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium text-amber-600">Kehadiran Bulan Ini</p>
+                            {today ? (
+                              <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                                today.mode === "field"
+                                  ? "bg-amber-100 text-amber-700"
+                                  : "bg-emerald-100 text-emerald-700"
+                              }`}>
+                                {today.mode === "field" ? "Lapangan" : "Hadir"}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-semibold text-gray-500">
+                                Belum absen
+                              </span>
+                            )}
                           </div>
-                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
-                            <p className="text-lg font-bold text-amber-700">-</p>
-                            <p className="text-[10px] text-amber-500">Estimasi Jam Invoice</p>
+                          <div className="mt-2 grid grid-cols-3 gap-2">
+                            <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                              <p className="text-lg font-bold text-amber-700">{att?.presentDays ?? 0}</p>
+                              <p className="text-[10px] text-amber-500">Hari Hadir</p>
+                            </div>
+                            <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                              <p className="text-lg font-bold text-amber-700">
+                                {perf.attendancePct === null ? "-" : `${perf.attendancePct}%`}
+                              </p>
+                              <p className="text-[10px] text-amber-500">Persentase</p>
+                            </div>
+                            <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
+                              <p className="text-sm font-bold text-amber-700 tabular-nums">
+                                {today ? fmtT(today.check_in_at) : "—"}
+                              </p>
+                              <p className="text-[10px] text-amber-500">Masuk Hari Ini</p>
+                            </div>
                           </div>
-                          <div className="rounded-lg bg-white/70 px-2.5 py-2 text-center">
-                            <p className="text-lg font-bold text-amber-700">-</p>
-                            <p className="text-[10px] text-amber-500">Absensi</p>
-                          </div>
+                          {today && (
+                            <p className="mt-2 text-xs text-amber-500">
+                              Keluar otomatis: {fmtT(today.check_out_at)} · dari {elapsedDays} hari berjalan
+                            </p>
+                          )}
                         </div>
-                        <p className="mt-2 text-xs text-amber-500">Sinkron absensi belum dihubungkan. Nilai jam di atas adalah estimasi dari selisih waktu invoice dibuat hingga selesai.</p>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {ownerView === "insentif" && (
                       <div className="mt-4 rounded-xl bg-amber-50 px-4 py-3">

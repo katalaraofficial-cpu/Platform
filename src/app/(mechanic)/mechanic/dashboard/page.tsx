@@ -3,6 +3,7 @@ import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { ChevronRight, ClipboardList, Gift, TrendingUp, ArrowDownLeft } from "lucide-react";
 import { SubmitPointClaimCard } from "@/components/mechanics/submit-point-claim-card";
+import { CheckInCard } from "@/components/mechanic/check-in-card";
 import { summarizeEmployeePoints } from "@/lib/employee-point-summary";
 import type {
   Invoice,
@@ -11,6 +12,8 @@ import type {
   MechanicRoleInInvoice,
   EmployeePointTransaction,
   PointRedemptionRequest,
+  AttendanceRecord,
+  WorkLocation,
 } from "@/types/database";
 
 const STATUS_LABELS: Record<InvoiceStatus, string> = {
@@ -60,10 +63,19 @@ export default async function MechanicDashboard({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const { tab } = await searchParams;
-  const activeTab = tab === "all" ? "all" : tab === "point" ? "point" : "active";
 
   const supabase = await createClient();
   const ctx = await getUserContext();
+
+  const attendanceEnabled = ctx.featureToggles?.module_attendance === true;
+  const activeTab =
+    tab === "all"
+      ? "all"
+      : tab === "point"
+        ? "point"
+        : tab === "kehadiran" && attendanceEnabled
+          ? "kehadiran"
+          : "active";
 
   // 1. Fetch assignments for this mechanic
   const { data: assignments } = await supabase
@@ -170,6 +182,38 @@ export default async function MechanicDashboard({
     }))
   );
 
+  // 8. Attendance data (only when tab active)
+  let todayAttendance: AttendanceRecord | null = null;
+  let activeLocations: WorkLocation[] = [];
+  if (activeTab === "kehadiran" && ctx.tenantId) {
+    const todayJakarta = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jakarta",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const [{ data: recRows }, { data: locRows }] = await Promise.all([
+      supabase
+        .from("attendance_records")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("profile_id", ctx.id)
+        .eq("attendance_date", todayJakarta)
+        .limit(1),
+      supabase
+        .from("work_locations")
+        .select("*")
+        .eq("tenant_id", ctx.tenantId)
+        .eq("is_active", true),
+    ]);
+    todayAttendance = ((recRows ?? [])[0] as AttendanceRecord | null) ?? null;
+    activeLocations = (locRows as WorkLocation[] | null) ?? [];
+  }
+  const todayLocationName =
+    todayAttendance?.location_id
+      ? activeLocations.find((l) => l.id === todayAttendance!.location_id)?.name ?? null
+      : null;
+
   return (
     <div>
       {/* Header */}
@@ -217,10 +261,22 @@ export default async function MechanicDashboard({
         >
           Point
         </Link>
+        {attendanceEnabled && (
+          <Link
+            href="/mechanic/dashboard?tab=kehadiran"
+            className={`flex-1 rounded-lg py-2 text-center text-sm font-semibold transition-colors ${
+              activeTab === "kehadiran"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500"
+            }`}
+          >
+            Kehadiran
+          </Link>
+        )}
       </div>
 
       {/* Work order list only for Active/All tabs */}
-      {activeTab !== "point" && (
+      {activeTab !== "point" && activeTab !== "kehadiran" && (
         <>
           {/* Empty state */}
           {filtered.length === 0 ? (
@@ -456,6 +512,25 @@ export default async function MechanicDashboard({
                 ))}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB: Kehadiran ──────────────────────────────────── */}
+      {activeTab === "kehadiran" && (
+        <div className="space-y-4">
+          <CheckInCard
+            hasActiveLocation={activeLocations.length > 0}
+            todayRecord={todayAttendance}
+            locationName={todayLocationName}
+          />
+          <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 text-sm text-blue-700">
+            <p className="font-semibold">Info Absensi</p>
+            <ul className="mt-1 space-y-1 text-xs text-blue-600">
+              <li>Absen masuk dilakukan manual saat tiba di lokasi kerja.</li>
+              <li>Posisi GPS Anda divalidasi dengan radius lokasi kerja.</li>
+              <li>Jam keluar tercatat otomatis 8 jam setelah absen masuk.</li>
+            </ul>
           </div>
         </div>
       )}

@@ -30,6 +30,8 @@ import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import { DEFAULT_WA_TEMPLATE } from "@/lib/wa-template";
 import { useRouter } from "next/navigation";
+import type { WorkLocation } from "@/types/database";
+import { WorkLocationManager } from "@/components/owner/work-location-manager";
 
 const NOTA_CONFIG_MARKER = "__KATALARA_NOTA_CONFIG__";
 
@@ -114,11 +116,15 @@ export function SettingsTabs({
   settings,
   tenantId,
   featureToggles,
+  attendanceEnabled,
+  workLocations,
 }: {
   activeTab: string;
   settings: Settings | null;
   tenantId: string;
   featureToggles: FeatureToggles | null;
+  attendanceEnabled: boolean;
+  workLocations: WorkLocation[];
 }) {
   return (
     <div className="flex flex-col gap-5">
@@ -149,7 +155,9 @@ export function SettingsTabs({
         {activeTab === "toko" && <TabToko s={settings} tenantId={tenantId} />}
         {activeTab === "platform" && <TabPlatform s={settings} />}
         {activeTab === "modul-invoice" && <TabModulInvoice featureToggles={featureToggles} />}
-        {activeTab === "lokasi" && <TabLokasiKerja />}
+        {activeTab === "lokasi" && (
+          <TabLokasiKerja enabled={attendanceEnabled} locations={workLocations} />
+        )}
         {activeTab === "nota" && <TabNota s={settings} tenantId={tenantId} />}
         {activeTab === "reward" && <TabReward s={settings} />}
         {activeTab === "reset" && <TabReset />}
@@ -385,8 +393,14 @@ function ModuleToggleRow({
   );
 }
 
-// ── Tab 2c: Lokasi Kerja (placeholder — fitur menyusul) ─────
-function TabLokasiKerja() {
+// ── Tab 2c: Lokasi Kerja ─────────────────────────────────────
+function TabLokasiKerja({
+  enabled,
+  locations,
+}: {
+  enabled: boolean;
+  locations: WorkLocation[];
+}) {
   return (
     <div className="flex w-full max-w-2xl flex-col gap-5">
       <div>
@@ -397,15 +411,18 @@ function TabLokasiKerja() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-8 text-center">
-        <MapPin className="mx-auto h-10 w-10 text-gray-300" />
-        <p className="mt-3 text-sm font-semibold text-gray-700">Fitur belum aktif</p>
-        <p className="mt-1 text-xs text-gray-500">
-          Modul absensi GPS akan segera tersedia.
-          <br />
-          Konfigurasi titik lokasi & radius geofence dapat diatur di sini setelah modul diluncurkan.
-        </p>
-      </div>
+      {enabled ? (
+        <WorkLocationManager locations={locations} />
+      ) : (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/60 p-8 text-center">
+          <MapPin className="mx-auto h-10 w-10 text-gray-300" />
+          <p className="mt-3 text-sm font-semibold text-gray-700">Modul belum diaktifkan platform</p>
+          <p className="mt-1 text-xs text-gray-500">
+            Hubungi admin platform untuk mengaktifkan modul Absensi &amp; Kehadiran (GPS)
+            sebelum mengatur lokasi kerja.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

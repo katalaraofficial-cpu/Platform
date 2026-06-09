@@ -2,7 +2,7 @@
 
 > **Baca file ini dulu sebelum mulai coding.** Ini adalah briefing lengkap tentang platform, keputusan teknis yang sudah dibuat, status setiap modul, dan hal-hal yang tidak boleh diubah tanpa alasan kuat.
 >
-> **Last updated:** 6 Juni 2026 — sync setelah commit `d12cc64`
+> **Last updated:** 9 Juni 2026 — sync setelah commit `4da6e37`
 
 ---
 
@@ -53,6 +53,12 @@
   - `searchItemDescriptions` (di `src/lib/actions/invoice.ts`) diperluas mengembalikan `{description, item_type, unit_price, sell_price, unit_label}`.
   - Helper `applySuggestion(s)` mengisi `itemType`, `itemUnitLabel`, `itemSellPrice`, dan `itemBuyPrice` (untuk tipe non-service).
   - `mismatchSuggestion` (useMemo) → banner kuning di atas tombol Tambah item bila nama yang diketik sama persis dengan history tapi tipe historisnya berbeda dari tab aktif; tombol "Pindahkan" memanggil `applySuggestion`.
+
+### Update Poin 5: Feature Flag Katalog + Edit Tipe Item (9 Juni 2026, commit `4da6e37`)
+- Migration `041_settings_feature_catalog.sql` menambahkan `settings.feature_catalog_enabled BOOLEAN NOT NULL DEFAULT false`.
+- Owner settings menambahkan toggle modul katalog; nav owner menyembunyikan/menampilkan menu Katalog Item mengikuti flag tenant.
+- Route `/owner/katalog` menambahkan guard saat modul OFF, dan action katalog menolak akses ketika flag dimatikan.
+- Invoice editor mendukung inline edit `item_type` per baris (desktop + mobile) dan opsi checkbox "Perbarui katalog master" untuk sinkron perubahan tipe ke katalog.
 
 ### Update WhatsApp Share, Print Publik & OG (6 Juni 2026, commit `16d525a` + `c29fde4`)
 - `src/components/invoices/print-options-modal.tsx` dan halaman print `src/app/(print)/print/invoices/[id]/page.tsx` membangun template WA blok ringkas (No, Tgl, Cust, Total, Status, Items). Format Invoice menambahkan link preview agar pelanggan bisa download PDF mandiri.

@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 7 Juni 2026 — commit `b46e5f6`
+**Last updated:** 9 Juni 2026 — commit `4da6e37`
 
 Referensi utama untuk kelanjutan development:
 
@@ -17,7 +17,15 @@ Referensi utama untuk kelanjutan development:
 
 ## Snapshot Progres Terkini
 
-Fitur yang sudah stabil pada branch `main`:
+Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
+
+### [SELESAI]
+
+- **Poin 5 katalog tenant-aware**: `settings.feature_catalog_enabled` (migrasi `041`) sudah aktif di codebase, dengan toggle Pengaturan Platform, nav owner hide/show, guard route `/owner/katalog`, dan gate server action katalog.
+- **Inline edit tipe item invoice** (desktop + mobile): baris item kini bisa ubah `item_type` langsung, dengan opsi **Perbarui katalog master** untuk sinkronisasi tipe di data katalog.
+- **Perbaikan harga jual barang saat H.Beli 0**: perhitungan simpan item kini menghormati harga jual eksplisit agar `final_price` tidak tersimpan nol.
+- **Owner invoice filter UX**: status dipindah ke filter tabel, KPI kembali fokus ke ringkasan.
+- **Reimburse proof visibility**: bukti transfer pada reimbursement tampil konsisten di riwayat mekanik.
 
 - **Katalog Item implicit** (`/owner/katalog`): audit klasifikasi nama item lintas invoice, filter "Tipe campur", reklasifikasi bulk (`reclassifyItemDescription` admin-client `UPDATE invoice_items` per tenant).
 - **Autocomplete cerdas** di invoice editor: pilih saran → autofill tipe + satuan + harga jual (`final_price/quantity`) + harga beli (`unit_price`). Warning kuning saat nama yang diketik pernah tercatat di tipe berbeda, dengan tombol pindah tab cepat.
@@ -45,10 +53,25 @@ Fitur yang sudah stabil pada branch `main`:
 - Generator nomor invoice anti-duplicate (baca nomor terakhir + retry idempotent)
 - Brand icon homescreen pakai logo Katalara (proxy `Logo.jpg` + versioning manifest)
 
+### [PROSES]
+
+- Mobile polish lanjutan: owner layout sudah aman di viewport kecil, admin bottom nav masih belum parity (masih sidebar).
+
+### [BELUM]
+
+- Integrasi data riil tab `Kehadiran` dan `Payroll` mekanik.
+- Modul pelanggan admin (`/admin/customers`) parity dengan owner.
+- Approval flow klaim non-invoice di sisi owner sebelum reimburse.
+- Audit log aksi sensitif (rollback invoice, sinkron point, delete user, klaim, reklasifikasi).
+
 ## Histori Commit Terbaru
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `4da6e37` | feat | Poin 5: feature flag katalog per tenant + guard route/action + inline edit `item_type` invoice + opsi sinkron katalog master |
+| `749b66c` | fix | Perbaiki simpan harga jual barang saat harga beli 0 agar `final_price` tidak menjadi 0 |
+| `0ecc6e0` | fix | Owner invoice list: filter status pindah ke tabel, KPI diringkas |
+| `b2ea170` | fix | Bukti transfer reimburse tampil di riwayat mekanik + penyempurnaan complaint filter |
 | `b46e5f6` | fix | Kas: filter tanggal `from`/`to` pakai state lokal, hilangkan race condition yang membuat data di luar rentang masih tampil |
 | `caec78f` | feat | Kas: footer total dinamis sesuai filter (in/out/net/count) + search auto-apply (debounce) + transisi mulus dengan `useTransition` |
 | `d12cc64` | feat | Katalog item implicit + autofill harga & satuan dari riwayat + reklasifikasi bulk + warning mismatch tipe |
@@ -129,6 +152,7 @@ Pastikan environment target sudah menjalankan migrasi bisnis terbaru minimal sam
 - `036_mechanic_debt_claim.sql`
 - `037_fix_invoice_ledger_transaction_date.sql`
 - `038_settings_wa_template.sql` (kolom `settings.wa_template` untuk template WhatsApp per tenant)
+- `041_settings_feature_catalog.sql` (kolom `settings.feature_catalog_enabled` default `false`)
 
 Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama juga perlu dipastikan status eksekusinya di production.
 

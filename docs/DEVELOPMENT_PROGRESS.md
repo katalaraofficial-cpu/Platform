@@ -1,8 +1,14 @@
 # Development Progress Log
 
-Last updated: 7 Juni 2026 (commit `b46e5f6`)
+Last updated: 9 Juni 2026 (commit `4da6e37`)
 
 ## Ringkasan Status Saat Ini
+
+- **Poin 5 selesai (`4da6e37`)**: modul katalog sekarang pakai feature flag tenant `settings.feature_catalog_enabled` (default OFF) dengan toggle di Pengaturan Platform. Menu owner `Katalog Item` otomatis hide/show sesuai flag, route `/owner/katalog` memiliki guard saat flag OFF, dan server action katalog menolak akses saat modul nonaktif.
+- **Inline edit tipe item invoice (`4da6e37`)**: baris item di invoice editor (desktop + mobile) kini bisa ubah `item_type` langsung, plus opsi checkbox **Perbarui katalog master** untuk sinkronisasi perubahan tipe ke data katalog.
+- **Harga jual barang zero-bug fix (`749b66c`)**: `addItemToInvoice` memakai effective sell price saat buy price nol agar `final_price` tidak lagi tersimpan 0 ketika user mengisi harga jual manual.
+- **Owner invoice filter UX (`0ecc6e0`)**: filter status dipindah ke area filter tabel agar alur pencarian lebih konsisten; kartu KPI fokus ke ringkasan.
+- **Bukti transfer reimburse (`b2ea170`)**: lampiran bukti transfer kini muncul konsisten di riwayat reimburse mekanik.
 
 - **Kas filter tanggal race-safe (`b46e5f6`)**: input `from`/`to` di `kas-filter-bar.tsx` kini pakai state lokal (`fromInput`/`toInput`) + `useEffect` sinkron prop → state. Race condition lama (pilih `from` lalu cepat ke `to`) yang membuat URL akhir hanya membawa `to` tanpa `from` sudah hilang.
 - **Kas filter UX (`d8d6cc8`)**: footer tabel `/owner/kas` sekarang menampilkan total Masuk/Keluar/Net + jumlah transaksi yang otomatis menyesuaikan filter aktif (akun, tipe, rentang tanggal, search). Search auto-apply via debounce 350 ms (tidak perlu Enter) dan semua interaksi filter dibungkus `useTransition` dengan indikator `Memuat…` agar transisi mulus.
@@ -27,6 +33,10 @@ Last updated: 7 Juni 2026 (commit `b46e5f6`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `4da6e37` | feat | Poin 5: feature flag modul katalog (`settings.feature_catalog_enabled`), owner nav + route guard katalog, gate action katalog, inline edit `item_type` per baris invoice + opsi sinkron katalog master |
+| `749b66c` | fix | Perbaikan simpan harga jual barang ketika harga beli 0 (hindari `final_price` = 0) |
+| `0ecc6e0` | fix | Owner invoice list: status dipindah ke filter tabel, KPI difokuskan ke ringkasan |
+| `b2ea170` | fix | Bukti transfer reimburse debt tampil konsisten di riwayat mekanik + complaint filter owner/admin |
 | `b46e5f6` | fix | Kas: filter tanggal pakai state lokal untuk `from`/`to`, tahan race condition `defaultValue` + props lama |
 | `caec78f` | feat | Kas: footer total mengikuti filter aktif (in/out/net/count) + search auto-apply (debounce) + transisi `useTransition` di filter bar |
 | `d12cc64` | feat | Katalog item implicit (`/owner/katalog`) + autofill harga/satuan/tipe dari riwayat + reklasifikasi bulk + warning mismatch tipe di invoice editor |
@@ -85,6 +95,7 @@ Minimum migration yang harus sudah ada di environment target:
 - `036_mechanic_debt_claim.sql`
 - `037_fix_invoice_ledger_transaction_date.sql` (wajib jalan setelah deploy commit `4a1036f`)
 - `038_settings_wa_template.sql` (kolom `wa_template TEXT` pada `settings`; default template di-resolve dari `DEFAULT_WA_TEMPLATE` lib bila kolom NULL)
+- `041_settings_feature_catalog.sql` (kolom `feature_catalog_enabled BOOLEAN NOT NULL DEFAULT false` pada `settings`)
 
 Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pending di sebagian environment.
 
@@ -116,6 +127,6 @@ Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pendin
 - Klaim non-invoice (`mechanic_debt_ledger.claim_category`) belum punya approval flow di owner; saat ini langsung tercatat sebagai `advance` dan terhitung di Piutang Mekanik.
 - Generator nomor invoice masih level aplikasi (read-then-insert + retry). Jika trafik konkuren tinggi, pertimbangkan trigger / sequence di DB untuk garansi atomik.
 - Backfill `037` hanya menyentuh ledger `Pembayaran Invoice`. Untuk transaksi kas manual yang salah tanggal, koreksi dilakukan via UI Kas (edit transaksi).
-- Katalog masih implicit (sumber `invoice_items`). Tidak ada tabel master `catalog_items` — mengubah "harga kanonik" berarti memperbarui transaksi terakhir, bukan record master. Bila kebutuhan owner berkembang (mis. harga jual standar per item lepas dari riwayat), pertimbangkan promote ke tabel master.
+- Katalog masih perlu observasi pasca-flag: saat `feature_catalog_enabled` OFF, halaman dan action katalog harus tetap terkunci konsisten di semua role owner variant.
 - `reclassifyItemDescription` melakukan UPDATE massal lewat admin client (bypass RLS). Tenant scope dijaga manual via `WHERE tenant_id`; jangan ubah signature tanpa mempertahankan filter ini.
 - Halaman print publik `/print/invoices/[id]` dapat diakses tanpa login (allowlist `/print` di middleware). Pastikan tidak menampilkan data sensitif di luar lingkup invoice (mis. data pelanggan lain).

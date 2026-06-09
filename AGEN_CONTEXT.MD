@@ -5,7 +5,7 @@
 > mendalam tetap di `docs/PROJECT_CONTEXT.md`; histori commit lengkap di
 > `docs/DEVELOPMENT_PROGRESS.md`; pakem operasional di `docs/AI_AGENT_FRAMEWORK.md`.
 
-Terakhir Diperbarui: 2026-06-07 (commit acuan: `b46e5f6`)
+Terakhir Diperbarui: 2026-06-09 (commit acuan: `4da6e37`)
 Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + Tailwind v3.4
 
 ---
@@ -31,6 +31,9 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
   (reverse). Hitung net per invoice (idempotent) + order-agnostic + orphan-aware.
 * **PWA icon**: saat ganti logo, naikkan `ICON_VERSION` (`src/app/layout.tsx`) & `iconVersion`
   (`src/app/manifest.ts`) untuk bust cache launcher.
+* **Feature flag katalog**: sumber kontrol modul ada di `settings.feature_catalog_enabled`.
+  Jika OFF, menu owner `Katalog Item` harus tersembunyi, route `/owner/katalog` harus ter-guard,
+  dan server action katalog wajib menolak akses.
 * **Verifikasi wajib sebelum commit**: `npx tsc --noEmit` clean DAN `npm run build` lolos.
   Server Action wajib `"use server"` di baris pertama file. `useActionState` di modal taruh
   di sub-komponen yang hanya mount saat modal terbuka.
@@ -40,6 +43,10 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [SELESAI] Multi-tenant RBAC (super_admin/owner/admin/mechanic) + RLS + invite flow Resend.
 * [SELESAI] Invoice end-to-end (draft→in_progress→completed→paid/cancelled), editor unified owner+admin.
 * [SELESAI] Katalog item implicit `/owner/katalog` + autofill tipe/satuan/harga + reklasifikasi bulk + warning mismatch tipe.
+* [SELESAI] Poin 5 katalog tenant-aware: `settings.feature_catalog_enabled` (migrasi `041`) + toggle settings platform + owner nav hide/show + guard route `/owner/katalog` + gate action katalog.
+* [SELESAI] Invoice editor: inline edit `item_type` per baris (desktop+mobile) + opsi sinkron katalog master.
+* [SELESAI] Perbaikan penyimpanan harga jual barang saat harga beli 0 (hindari `final_price` nol).
+* [SELESAI] Owner invoice filter UX (status ke filter tabel, KPI tetap ringkas) + visibilitas bukti transfer reimburse mekanik.
 * [SELESAI] WA share + halaman print publik `/print/invoices/[id]` + template WA per tenant (`settings.wa_template`) + OG metadata bersih.
 * [SELESAI] Modul Kas & Keuangan (COA UMKM, jurnal PDF, hutang/piutang) berbasis `transaction_date`.
 * [SELESAI] Kas filter UX: footer total mengikuti filter aktif (in/out/net/count) di tabel desktop & ringkasan mobile; search auto-apply (debounce 350 ms) + indikator `useTransition`; filter tanggal pakai state lokal (`fromInput`/`toInput`) untuk tahan race condition saat user pilih `from` lalu cepat ke `to` (`b46e5f6`).
@@ -52,6 +59,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [BELUM] Approval flow klaim non-invoice di owner (kini langsung tercatat `advance`).
 * [BELUM] Audit log untuk aksi sensitif (rollback invoice, sinkron point, delete user, klaim, reklasifikasi).
 * [PERLU CEK] Migrasi `011`–`015` historisnya pernah pending di sebagian environment — verifikasi status eksekusi di production.
+* [PERLU CEK] Rollout migration `041_settings_feature_catalog.sql` di semua environment target sebelum uji toggle katalog.
 
 ## 3. STRUKTUR FILE KRITIS (Path Anchors)
 
@@ -71,7 +79,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * `@/src/app/(owner)/owner/katalog/page.tsx` (+ `katalog-client.tsx`) -> Katalog item implicit.
 * `@/src/app/(print)/print/invoices/[id]/page.tsx` -> Print publik + `generateMetadata` OG.
 * `@/src/app/_brand-logo.ts` · `@/src/app/icon.tsx` · `@/src/app/manifest.ts` · `@/src/app/layout.tsx` -> Brand icon PWA + cache busting.
-* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `038_settings_wa_template.sql`).
+* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `041_settings_feature_catalog.sql`).
 
 ## 4. TUGAS BERIKUTNYA UNTUK ANDA (Next Action Items)
 
@@ -80,7 +88,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 3. Bangun approval flow klaim non-invoice (`mechanic_debt_ledger.claim_category`) di sisi owner sebelum reimburse.
 4. Tambahkan audit log untuk aksi sensitif (rollback invoice, sinkron point, delete user, klaim non-invoice, reklasifikasi katalog).
 5. Perbaiki akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
-6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum.
+6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum, dan pastikan migration `041` sudah terpasang lintas environment.
 
 ## 5. STANDAR FORMAT & CARA UPDATE (Wajib Diikuti Agent Berikutnya)
 
@@ -96,4 +104,4 @@ Dokumen ini adalah **format standar aktualisasi progres** platform. Setiap akhir
    teknis mendalam di `docs/AI_AGENT_FRAMEWORK.md`. Dokumen ini hanya ringkasan hidup + anchor.
 
 Aturan isi: ringkas, faktual, dan **tidak boleh** menulis path/aturan yang belum terverifikasi
-di codebase (cek `tsc --noEmit` + `npm run build` lolos sebelum commit perubahan apa pun).
+di codebase (cek `npx tsc --noEmit` + `npm run build` lolos sebelum commit perubahan apa pun).

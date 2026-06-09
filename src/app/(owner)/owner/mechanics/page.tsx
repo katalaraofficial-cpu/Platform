@@ -24,6 +24,7 @@ import {
   type MechanicInfo,
 } from "@/components/mechanics/debt-history-table";
 import { PointClaimReviewList } from "@/components/mechanics/point-claim-review-list";
+import { AttendanceRecapTable } from "@/components/mechanics/attendance-recap-table";
 import { summarizeEmployeePointsByProfile, type PointTransactionSummaryRow } from "@/lib/employee-point-summary";
 
 // ── Helpers ────────────────────────────────────────────────────
@@ -56,7 +57,7 @@ function avatarColor(id: string) {
 }
 
 // ── Page ───────────────────────────────────────────────────────
-type SearchParams = Promise<{ tab?: string; view?: string }>;
+type SearchParams = Promise<{ tab?: string; view?: string; week?: string }>;
 
 export default async function MechanicsPage({
   searchParams,
@@ -68,14 +69,17 @@ export default async function MechanicsPage({
 
   const sp = await searchParams;
   const tab = sp.tab === "reimburse" ? "reimburse" : "performa";
+  const attendanceEnabled = ctx.featureToggles?.module_attendance === true;
   const ownerView =
     sp.view === "attendance"
       ? "attendance"
-      : sp.view === "insentif"
-        ? "insentif"
-        : sp.view === "payroll"
-          ? "payroll"
-          : "activity";
+      : sp.view === "rekap" && attendanceEnabled
+        ? "rekap"
+        : sp.view === "insentif"
+          ? "insentif"
+          : sp.view === "payroll"
+            ? "payroll"
+            : "activity";
 
   const supabase = await createClient();
   const tenantId = ctx.tenantId;
@@ -311,6 +315,56 @@ export default async function MechanicsPage({
     }
   }
 
+  // ── Rekap mingguan (hanya saat view=rekap) ──────────────────
+  type RecapRec = {
+    id: string;
+    profile_id: string;
+    attendance_date: string;
+    check_in_at: string;
+    check_out_at: string;
+    status: string;
+    mode: string;
+  };
+  let recapRecords: RecapRec[] = [];
+  let weekDays: { date: string; dayLabel: string; dateLabel: string }[] = [];
+  let prevWeekStr = "";
+  let nextWeekStr = "";
+  let weekRangeLabel = "";
+  if (ownerView === "rekap") {
+    // Tentukan Senin dari minggu acuan (param week atau hari ini WIB).
+    const baseStr = /^\d{4}-\d{2}-\d{2}$/.test(sp.week ?? "") ? sp.week! : todayStr;
+    const base = new Date(`${baseStr}T00:00:00+07:00`);
+    const dow = (base.getUTCDay() + 6) % 7; // 0 = Senin
+    const monday = new Date(base.getTime() - dow * 86_400_000);
+    const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
+    const isoDate = (d: Date) =>
+      new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Jakarta",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(d);
+    weekDays = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday.getTime() + i * 86_400_000);
+      return {
+        date: isoDate(d),
+        dayLabel: dayNames[i],
+        dateLabel: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
+      };
+    });
+    prevWeekStr = isoDate(new Date(monday.getTime() - 7 * 86_400_000));
+    nextWeekStr = isoDate(new Date(monday.getTime() + 7 * 86_400_000));
+    weekRangeLabel = `${weekDays[0].dateLabel} – ${weekDays[6].dateLabel}`;
+
+    const { data: recapRaw } = await supabase
+      .from("attendance_records")
+      .select("id, profile_id, attendance_date, check_in_at, check_out_at, status, mode")
+      .eq("tenant_id", tenantId)
+      .gte("attendance_date", weekDays[0].date)
+      .lte("attendance_date", weekDays[6].date);
+    recapRecords = (recapRaw as RecapRec[] | null) ?? [];
+  }
+
   // KPIs
   const totalOutstanding = [...debtMap.values()].reduce(
     (s, r) => s + Math.max(0, Number(r.outstanding_balance)),
@@ -418,9 +472,10 @@ export default async function MechanicsPage({
               [
                 ["activity", "Log Aktivitas"],
                 ["attendance", "Kehadiran"],
+                ...(attendanceEnabled ? [["rekap", "Rekap Kehadiran"]] : []),
                 ["insentif", "Insentif"],
                 ["payroll", "Payroll"],
-              ] as const
+              ] as [string, string][]
             ).map(([val, label]) => (
               <a
                 key={val}
@@ -437,11 +492,21 @@ export default async function MechanicsPage({
           </div>
 
           {ownerView === "insentif" && <PointClaimReviewList claims={pendingClaims} />}
+          {ownerView === "rekap" && (
+            <AttendanceRecapTable
+              engineers={mechanics.map((m) => ({ id: m.id, name: m.full_name }))}
+              records={recapRecords}
+              weekDays={weekDays}
+              prevWeek={prevWeekStr}
+              nextWeek={nextWeekStr}
+              weekRangeLabel={weekRangeLabel}
+            />
+          )}
         </>
       )}
 
       {/* ── TAB: Performa Mekanik ─────────────────────────────── */}
-      {tab === "performa" && (
+      {tab === "performa" && ownerView !== "rekap" && (
         <div>
           {mechanics.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-gray-200 py-16 text-center">

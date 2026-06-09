@@ -248,3 +248,99 @@ export async function submitCheckIn(coords: {
     return { error: (e as Error).message };
   }
 }
+
+// ── Owner: sesuaikan jam kehadiran (override durasi manual) ──
+// Mendukung skenario terlambat: owner set jam masuk/keluar aktual.
+// Bila recordId kosong → buat entri manual untuk tanggal tsb.
+export async function adjustAttendanceRecord(data: {
+  recordId?: string;
+  profileId: string;
+  attendanceDate: string; // YYYY-MM-DD
+  checkInTime: string; // "HH:MM" (WIB)
+  checkOutTime: string; // "HH:MM" (WIB)
+  status?: "present" | "invalid";
+}): Promise<AttendanceActionState> {
+  try {
+    const { tenantId } = await ownerAttendanceGuard();
+
+    const { profileId, attendanceDate, checkInTime, checkOutTime } = data;
+    if (!profileId || !attendanceDate) return { error: "Data kehadiran tidak lengkap" };
+
+    const timeRe = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    if (!timeRe.test(checkInTime) || !timeRe.test(checkOutTime))
+      return { error: "Format jam tidak valid (HH:MM)" };
+
+    // Konstruksi waktu dalam zona WIB (+07:00).
+    const checkInIso = `${attendanceDate}T${checkInTime}:00+07:00`;
+    const checkOutIso = `${attendanceDate}T${checkOutTime}:00+07:00`;
+    const inMs = new Date(checkInIso).getTime();
+    const outMs = new Date(checkOutIso).getTime();
+    if (Number.isNaN(inMs) || Number.isNaN(outMs)) return { error: "Waktu tidak valid" };
+    if (outMs <= inMs) return { error: "Jam keluar harus lebih besar dari jam masuk" };
+
+    const admin = createTenantAdminClient(tenantId);
+    const status = data.status ?? "present";
+
+    if (data.recordId) {
+      const { error } = await admin
+        .from("attendance_records")
+        .update({
+          check_in_at: new Date(inMs).toISOString(),
+          check_out_at: new Date(outMs).toISOString(),
+          status,
+        })
+        .eq("id", data.recordId)
+        .eq("tenant_id", tenantId);
+      if (error) return { error: error.message };
+    } else {
+      const { error } = await admin.from("attendance_records").insert({
+        tenant_id: tenantId,
+        profile_id: profileId,
+        location_id: null,
+        mode: "office",
+        attendance_date: attendanceDate,
+        check_in_at: new Date(inMs).toISOString(),
+        check_out_at: new Date(outMs).toISOString(),
+        check_in_lat: null,
+        check_in_lng: null,
+        distance_m: null,
+        status,
+        notes: "Penyesuaian manual oleh owner",
+      });
+      if (error) {
+        if (error.code === "23505")
+          return { error: "Engineer sudah memiliki kehadiran di tanggal tersebut" };
+        return { error: error.message };
+      }
+    }
+
+    revalidatePath("/owner/mechanics");
+    return { success: "Kehadiran diperbarui" };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}
+
+// ── Owner: hapus catatan kehadiran (bulk) ───────────────────
+export async function deleteAttendanceRecords(
+  ids: string[]
+): Promise<AttendanceActionState> {
+  try {
+    const { tenantId } = await ownerAttendanceGuard();
+    const clean = (ids ?? []).filter(Boolean);
+    if (clean.length === 0) return { error: "Tidak ada kehadiran yang dipilih" };
+
+    const admin = createTenantAdminClient(tenantId);
+    const { error } = await admin
+      .from("attendance_records")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .in("id", clean);
+    if (error) return { error: error.message };
+
+    revalidatePath("/owner/mechanics");
+    return { success: `${clean.length} catatan kehadiran dihapus` };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
+}

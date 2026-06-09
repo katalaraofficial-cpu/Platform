@@ -6,9 +6,6 @@ import { revalidatePath } from "next/cache";
 
 export type AttendanceActionState = { error?: string; success?: string };
 
-// Durasi shift default untuk auto check-out (jam).
-export const SHIFT_HOURS = 8;
-
 async function ownerAttendanceGuard(): Promise<{ tenantId: string; id: string }> {
   const ctx = await getUserContext();
   if (!ctx.tenantId || ctx.role !== "owner")

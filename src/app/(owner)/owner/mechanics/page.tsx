@@ -57,7 +57,15 @@ function avatarColor(id: string) {
 }
 
 // ── Page ───────────────────────────────────────────────────────
-type SearchParams = Promise<{ tab?: string; view?: string; week?: string }>;
+type SearchParams = Promise<{
+  tab?: string;
+  view?: string;
+  week?: string;
+  period?: string;
+  date?: string;
+  month?: string;
+  year?: string;
+}>;
 
 export default async function MechanicsPage({
   searchParams,
@@ -315,7 +323,7 @@ export default async function MechanicsPage({
     }
   }
 
-  // ── Rekap mingguan (hanya saat view=rekap) ──────────────────
+  // ── Rekap kehadiran (week/date/month/year) ───────────────────
   type RecapRec = {
     id: string;
     profile_id: string;
@@ -330,12 +338,14 @@ export default async function MechanicsPage({
   let prevWeekStr = "";
   let nextWeekStr = "";
   let weekRangeLabel = "";
+  const periodMode: "week" | "date" | "month" | "year" =
+    sp.period === "date" || sp.period === "month" || sp.period === "year"
+      ? sp.period
+      : "week";
+  const periodDate = /^\d{4}-\d{2}-\d{2}$/.test(sp.date ?? "") ? sp.date! : todayStr;
+  const periodMonth = /^\d{4}-\d{2}$/.test(sp.month ?? "") ? sp.month! : todayStr.slice(0, 7);
+  const periodYear = /^\d{4}$/.test(sp.year ?? "") ? sp.year! : todayStr.slice(0, 4);
   if (ownerView === "rekap") {
-    // Tentukan Senin dari minggu acuan (param week atau hari ini WIB).
-    const baseStr = /^\d{4}-\d{2}-\d{2}$/.test(sp.week ?? "") ? sp.week! : todayStr;
-    const base = new Date(`${baseStr}T00:00:00+07:00`);
-    const dow = (base.getUTCDay() + 6) % 7; // 0 = Senin
-    const monday = new Date(base.getTime() - dow * 86_400_000);
     const dayNames = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"];
     const isoDate = (d: Date) =>
       new Intl.DateTimeFormat("en-CA", {
@@ -344,24 +354,61 @@ export default async function MechanicsPage({
         month: "2-digit",
         day: "2-digit",
       }).format(d);
-    weekDays = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(monday.getTime() + i * 86_400_000);
-      return {
-        date: isoDate(d),
-        dayLabel: dayNames[i],
-        dateLabel: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
-      };
-    });
-    prevWeekStr = isoDate(new Date(monday.getTime() - 7 * 86_400_000));
-    nextWeekStr = isoDate(new Date(monday.getTime() + 7 * 86_400_000));
-    weekRangeLabel = `${weekDays[0].dateLabel} – ${weekDays[6].dateLabel}`;
+
+    let rangeStart = todayStr;
+    let rangeEnd = todayStr;
+    if (periodMode === "week") {
+      const baseStr = /^\d{4}-\d{2}-\d{2}$/.test(sp.week ?? "") ? sp.week! : todayStr;
+      const base = new Date(`${baseStr}T00:00:00+07:00`);
+      const dow = (base.getUTCDay() + 6) % 7; // 0 = Senin
+      const monday = new Date(base.getTime() - dow * 86_400_000);
+      weekDays = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(monday.getTime() + i * 86_400_000);
+        return {
+          date: isoDate(d),
+          dayLabel: dayNames[i],
+          dateLabel: `${d.getUTCDate()}/${d.getUTCMonth() + 1}`,
+        };
+      });
+      prevWeekStr = isoDate(new Date(monday.getTime() - 7 * 86_400_000));
+      nextWeekStr = isoDate(new Date(monday.getTime() + 7 * 86_400_000));
+      weekRangeLabel = `${weekDays[0].dateLabel} – ${weekDays[6].dateLabel}`;
+      rangeStart = weekDays[0].date;
+      rangeEnd = weekDays[6].date;
+    } else if (periodMode === "date") {
+      weekDays = [{ date: periodDate, dayLabel: "Hari", dateLabel: periodDate }];
+      weekRangeLabel = `Tanggal ${periodDate}`;
+      prevWeekStr = isoDate(new Date(new Date(`${periodDate}T00:00:00+07:00`).getTime() - 86_400_000));
+      nextWeekStr = isoDate(new Date(new Date(`${periodDate}T00:00:00+07:00`).getTime() + 86_400_000));
+      rangeStart = periodDate;
+      rangeEnd = periodDate;
+    } else if (periodMode === "month") {
+      const [y, m] = periodMonth.split("-").map(Number);
+      const start = `${periodMonth}-01`;
+      const end = isoDate(new Date(Date.UTC(y, m, 0))); // hari terakhir bulan
+      weekRangeLabel = `Bulan ${periodMonth}`;
+      const prevM = new Date(Date.UTC(y, m - 2, 1));
+      const nextM = new Date(Date.UTC(y, m, 1));
+      prevWeekStr = `${prevM.getUTCFullYear()}-${String(prevM.getUTCMonth() + 1).padStart(2, "0")}`;
+      nextWeekStr = `${nextM.getUTCFullYear()}-${String(nextM.getUTCMonth() + 1).padStart(2, "0")}`;
+      rangeStart = start;
+      rangeEnd = end;
+    } else {
+      const start = `${periodYear}-01-01`;
+      const end = `${periodYear}-12-31`;
+      weekRangeLabel = `Tahun ${periodYear}`;
+      prevWeekStr = String(Number(periodYear) - 1);
+      nextWeekStr = String(Number(periodYear) + 1);
+      rangeStart = start;
+      rangeEnd = end;
+    }
 
     const { data: recapRaw } = await supabase
       .from("attendance_records")
       .select("id, profile_id, attendance_date, check_in_at, check_out_at, status, mode")
       .eq("tenant_id", tenantId)
-      .gte("attendance_date", weekDays[0].date)
-      .lte("attendance_date", weekDays[6].date);
+      .gte("attendance_date", rangeStart)
+      .lte("attendance_date", rangeEnd);
     recapRecords = (recapRaw as RecapRec[] | null) ?? [];
   }
 
@@ -497,6 +544,10 @@ export default async function MechanicsPage({
               engineers={mechanics.map((m) => ({ id: m.id, name: m.full_name }))}
               records={recapRecords}
               weekDays={weekDays}
+              periodMode={periodMode}
+              periodDate={periodDate}
+              periodMonth={periodMonth}
+              periodYear={periodYear}
               prevWeek={prevWeekStr}
               nextWeek={nextWeekStr}
               weekRangeLabel={weekRangeLabel}

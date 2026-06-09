@@ -48,6 +48,10 @@ export function AttendanceRecapTable({
   engineers,
   records,
   weekDays,
+  periodMode,
+  periodDate,
+  periodMonth,
+  periodYear,
   prevWeek,
   nextWeek,
   weekRangeLabel,
@@ -55,6 +59,10 @@ export function AttendanceRecapTable({
   engineers: RecapEngineer[];
   records: RecapRecord[];
   weekDays: WeekDay[];
+  periodMode: "week" | "date" | "month" | "year";
+  periodDate: string;
+  periodMonth: string;
+  periodYear: string;
   prevWeek: string;
   nextWeek: string;
   weekRangeLabel: string;
@@ -64,6 +72,10 @@ export function AttendanceRecapTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [edit, setEdit] = useState<EditTarget | null>(null);
   const [pending, startTransition] = useTransition();
+  const [filterMode, setFilterMode] = useState<"week" | "date" | "month" | "year">(periodMode);
+  const [filterDate, setFilterDate] = useState(periodDate);
+  const [filterMonth, setFilterMonth] = useState(periodMonth);
+  const [filterYear, setFilterYear] = useState(periodYear);
 
   // map[profileId][date] = record
   const recordMap = useMemo(() => {
@@ -104,9 +116,15 @@ export function AttendanceRecapTable({
     const days = recordMap.get(engineerId);
     if (!days) return 0;
     let total = 0;
-    for (const wd of weekDays) {
-      const rec = days.get(wd.date);
-      if (rec && rec.status === "present") total += hoursBetween(rec.check_in_at, rec.check_out_at);
+    if (weekDays.length > 0) {
+      for (const wd of weekDays) {
+        const rec = days.get(wd.date);
+        if (rec && rec.status === "present") total += hoursBetween(rec.check_in_at, rec.check_out_at);
+      }
+    } else {
+      for (const rec of days.values()) {
+        if (rec.status === "present") total += hoursBetween(rec.check_in_at, rec.check_out_at);
+      }
     }
     return total;
   }
@@ -116,16 +134,20 @@ export function AttendanceRecapTable({
     for (const engId of selected) {
       const days = recordMap.get(engId);
       if (!days) continue;
-      for (const wd of weekDays) {
-        const rec = days.get(wd.date);
-        if (rec) ids.push(rec.id);
+      if (weekDays.length > 0) {
+        for (const wd of weekDays) {
+          const rec = days.get(wd.date);
+          if (rec) ids.push(rec.id);
+        }
+      } else {
+        for (const rec of days.values()) ids.push(rec.id);
       }
     }
     if (ids.length === 0) {
-      toast.error("Engineer terpilih belum punya kehadiran di minggu ini");
+      toast.error("Engineer terpilih belum punya kehadiran pada periode ini");
       return;
     }
-    if (!confirm(`Hapus ${ids.length} catatan kehadiran (minggu ini) untuk ${selected.size} engineer terpilih?`))
+    if (!confirm(`Hapus ${ids.length} catatan kehadiran untuk ${selected.size} engineer terpilih?`))
       return;
     startTransition(async () => {
       const res = await deleteAttendanceRecords(ids);
@@ -138,9 +160,93 @@ export function AttendanceRecapTable({
     });
   }
 
+  function applyFilter() {
+    const params = new URLSearchParams({ tab: "performa", view: "rekap", period: filterMode });
+    if (filterMode === "week") params.set("week", filterDate);
+    if (filterMode === "date") params.set("date", filterDate);
+    if (filterMode === "month") params.set("month", filterMonth);
+    if (filterMode === "year") params.set("year", filterYear);
+    router.push(`/owner/mechanics?${params.toString()}`);
+  }
+
+  const prevHref =
+    periodMode === "week"
+      ? `/owner/mechanics?tab=performa&view=rekap&period=week&week=${prevWeek}`
+      : periodMode === "date"
+        ? `/owner/mechanics?tab=performa&view=rekap&period=date&date=${prevWeek}`
+        : periodMode === "month"
+          ? `/owner/mechanics?tab=performa&view=rekap&period=month&month=${prevWeek}`
+          : `/owner/mechanics?tab=performa&view=rekap&period=year&year=${prevWeek}`;
+  const nextHref =
+    periodMode === "week"
+      ? `/owner/mechanics?tab=performa&view=rekap&period=week&week=${nextWeek}`
+      : periodMode === "date"
+        ? `/owner/mechanics?tab=performa&view=rekap&period=date&date=${nextWeek}`
+        : periodMode === "month"
+          ? `/owner/mechanics?tab=performa&view=rekap&period=month&month=${nextWeek}`
+          : `/owner/mechanics?tab=performa&view=rekap&period=year&year=${nextWeek}`;
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Week navigation */}
+      {/* Filter periode + navigation */}
+      <div className="grid grid-cols-1 gap-3 rounded-xl border border-gray-100 bg-gray-50 p-3 md:grid-cols-[1fr_auto]">
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Filter</label>
+            <select
+              value={filterMode}
+              onChange={(e) => setFilterMode(e.target.value as "week" | "date" | "month" | "year")}
+              className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm"
+            >
+              <option value="week">Mingguan</option>
+              <option value="date">Tanggal</option>
+              <option value="month">Bulanan</option>
+              <option value="year">Tahunan</option>
+            </select>
+          </div>
+          {filterMode === "week" || filterMode === "date" ? (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tanggal</label>
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm"
+              />
+            </div>
+          ) : filterMode === "month" ? (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Bulan</label>
+              <input
+                type="month"
+                value={filterMonth}
+                onChange={(e) => setFilterMonth(e.target.value)}
+                className="rounded-lg border border-gray-200 px-2.5 py-2 text-sm"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">Tahun</label>
+              <input
+                type="number"
+                min={2020}
+                max={2099}
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="w-24 rounded-lg border border-gray-200 px-2.5 py-2 text-sm"
+              />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={applyFilter}
+            className="rounded-lg bg-violet-600 px-3 py-2 text-sm font-semibold text-white hover:bg-violet-700"
+          >
+            Terapkan
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <CalendarDays className="h-5 w-5 text-violet-500" />
@@ -148,13 +254,13 @@ export function AttendanceRecapTable({
         </div>
         <div className="flex items-center gap-1">
           <a
-            href={`/owner/mechanics?tab=performa&view=rekap&week=${prevWeek}`}
+            href={prevHref}
             className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             <ChevronLeft className="h-4 w-4" /> Sebelumnya
           </a>
           <a
-            href={`/owner/mechanics?tab=performa&view=rekap&week=${nextWeek}`}
+            href={nextHref}
             className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-600 hover:bg-gray-50"
           >
             Berikutnya <ChevronRight className="h-4 w-4" />
@@ -180,7 +286,7 @@ export function AttendanceRecapTable({
               disabled={pending}
               className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
             >
-              <Trash2 className="h-4 w-4" /> Hapus Minggu Ini
+              <Trash2 className="h-4 w-4" /> Hapus Periode
             </button>
           </div>
         </div>
@@ -201,12 +307,16 @@ export function AttendanceRecapTable({
               </th>
               <th className="w-10 px-2 py-3">No</th>
               <th className="px-3 py-3">Nama</th>
-              {weekDays.map((wd) => (
-                <th key={wd.date} className="px-2 py-3 text-center">
-                  <div className="font-semibold text-gray-600">{wd.dayLabel}</div>
-                  <div className="font-normal normal-case text-gray-400">{wd.dateLabel}</div>
-                </th>
-              ))}
+              {weekDays.length > 0 ? (
+                weekDays.map((wd) => (
+                  <th key={wd.date} className="px-2 py-3 text-center">
+                    <div className="font-semibold text-gray-600">{wd.dayLabel}</div>
+                    <div className="font-normal normal-case text-gray-400">{wd.dateLabel}</div>
+                  </th>
+                ))
+              ) : (
+                <th className="px-3 py-3 text-center">Hari Hadir</th>
+              )}
               <th className="px-3 py-3 text-center">Total Jam</th>
               <th className="px-3 py-3 text-center">Aksi</th>
             </tr>
@@ -234,40 +344,48 @@ export function AttendanceRecapTable({
                     </td>
                     <td className="px-2 py-2.5 text-gray-400">{safePage * PAGE_SIZE + idx + 1}</td>
                     <td className="px-3 py-2.5 font-medium text-gray-800">{eng.name}</td>
-                    {weekDays.map((wd) => {
-                      const rec = days?.get(wd.date) ?? null;
-                      const h = rec && rec.status === "present" ? hoursBetween(rec.check_in_at, rec.check_out_at) : null;
-                      return (
-                        <td key={wd.date} className="px-1 py-2 text-center">
-                          <button
-                            type="button"
-                            onClick={() => setEdit({ engineer: eng, day: wd, record: rec })}
-                            className={`mx-auto flex min-w-[44px] flex-col items-center rounded-lg px-2 py-1 transition-colors hover:ring-1 hover:ring-violet-300 ${
-                              rec
-                                ? rec.status === "invalid"
-                                  ? "bg-red-50 text-red-600"
-                                  : rec.mode === "field"
-                                    ? "bg-amber-50 text-amber-700"
-                                    : "bg-emerald-50 text-emerald-700"
-                                : "text-gray-300 hover:bg-gray-100"
-                            }`}
-                            title={rec ? `Masuk ${toWIBTime(rec.check_in_at)} – Keluar ${toWIBTime(rec.check_out_at)}` : "Tambah kehadiran manual"}
-                          >
-                            <span className="text-sm font-bold tabular-nums">
-                              {h !== null ? fmtHours(h) : rec ? "!" : "—"}
-                            </span>
-                            {rec && (
-                              <span className="text-[9px] opacity-70">{toWIBTime(rec.check_in_at)}</span>
-                            )}
-                          </button>
-                        </td>
-                      );
-                    })}
+                    {weekDays.length > 0 ? (
+                      weekDays.map((wd) => {
+                        const rec = days?.get(wd.date) ?? null;
+                        const h = rec && rec.status === "present" ? hoursBetween(rec.check_in_at, rec.check_out_at) : null;
+                        return (
+                          <td key={wd.date} className="px-1 py-2 text-center">
+                            <button
+                              type="button"
+                              onClick={() => setEdit({ engineer: eng, day: wd, record: rec })}
+                              className={`mx-auto flex min-w-[44px] flex-col items-center rounded-lg px-2 py-1 transition-colors hover:ring-1 hover:ring-violet-300 ${
+                                rec
+                                  ? rec.status === "invalid"
+                                    ? "bg-red-50 text-red-600"
+                                    : rec.mode === "field"
+                                      ? "bg-amber-50 text-amber-700"
+                                      : "bg-emerald-50 text-emerald-700"
+                                  : "text-gray-300 hover:bg-gray-100"
+                              }`}
+                              title={rec ? `Masuk ${toWIBTime(rec.check_in_at)} – Keluar ${toWIBTime(rec.check_out_at)}` : "Tambah kehadiran manual"}
+                            >
+                              <span className="text-sm font-bold tabular-nums">
+                                {h !== null ? fmtHours(h) : rec ? "!" : "—"}
+                              </span>
+                              {rec && (
+                                <span className="text-[9px] opacity-70">{toWIBTime(rec.check_in_at)}</span>
+                              )}
+                            </button>
+                          </td>
+                        );
+                      })
+                    ) : (
+                      <td className="px-3 py-2.5 text-center text-gray-600">
+                        {(days ? [...days.values()] : []).filter((r) => r.status === "present").length}
+                      </td>
+                    )}
                     <td className="px-3 py-2.5 text-center font-bold tabular-nums text-gray-800">
                       {fmtHours(total)}j
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <span className="text-[11px] text-gray-400">klik sel hari</span>
+                      <span className="text-[11px] text-gray-400">
+                        {weekDays.length > 0 ? "klik sel hari" : "rekap akumulasi"}
+                      </span>
                     </td>
                   </tr>
                 );

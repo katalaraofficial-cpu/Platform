@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 9 Juni 2026 — commit `4da6e37`
+**Last updated:** 10 Juni 2026 — commit `7ba1837`
 
 Referensi utama untuk kelanjutan development:
 
@@ -20,6 +20,11 @@ Referensi utama untuk kelanjutan development:
 Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 
 ### [SELESAI]
+
+- **Modul Kehadiran terintegrasi data riil**: check-in GPS mekanik aktif, rekap owner aktif, filter periode rekap (minggu/tanggal/bulan/tahun), kolom **Rata-rata Jam/Hari**, dan tab owner sudah disejajarkan di tengah.
+- **Checkout manual opsional**: engineer dapat check-out sebelum 8 jam, durasi kerja otomatis berkurang di rekap owner, plus log absensi harian engineer tampil tabel.
+- **Pembaruan navigasi engineer**: bottom nav mengganti item Piutang Saya menjadi tombol menu (hide/unhide daftar menu) agar akses menu pribadi lebih rapi.
+- **Backfill data attendance historis**: migration `045_backfill_checked_out_at.sql` mengisi `checked_out_at` untuk record lama yang pulang < 8 jam agar tidak salah label auto.
 
 - **Poin 5 katalog tenant-aware**: `settings.feature_catalog_enabled` (migrasi `041`) sudah aktif di codebase, dengan toggle Pengaturan Platform, nav owner hide/show, guard route `/owner/katalog`, dan gate server action katalog.
 - **Inline edit tipe item invoice** (desktop + mobile): baris item kini bisa ubah `item_type` langsung, dengan opsi **Perbarui katalog master** untuk sinkronisasi tipe di data katalog.
@@ -59,7 +64,7 @@ Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 
 ### [BELUM]
 
-- Integrasi data riil tab `Kehadiran` dan `Payroll` mekanik.
+- Integrasi data riil tab `Payroll` mekanik.
 - Modul pelanggan admin (`/admin/customers`) parity dengan owner.
 - Approval flow klaim non-invoice di sisi owner sebelum reimburse.
 - Audit log aksi sensitif (rollback invoice, sinkron point, delete user, klaim, reklasifikasi).
@@ -68,6 +73,9 @@ Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `7ba1837` | chore | Attendance: backfill `checked_out_at` untuk data historis checkout < 8 jam |
+| `e4b4cff` | feat | Attendance: checkout manual opsional, log harian engineer, menu navbar engineer, kolom rata-rata jam/hari, tab owner center |
+| `d29d689` | feat | Rekap kehadiran owner: filter periode tanggal/bulan/tahun + akumulasi jam lintas mode |
 | `4da6e37` | feat | Poin 5: feature flag katalog per tenant + guard route/action + inline edit `item_type` invoice + opsi sinkron katalog master |
 | `749b66c` | fix | Perbaiki simpan harga jual barang saat harga beli 0 agar `final_price` tidak menjadi 0 |
 | `0ecc6e0` | fix | Owner invoice list: filter status pindah ke tabel, KPI diringkas |
@@ -153,6 +161,8 @@ Pastikan environment target sudah menjalankan migrasi bisnis terbaru minimal sam
 - `037_fix_invoice_ledger_transaction_date.sql`
 - `038_settings_wa_template.sql` (kolom `settings.wa_template` untuk template WhatsApp per tenant)
 - `041_settings_feature_catalog.sql` (kolom `settings.feature_catalog_enabled` default `false`)
+- `044_attendance_manual_checkout.sql` (kolom `attendance_records.checked_out_at` + policy update engineer checkout)
+- `045_backfill_checked_out_at.sql` (backfill histori checkout manual berdasarkan durasi < 8 jam)
 
 Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama juga perlu dipastikan status eksekusinya di production.
 

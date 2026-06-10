@@ -5,7 +5,7 @@
 > mendalam tetap di `docs/PROJECT_CONTEXT.md`; histori commit lengkap di
 > `docs/DEVELOPMENT_PROGRESS.md`; pakem operasional di `docs/AI_AGENT_FRAMEWORK.md`.
 
-Terakhir Diperbarui: 2026-06-09 (commit acuan: `4da6e37`)
+Terakhir Diperbarui: 2026-06-10 (commit acuan: `7ba1837`)
 Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + Tailwind v3.4
 
 ---
@@ -53,13 +53,15 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [SELESAI] Point mekanik (earn/redeem/rollback idempotent) + sinkron owner invoice-aware + complaint badge.
 * [SELESAI] Kasbon karyawan (COA `108`) + klaim non-invoice (bensin/kesehatan/lainnya, upload kamera+galeri).
 * [SELESAI] Modul Invoice DP/PPN/PPh toggle per tenant + PWA installable (manifest/icon/SW) + brand icon Katalara.
+* [SELESAI] Modul Kehadiran mekanik terintegrasi data riil: check-in GPS, rekap owner, filter periode (minggu/tanggal/bulan/tahun), kolom rata-rata jam/hari, tab owner center, log absensi harian engineer, checkout manual opsional (mengurangi durasi dari auto 8 jam), serta backfill histori checkout.
 * [PROSES] Mobile polish: Dashboard owner & Kas aman di 360px; Admin bottom nav belum ada (masih sidebar).
-* [BELUM] Tab `Kehadiran` (GPS attendance) & `Payroll` mekanik masih scaffold — belum tersambung data riil.
+* [BELUM] Integrasi data riil tab `Payroll` mekanik masih scaffold.
 * [BELUM] Parity modul pelanggan untuk admin (`/admin/customers`).
 * [BELUM] Approval flow klaim non-invoice di owner (kini langsung tercatat `advance`).
 * [BELUM] Audit log untuk aksi sensitif (rollback invoice, sinkron point, delete user, klaim, reklasifikasi).
 * [PERLU CEK] Migrasi `011`–`015` historisnya pernah pending di sebagian environment — verifikasi status eksekusi di production.
 * [PERLU CEK] Rollout migration `041_settings_feature_catalog.sql` di semua environment target sebelum uji toggle katalog.
+* [PERLU CEK] Pastikan rollout migration `044_attendance_manual_checkout.sql` dan `045_backfill_checked_out_at.sql` di semua environment target.
 
 ## 3. STRUKTUR FILE KRITIS (Path Anchors)
 
@@ -79,16 +81,16 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * `@/src/app/(owner)/owner/katalog/page.tsx` (+ `katalog-client.tsx`) -> Katalog item implicit.
 * `@/src/app/(print)/print/invoices/[id]/page.tsx` -> Print publik + `generateMetadata` OG.
 * `@/src/app/_brand-logo.ts` · `@/src/app/icon.tsx` · `@/src/app/manifest.ts` · `@/src/app/layout.tsx` -> Brand icon PWA + cache busting.
-* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `041_settings_feature_catalog.sql`).
+* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `045_backfill_checked_out_at.sql`).
 
 ## 4. TUGAS BERIKUTNYA UNTUK ANDA (Next Action Items)
 
-1. Integrasikan data riil tab `Kehadiran` (GPS attendance, pakai placeholder Lokasi Kerja di Settings) & `Payroll` mekanik.
+1. Integrasikan data riil tab `Payroll` mekanik.
 2. Tambahkan modul pelanggan admin (`/admin/customers`) parity dengan owner.
 3. Bangun approval flow klaim non-invoice (`mechanic_debt_ledger.claim_category`) di sisi owner sebelum reimburse.
 4. Tambahkan audit log untuk aksi sensitif (rollback invoice, sinkron point, delete user, klaim non-invoice, reklasifikasi katalog).
 5. Perbaiki akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
-6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum, dan pastikan migration `041` sudah terpasang lintas environment.
+6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum, dan pastikan migration `041`, `044`, `045` sudah terpasang lintas environment.
 
 ## 5. STANDAR FORMAT & CARA UPDATE (Wajib Diikuti Agent Berikutnya)
 

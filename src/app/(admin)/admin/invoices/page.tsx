@@ -30,11 +30,12 @@ function fmt(n: number) {
 
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 export default async function AdminInvoicesPage({
@@ -253,29 +254,29 @@ export default async function AdminInvoicesPage({
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pekerjaan</th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
-                    <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
-                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Catatan</th>
-                    <th className="px-4 py-3" />
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 min-w-[260px]">Pelanggan</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 min-w-[260px]">Pekerjaan</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Status</th>
+                    <th className="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider text-gray-500">Total</th>
+                    <th className="px-2 py-2 text-center text-[11px] font-medium uppercase tracking-wider text-gray-500">Catatan</th>
+                    <th className="px-2 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {invoices.map((inv) => (
                     <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="whitespace-nowrap px-4 py-3 text-sm font-mono font-medium text-gray-900">
+                      <td className="whitespace-nowrap px-2 py-2 text-xs font-mono font-medium text-gray-900">
                         {inv.invoice_number}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
+                      <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                         {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700">
+                      <td className="px-2 py-2 text-xs text-gray-700 whitespace-normal break-words">
                         {customerMap[inv.customer_id ?? ""] ?? "-"}
                       </td>
-                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px]">
+                      <td className="px-2 py-2 text-xs text-gray-700 whitespace-normal break-words">
                         {(inv as { job_title?: string | null }).job_title ? (
                           <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
                             {(inv as { job_title?: string | null }).job_title}
@@ -284,13 +285,13 @@ export default async function AdminInvoicesPage({
                           <span className="text-gray-300">-</span>
                         )}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-2 py-2">
                         <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
+                      <td className="whitespace-nowrap px-2 py-2 text-right text-xs font-medium text-gray-900">
                         {fmt(Number(inv.grand_total))}
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                      <td className="whitespace-nowrap px-2 py-2 text-center">
                         <InvoiceNotesCell
                           invoiceId={inv.id}
                           invoiceNumber={inv.invoice_number}
@@ -298,7 +299,7 @@ export default async function AdminInvoicesPage({
                           basePath={BASE_PATH}
                         />
                       </td>
-                      <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
+                      <td className="whitespace-nowrap px-2 py-2 text-right text-xs">
                         <Link
                           href={`${BASE_PATH}/invoices/${inv.id}`}
                           className="font-medium text-blue-600 hover:text-blue-500"

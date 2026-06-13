@@ -38,11 +38,12 @@ function fmt(n: number) {
 
 function fmtDate(iso: string | null | undefined) {
   if (!iso) return "-";
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "-";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}/${mm}/${yyyy}`;
 }
 
 function lamaKerja(start: string | null | undefined, end: string | null | undefined) {
@@ -291,8 +292,8 @@ export default async function OwnerInvoicesPage({
   };
 
   const TH =
-    "px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 whitespace-nowrap";
-  const TD = "px-3 py-3 text-sm";
+    "px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 whitespace-nowrap";
+  const TD = "px-2 py-2 text-xs";
 
   return (
     <div className="space-y-5">
@@ -529,18 +530,18 @@ export default async function OwnerInvoicesPage({
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="w-10 px-3 py-3">
+                    <th className="w-8 px-2 py-2">
                       <input
                         type="checkbox"
                         data-bulk-master
-                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                        className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                         aria-label="Pilih semua"
                       />
                     </th>
                     <th className={TH}>No. Nota</th>
                     <th className={TH}>Tanggal</th>
-                    <th className={`${TH} w-[240px]`}>Pelanggan</th>
-                    <th className={`${TH} w-[200px]`}>Pekerjaan</th>
+                    <th className={`${TH} min-w-[260px]`}>Pelanggan</th>
+                    <th className={`${TH} min-w-[260px]`}>Pekerjaan</th>
                     <th className={TH}>Status</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
@@ -549,7 +550,7 @@ export default async function OwnerInvoicesPage({
                     <th className={TH}>Tgl Selesai</th>
                     <th className={TH}>Lama Kerja</th>
                     <th className={TH}>Catatan</th>
-                    <th className="w-10 px-3 py-3" />
+                    <th className="w-8 px-2 py-2" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -560,13 +561,13 @@ export default async function OwnerInvoicesPage({
                     const isPaid = inv.status === "paid";
                     return (
                       <tr key={inv.id} className="transition-colors hover:bg-gray-50">
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-2">
                           <input
                             type="checkbox"
                             data-bulk-id={inv.id}
                             data-bulk-status={inv.status}
                             data-bulk-number={inv.invoice_number}
-                            className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                            className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
                             aria-label={`Pilih ${inv.invoice_number}`}
                           />
                         </td>
@@ -581,12 +582,12 @@ export default async function OwnerInvoicesPage({
                         <td className={`${TD} whitespace-nowrap text-gray-500`}>
                           {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                         </td>
-                        <td className={`${TD} max-w-[240px] whitespace-normal break-words text-gray-900`}>
+                        <td className={`${TD} max-w-none whitespace-normal break-words text-gray-900`}>
                           <span className="line-clamp-2" title={customer?.name ?? "-"}>
                             {customer?.name ?? "-"}
                           </span>
                         </td>
-                        <td className={`${TD} max-w-[200px] whitespace-normal break-words text-gray-700`}>
+                        <td className={`${TD} max-w-none whitespace-normal break-words text-gray-700`}>
                           {(inv as { job_title?: string | null }).job_title ? (
                             <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
                               {(inv as { job_title?: string | null }).job_title}
@@ -615,7 +616,7 @@ export default async function OwnerInvoicesPage({
                         >
                           {fmt(isPaid ? 0 : invTotal)}
                         </td>
-                        <td className={`${TD} max-w-[120px] text-gray-600`}>
+                        <td className={`${TD} max-w-[110px] text-gray-600`}>
                           {mechanics.length > 0 ? (
                             <span className="block truncate" title={mechanics.join(", ")}>
                               {mechanics.slice(0, 2).join(", ")}
@@ -636,10 +637,10 @@ export default async function OwnerInvoicesPage({
                             inv.completed_at
                           )}
                         </td>
-                        <td className={`${TD} max-w-[140px] text-gray-500`}>
-                          <div className="flex items-center gap-2">
+                        <td className={`${TD} max-w-[120px] text-gray-500`}>
+                          <div className="flex items-center gap-1.5">
                             {inv.notes ? (
-                              <span className="block flex-1 truncate text-xs" title={inv.notes}>
+                              <span className="block flex-1 truncate text-[11px]" title={inv.notes}>
                                 {inv.notes}
                               </span>
                             ) : (
@@ -653,7 +654,7 @@ export default async function OwnerInvoicesPage({
                             />
                           </div>
                         </td>
-                        <td className="px-3 py-3">
+                        <td className="px-2 py-2">
                           <InvoiceRowActions
                             invoiceId={inv.id}
                             invoiceNumber={inv.invoice_number}

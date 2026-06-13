@@ -23,7 +23,6 @@ export default function Icon() {
           background: "#000000",
         }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={LOGO_URL}
           alt="Katalara"

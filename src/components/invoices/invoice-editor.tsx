@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Plus, X, ArrowLeft, Eye, Users } from "lucide-react";
+import { Plus, X, ArrowLeft, Eye, Users, ChevronUp, ChevronDown } from "lucide-react";
 import {
   searchCustomers,
   quickCreateCustomer,
@@ -873,6 +873,19 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         setItems((prev) => prev.filter((i) => i.id !== itemId));
       });
     }
+  }
+
+  // ── Move item up/down (local order) ───────────────────────────────────
+  function moveItem(itemId: string, direction: -1 | 1) {
+    setItems((prev) => {
+      const idx = prev.findIndex((i) => i.id === itemId);
+      if (idx < 0) return prev;
+      const target = idx + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[target]] = [next[target], next[idx]];
+      return next;
+    });
   }
 
   // ── Inline row editing ────────────────────────────────────────────────
@@ -2090,6 +2103,26 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
+                                onClick={() => moveItem(item.id, -1)}
+                                disabled={idx === 0}
+                                className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                                title="Pindah ke atas"
+                                aria-label="Pindah ke atas"
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => moveItem(item.id, 1)}
+                                disabled={idx === items.length - 1}
+                                className="flex h-7 w-7 items-center justify-center rounded text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                                title="Pindah ke bawah"
+                                aria-label="Pindah ke bawah"
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
                                 onClick={() => startEditRow(item)}
                                 className="text-xs text-blue-600"
                               >
@@ -2127,7 +2160,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     <th className="w-16 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-300">Qty</th>
                     <th className="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-300">H. Jual</th>
                     <th className="w-32 px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-gray-300">Jumlah</th>
-                    <th className="w-20 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-300">Aksi</th>
+                    <th className="w-32 px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wider text-gray-300">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white">
@@ -2260,9 +2293,27 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                           }
                         </td>
                         <td className="px-3 py-2.5">
-                          <div className="flex justify-center gap-2">
+                          <div className="flex justify-center gap-1">
                             {canEdit && (
                               <>
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(item.id, -1)}
+                                  disabled={idx === 0}
+                                  className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                                  title="Pindah ke atas"
+                                >
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveItem(item.id, 1)}
+                                  disabled={idx === items.length - 1}
+                                  className="flex h-6 w-6 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                                  title="Pindah ke bawah"
+                                >
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => startEditRow(item)}

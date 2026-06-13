@@ -5,21 +5,10 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Wallet,
-  Settings,
-  Menu,
-  X,
-  Plus,
-  FileText,
-  Users,
-  Wrench,
-  PiggyBank,
-  UserCog,
-  LogOut,
-} from "lucide-react";
-import { signOut } from "@/lib/actions/auth";
-import type { NavItem } from "./types";
+  LayoutDashboard, Wallet, Settings, Menu, X, Plus, LogOut,
+} from "lucide-react"; // All these are used.
+import { signOut } from "@/lib/actions/auth"; // signOut is used.
+import type { NavItem } from "./types"; // NavItem is used.
 
 interface OwnerMobileNavProps {
   navItems: NavItem[];
@@ -28,32 +17,6 @@ interface OwnerMobileNavProps {
   /** Base path for the quick-create invoice link */
   newInvoiceHref?: string;
 }
-
-const FIXED_NAV: Array<{
-  key: "dashboard" | "kas" | "settings";
-  label: string;
-  href: string;
-  icon: React.ReactNode;
-}> = [
-  {
-    key: "dashboard",
-    label: "Dashboard",
-    href: "/owner/dashboard",
-    icon: <LayoutDashboard className="h-5 w-5" />,
-  },
-  {
-    key: "kas",
-    label: "Kas",
-    href: "/owner/kas",
-    icon: <Wallet className="h-5 w-5" />,
-  },
-  {
-    key: "settings",
-    label: "Pengaturan",
-    href: "/owner/settings",
-    icon: <Settings className="h-5 w-5" />,
-  },
-];
 
 export function OwnerMobileNav({
   navItems,

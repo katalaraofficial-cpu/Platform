@@ -30,7 +30,7 @@ import {
   updateInvoiceStatus,
   rollbackInvoiceStatus,
   processPayment,
-  updateInvoiceDueDate,
+  updateInvoiceJobTitle,
   updateInvoiceShipping,
   updateInvoiceDate,
   updateInvoiceDp,
@@ -94,6 +94,7 @@ export interface InvoiceEditData {
   paymentMethod: string | null;
   tenantId: string;
   dueDate?: string | null;
+  jobTitle?: string | null;
   shippingCost?: number;
 }
 
@@ -654,6 +655,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
   // ── Due date + shipping state ─────────────────────────────────────────
   const [dueDate, setDueDate] = useState(() => editInvoice?.dueDate ?? "");
+  const [jobTitle, setJobTitle] = useState(() => editInvoice?.jobTitle ?? "");
   const [shippingCost, setShippingCost] = useState(() => Number(editInvoice?.shippingCost ?? 0));
   const [shippingInput, setShippingInput] = useState(() => {
     const s = Number(editInvoice?.shippingCost ?? 0);
@@ -688,7 +690,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
       customerSearch.trim().length > 0 ||
       items.length > 0 ||
       assignedMechanics.length > 0 ||
-      dueDate.length > 0 ||
+      jobTitle.trim().length > 0 ||
       shippingCost > 0 ||
       invoiceDate !== todayStr());
 
@@ -1001,6 +1003,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     setCustomerResults([]);
     setAssignedMechanics([]);
     setDueDate("");
+    setJobTitle("");
     setShippingCost(0);
     setShippingInput("");
     setInvoiceDate(todayStr());
@@ -1135,6 +1138,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
         notes,
         basePath: props.basePath,
         dueDate: dueDate || undefined,
+        jobTitle: jobTitle.trim() || undefined,
         invoiceDate: invoiceDate || undefined,
         shippingCost: shippingCost > 0 ? shippingCost : undefined,
         mechanics: assignedMechanics.map((m) => ({ id: m.mechanicId, role: m.role })),
@@ -1163,12 +1167,11 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
     });
   }
 
-  // ── Due date save ─────────────────────────────────────────────────────
-  function handleSaveDueDate(val: string) {
-    setDueDate(val);
+  // ── Job title save ───────────────────────────────────────────────────
+  function handleSaveJobTitle(val: string) {
     if (!isEdit) return;
     startTransition(async () => {
-      await updateInvoiceDueDate(editInvoice!.id, val || null, props.basePath);
+      await updateInvoiceJobTitle(editInvoice!.id, val.trim() || null, props.basePath);
     });
   }
 
@@ -1379,16 +1382,6 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             />
           </div>
 
-          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Jatuh Tempo</p>
-            <input
-              type="date"
-              value={dueDate}
-              onChange={(e) => handleSaveDueDate(e.target.value)}
-              className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none"
-            />
-          </div>
-
           <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-4">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Customer</p>
             {isEdit ? (
@@ -1472,6 +1465,20 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                 )}
               </div>
             )}
+          </div>
+
+          <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Judul Pekerjaan</p>
+            <input
+              type="text"
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              onBlur={(e) => {
+                if (isEdit) handleSaveJobTitle(e.target.value);
+              }}
+              placeholder="Mis. Servis rutin, Ganti kampas rem"
+              className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+            />
           </div>
 
           <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">

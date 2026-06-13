@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import { OfflineGuard } from "@/components/layout/offline-guard";
+import { GlobalUppercase } from "@/components/system/global-uppercase";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -40,6 +41,7 @@ export default function RootLayout({
     <html lang="id">
       <body className={inter.className}>
         <OfflineGuard />
+        <GlobalUppercase />
         {children}
         <Toaster position="top-center" richColors closeButton />
       </body>

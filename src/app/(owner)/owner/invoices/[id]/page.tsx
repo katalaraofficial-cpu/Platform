@@ -91,6 +91,7 @@ export default async function OwnerInvoiceDetailPage({
         paymentMethod: (invoice as Record<string, unknown>)["payment_method"] as string ?? null,
         tenantId: invoice.tenant_id,
         dueDate: (invoice as Record<string, unknown>)["due_date"] as string ?? null,
+        jobTitle: (invoice as Record<string, unknown>)["job_title"] as string ?? null,
         shippingCost: Number((invoice as Record<string, unknown>)["shipping_cost"] ?? 0),
       }}
       customer={

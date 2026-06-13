@@ -508,6 +508,7 @@ export async function createInvoiceWithItems(payload: {
   basePath: string;
   invoiceDate?: string;
   dueDate?: string;
+  jobTitle?: string;
   shippingCost?: number;
 }): Promise<{ error?: string; invoiceId?: string }> {
   const supabase = await createClient();
@@ -559,6 +560,7 @@ export async function createInvoiceWithItems(payload: {
       created_by: user.id,
       invoice_date: payload.invoiceDate ?? new Date().toISOString().split("T")[0],
       due_date: payload.dueDate ?? null,
+      job_title: payload.jobTitle?.trim() ? payload.jobTitle.trim() : null,
       shipping_cost: payload.shippingCost ?? 0,
     })
     .select("id")
@@ -1396,6 +1398,25 @@ export async function submitMechanicReceipt(payload: {
   revalidatePath("/mechanic/debts");
   revalidatePath(`/mechanic/dashboard/${payload.invoiceId}`);
   return {};
+}
+
+// ── Update invoice job title ───────────────────────────────────
+export async function updateInvoiceJobTitle(
+  invoiceId: string,
+  jobTitle: string | null,
+  basePath: string
+) {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return;
+  const trimmed = jobTitle?.trim() || null;
+  await supabase
+    .from("invoices")
+    .update({ job_title: trimmed })
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  revalidatePath(`${basePath}/invoices`);
+  revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 
 // ── Update invoice due date ───────────────────────────────────

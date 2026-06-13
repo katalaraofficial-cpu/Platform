@@ -89,6 +89,7 @@ export default async function AdminInvoiceDetailPage({
         paidAt: invoice.paid_at ?? null,
         paymentMethod: (invoice as Record<string, unknown>)["payment_method"] as string ?? null,
         tenantId: invoice.tenant_id,
+        jobTitle: (invoice as Record<string, unknown>)["job_title"] as string ?? null,
       }}
       customer={
         customer

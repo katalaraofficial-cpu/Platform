@@ -64,7 +64,7 @@ export default async function AdminInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, invoice_date, created_at, customer_id, tracking_notes",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, customer_id, tracking_notes, job_title",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -223,6 +223,10 @@ export default async function AdminInvoicesPage({
                       <p className="truncate font-medium text-gray-700">{customerMap[inv.customer_id ?? ""] ?? "-"}</p>
                     </div>
                     <div>
+                      <p className="text-gray-400">Pekerjaan</p>
+                      <p className="truncate font-medium text-gray-700">{(inv as { job_title?: string | null }).job_title || "-"}</p>
+                    </div>
+                    <div>
                       <p className="text-gray-400">Total</p>
                       <p className="font-semibold text-gray-900">{fmt(Number(inv.grand_total))}</p>
                     </div>
@@ -252,6 +256,7 @@ export default async function AdminInvoicesPage({
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pekerjaan</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
                     <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Catatan</th>
@@ -269,6 +274,15 @@ export default async function AdminInvoicesPage({
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-700">
                         {customerMap[inv.customer_id ?? ""] ?? "-"}
+                      </td>
+                      <td className="px-4 py-3 text-sm text-gray-700 max-w-[200px]">
+                        {(inv as { job_title?: string | null }).job_title ? (
+                          <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
+                            {(inv as { job_title?: string | null }).job_title}
+                          </span>
+                        ) : (
+                          <span className="text-gray-300">-</span>
+                        )}
                       </td>
                       <td className="px-4 py-3">
                         <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />

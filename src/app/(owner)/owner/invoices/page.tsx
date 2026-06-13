@@ -135,7 +135,7 @@ export default async function OwnerInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, invoice_date, created_at, completed_at, notes, customer_id, tracking_notes",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, completed_at, notes, customer_id, tracking_notes, job_title",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -470,6 +470,10 @@ export default async function OwnerInvoicesPage({
                         <p className="font-medium text-gray-700 break-words">{customer?.name ?? "-"}</p>
                       </div>
                       <div>
+                        <p className="text-gray-400">Pekerjaan</p>
+                        <p className="font-medium text-gray-700 break-words">{(inv as { job_title?: string | null }).job_title || "-"}</p>
+                      </div>
+                      <div>
                         <p className="text-gray-400">Engineer</p>
                         <p className="truncate font-medium text-gray-700">
                           {mechanics.length > 0 ? mechanics.join(", ") : "-"}
@@ -536,6 +540,7 @@ export default async function OwnerInvoicesPage({
                     <th className={TH}>No. Nota</th>
                     <th className={TH}>Tanggal</th>
                     <th className={`${TH} w-[240px]`}>Pelanggan</th>
+                    <th className={`${TH} w-[200px]`}>Pekerjaan</th>
                     <th className={TH}>Status</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
@@ -580,6 +585,15 @@ export default async function OwnerInvoicesPage({
                           <span className="line-clamp-2" title={customer?.name ?? "-"}>
                             {customer?.name ?? "-"}
                           </span>
+                        </td>
+                        <td className={`${TD} max-w-[200px] whitespace-normal break-words text-gray-700`}>
+                          {(inv as { job_title?: string | null }).job_title ? (
+                            <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
+                              {(inv as { job_title?: string | null }).job_title}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300">-</span>
+                          )}
                         </td>
                         <td className={TD}>
                           <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />

@@ -1468,7 +1468,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
           </div>
 
           <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Judul Pekerjaan</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Pekerjaan</p>
             <input
               type="text"
               value={jobTitle}
@@ -1476,7 +1476,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
               onBlur={(e) => {
                 if (isEdit) handleSaveJobTitle(e.target.value);
               }}
-              placeholder="Mis. Servis rutin, Ganti kampas rem"
+              placeholder="Nama Pekerjaan"
               className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
             />
           </div>

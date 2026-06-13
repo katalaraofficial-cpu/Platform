@@ -1,8 +1,12 @@
 # Development Progress Log
 
-Last updated: 9 Juni 2026 (commit `4da6e37`)
+Last updated: 13 Juni 2026 (commit `72ff6d4`)
 
 ## Ringkasan Status Saat Ini
+
+- **Catatan tracking per invoice (`64e1d77`, `72ff6d4`)**: kolom Catatan di list invoice owner & admin kini punya tombol bundar (badge jumlah) dengan dropdown **Buat Catatan / Preview Catatan**. Modal create menerima tanggal + teks dan dapat dibatalkan via tombol Batal / X corner / klik backdrop / Esc. Modal preview menampilkan list catatan beserta tanggal entri + tombol hapus per item. Disimpan di kolom JSONB baru `invoices.tracking_notes` (migrasi `046_invoice_tracking_notes.sql`).
+- **Reorder baris item invoice (`5f46687`)**: tombol naik/turun (ChevronUp/Down) ditambahkan ke kolom Aksi tabel item invoice editor (desktop + mobile), dengan boundary disabled di item pertama/terakhir. Reorder bersifat lokal pada state `items`.
+- **Owner invoice list UX lanjutan**: filter **Cari Item** ILIKE pada `invoice_items.description` + persempit field Cari Pelanggan (`3bdd3a4`); dropdown row actions auto-flip ke atas saat ruang bawah kurang (`6f4aa5b`); bulk select + bulk **Tandai Lunas** + bulk **Hapus** dengan modal konfirmasi (`b8dd418`); **Preview Invoice** modal di row actions (`11503b8`); preview pelanggan menampilkan histori service + filter no invoice di list invoice (`e77f393`).
 
 - **Poin 5 selesai (`4da6e37`)**: modul katalog sekarang pakai feature flag tenant `settings.feature_catalog_enabled` (default OFF) dengan toggle di Pengaturan Platform. Menu owner `Katalog Item` otomatis hide/show sesuai flag, route `/owner/katalog` memiliki guard saat flag OFF, dan server action katalog menolak akses saat modul nonaktif.
 - **Inline edit tipe item invoice (`4da6e37`)**: baris item di invoice editor (desktop + mobile) kini bisa ubah `item_type` langsung, plus opsi checkbox **Perbarui katalog master** untuk sinkronisasi perubahan tipe ke data katalog.
@@ -33,6 +37,14 @@ Last updated: 9 Juni 2026 (commit `4da6e37`)
 
 | Commit | Tipe | Ringkasan |
 |---|---|---|
+| `72ff6d4` | feat | Admin invoice list: kolom Catatan tracking (paralel dengan owner) |
+| `64e1d77` | feat | Owner invoice list: catatan tracking per invoice (kolom Catatan + badge + dropdown Buat/Preview + modal create/preview) + migrasi `046_invoice_tracking_notes.sql` |
+| `5f46687` | feat | Invoice editor: aksi naik/turun urutan baris item (desktop + mobile) |
+| `e77f393` | feat | Owner customers: preview pelanggan menampilkan histori service + filter no invoice di list invoice |
+| `11503b8` | feat | Invoice row actions: tambah Preview Invoice modal di atas Detail/Edit |
+| `b8dd418` | feat | Owner invoices: bulk select + Tandai Lunas massal + Hapus massal |
+| `6f4aa5b` | fix  | Invoice row actions: auto flip dropdown ke atas saat ruang bawah tidak cukup |
+| `3bdd3a4` | feat | Owner invoices: tambah filter Cari Item + persempit field Cari Pelanggan |
 | `4da6e37` | feat | Poin 5: feature flag modul katalog (`settings.feature_catalog_enabled`), owner nav + route guard katalog, gate action katalog, inline edit `item_type` per baris invoice + opsi sinkron katalog master |
 | `749b66c` | fix | Perbaikan simpan harga jual barang ketika harga beli 0 (hindari `final_price` = 0) |
 | `0ecc6e0` | fix | Owner invoice list: status dipindah ke filter tabel, KPI difokuskan ke ringkasan |
@@ -96,6 +108,9 @@ Minimum migration yang harus sudah ada di environment target:
 - `037_fix_invoice_ledger_transaction_date.sql` (wajib jalan setelah deploy commit `4a1036f`)
 - `038_settings_wa_template.sql` (kolom `wa_template TEXT` pada `settings`; default template di-resolve dari `DEFAULT_WA_TEMPLATE` lib bila kolom NULL)
 - `041_settings_feature_catalog.sql` (kolom `feature_catalog_enabled BOOLEAN NOT NULL DEFAULT false` pada `settings`)
+- `044_attendance_manual_checkout.sql` (kolom `checked_out_at` + dukungan checkout manual)
+- `045_backfill_checked_out_at.sql` (backfill historis checkout < 8 jam)
+- `046_invoice_tracking_notes.sql` (kolom `tracking_notes JSONB NOT NULL DEFAULT '[]'` pada `invoices`)
 
 Catatan: cek juga status `011`–`015` karena historisnya pernah ditandai pending di sebagian environment.
 

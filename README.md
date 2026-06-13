@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 10 Juni 2026 — commit `7ba1837`
+**Last updated:** 13 Juni 2026 — commit `72ff6d4`
 
 Referensi utama untuk kelanjutan development:
 
@@ -20,6 +20,15 @@ Referensi utama untuk kelanjutan development:
 Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 
 ### [SELESAI]
+
+- **Catatan tracking per invoice** (`64e1d77`, `72ff6d4`): kolom **Catatan** di list invoice owner & admin punya tombol bundar (badge jumlah) dengan dropdown Buat Catatan / Preview Catatan, modal create (tanggal + textarea, Simpan/Batal, X corner, klik backdrop & Esc untuk batal) dan modal preview (list catatan + tombol hapus). Backed by migrasi `046_invoice_tracking_notes.sql` (kolom `tracking_notes JSONB`).
+- **Reorder baris item invoice** (`5f46687`): aksi naik/turun (ChevronUp/Down) di tabel item invoice editor (desktop + mobile).
+- **Owner invoice list UX lanjutan**:
+  - Filter **Cari Item** (ILIKE `invoice_items.description`) + persempit field Cari Pelanggan (`3bdd3a4`).
+  - Auto-flip dropdown row actions saat ruang bawah kurang (`6f4aa5b`).
+  - Bulk select + bulk **Tandai Lunas** + bulk **Hapus** (`b8dd418`).
+  - **Preview Invoice** modal di row actions (`11503b8`).
+  - Preview pelanggan menampilkan histori service + tombol Lihat Invoice (filter `no` di list invoice) (`e77f393`).
 
 - **Modul Kehadiran terintegrasi data riil**: check-in GPS mekanik aktif, rekap owner aktif, filter periode rekap (minggu/tanggal/bulan/tahun), kolom **Rata-rata Jam/Hari**, dan tab owner sudah disejajarkan di tengah.
 - **Checkout manual opsional**: engineer dapat check-out sebelum 8 jam, durasi kerja otomatis berkurang di rekap owner, plus log absensi harian engineer tampil tabel.

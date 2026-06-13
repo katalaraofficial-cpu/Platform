@@ -58,13 +58,14 @@ function lamaKerja(start: string | null | undefined, end: string | null | undefi
 export default async function OwnerInvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; size?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; item?: string; size?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const status = params.status ?? "";
   const dateFrom = params.from ?? "";
   const dateTo = params.to ?? "";
   const customerQuery = (params.q ?? "").trim();
+  const itemQuery = (params.item ?? "").trim();
   const requestedSize = parseInt(params.size ?? String(DEFAULT_PAGE_SIZE), 10);
   const pageSize = PAGE_SIZE_OPTIONS.includes(requestedSize as (typeof PAGE_SIZE_OPTIONS)[number])
     ? requestedSize
@@ -89,6 +90,19 @@ export default async function OwnerInvoicesPage({
     matchedCustomerIds = (matchedCustomers ?? []).map((row) => row.id);
   }
 
+  let matchedItemInvoiceIds: string[] | null = null;
+  if (itemQuery) {
+    const { data: matchedItems } = await supabase
+      .from("invoice_items")
+      .select("invoice_id")
+      .eq("tenant_id", tenantId)
+      .ilike("description", `%${itemQuery}%`)
+      .limit(5000);
+    matchedItemInvoiceIds = [
+      ...new Set((matchedItems ?? []).map((row) => row.invoice_id).filter((x): x is string => x != null)),
+    ];
+  }
+
   // KPI counts (respects date range)
   let kpiQuery = supabase
     .from("invoices")
@@ -101,6 +115,13 @@ export default async function OwnerInvoicesPage({
       kpiQuery = kpiQuery.eq("customer_id", "00000000-0000-0000-0000-000000000000");
     } else {
       kpiQuery = kpiQuery.in("customer_id", matchedCustomerIds);
+    }
+  }
+  if (matchedItemInvoiceIds) {
+    if (matchedItemInvoiceIds.length === 0) {
+      kpiQuery = kpiQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      kpiQuery = kpiQuery.in("id", matchedItemInvoiceIds);
     }
   }
 
@@ -126,6 +147,13 @@ export default async function OwnerInvoicesPage({
       tableQuery = tableQuery.eq("customer_id", "00000000-0000-0000-0000-000000000000");
     } else {
       tableQuery = tableQuery.in("customer_id", matchedCustomerIds);
+    }
+  }
+  if (matchedItemInvoiceIds) {
+    if (matchedItemInvoiceIds.length === 0) {
+      tableQuery = tableQuery.eq("id", "00000000-0000-0000-0000-000000000000");
+    } else {
+      tableQuery = tableQuery.in("id", matchedItemInvoiceIds);
     }
   }
 
@@ -226,7 +254,7 @@ export default async function OwnerInvoicesPage({
   const total = totalCount ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string }) {
+  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string; item?: string }) {
     const p = new URLSearchParams();
     const s = "status" in overrides ? (overrides.status ?? "") : status;
     if (s) p.set("status", s);
@@ -234,6 +262,8 @@ export default async function OwnerInvoicesPage({
     if (dateTo) p.set("to", dateTo);
     const q = "q" in overrides ? (overrides.q ?? "") : customerQuery;
     if (q) p.set("q", q);
+    const it = "item" in overrides ? (overrides.item ?? "") : itemQuery;
+    if (it) p.set("item", it);
     const sz = "size" in overrides ? (overrides.size ?? pageSize) : pageSize;
     if (sz !== DEFAULT_PAGE_SIZE) p.set("size", String(sz));
     const pg = "page" in overrides ? (overrides.page ?? 1) : page;
@@ -329,13 +359,23 @@ export default async function OwnerInvoicesPage({
                 ))}
               </select>
             </div>
-            <div className="min-w-[280px] flex-[1.2]">
+            <div className="w-[180px]">
               <label className="mb-1 block text-xs text-gray-500">Cari Pelanggan</label>
               <input
                 type="text"
                 name="q"
                 defaultValue={customerQuery}
-                placeholder="Input nama pelanggan"
+                placeholder="Nama pelanggan"
+                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+              />
+            </div>
+            <div className="min-w-[220px] flex-1">
+              <label className="mb-1 block text-xs text-gray-500">Cari Item</label>
+              <input
+                type="text"
+                name="item"
+                defaultValue={itemQuery}
+                placeholder="Nama jasa / barang dalam invoice"
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
@@ -359,9 +399,9 @@ export default async function OwnerInvoicesPage({
             >
               Terapkan
             </button>
-            {(dateFrom || dateTo || customerQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
+            {(dateFrom || dateTo || customerQuery || itemQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
               <Link
-                href={buildUrl({ page: 1, q: "", size: DEFAULT_PAGE_SIZE })}
+                href={buildUrl({ page: 1, q: "", item: "", size: DEFAULT_PAGE_SIZE })}
                 className="text-sm text-gray-400 hover:text-gray-600 underline"
               >
                 Reset

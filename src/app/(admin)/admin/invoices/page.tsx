@@ -3,6 +3,7 @@ import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { InvoiceDateFilter } from "@/components/invoices/invoice-date-filter";
+import { InvoiceNotesCell } from "@/components/invoices/invoice-notes-cell";
 import type { InvoiceStatus } from "@/types/database";
 import { Suspense } from "react";
 
@@ -63,7 +64,7 @@ export default async function AdminInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, invoice_date, created_at, customer_id",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, customer_id, tracking_notes",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -226,7 +227,13 @@ export default async function AdminInvoicesPage({
                       <p className="font-semibold text-gray-900">{fmt(Number(inv.grand_total))}</p>
                     </div>
                   </div>
-                  <div className="flex justify-end">
+                  <div className="flex items-center justify-between gap-2">
+                    <InvoiceNotesCell
+                      invoiceId={inv.id}
+                      invoiceNumber={inv.invoice_number}
+                      initialCount={Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes) ? ((inv as { tracking_notes: unknown[] }).tracking_notes).length : 0}
+                      basePath={BASE_PATH}
+                    />
                     <Link
                       href={`${BASE_PATH}/invoices/${inv.id}`}
                       className="text-sm font-medium text-blue-600 hover:text-blue-500"
@@ -247,6 +254,7 @@ export default async function AdminInvoicesPage({
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                     <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Total</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500">Catatan</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -267,6 +275,14 @@ export default async function AdminInvoicesPage({
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900">
                         {fmt(Number(inv.grand_total))}
+                      </td>
+                      <td className="whitespace-nowrap px-4 py-3 text-center">
+                        <InvoiceNotesCell
+                          invoiceId={inv.id}
+                          invoiceNumber={inv.invoice_number}
+                          initialCount={Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes) ? ((inv as { tracking_notes: unknown[] }).tracking_notes).length : 0}
+                          basePath={BASE_PATH}
+                        />
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                         <Link

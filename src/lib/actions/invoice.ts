@@ -1412,3 +1412,47 @@ export async function setInvoiceComplaintStatus(
   revalidatePath("/admin/invoices");
   return {};
 }
+
+// -- Bulk actions ---------------------------------------------
+export async function bulkMarkInvoicesPaid(
+  invoiceIds: string[],
+  method: string,
+  paymentDate: string,
+  basePath: string
+) {
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan", processed: 0 };
+  if (ctx.role !== "owner" && ctx.role !== "admin") {
+    return { error: "Tidak berwenang", processed: 0 };
+  }
+  let processed = 0;
+  for (const id of invoiceIds) {
+    try {
+      await processPayment(id, method, paymentDate, basePath);
+      processed++;
+    } catch {
+      // skip individual failures
+    }
+  }
+  revalidatePath(`${basePath}/invoices`);
+  return { processed };
+}
+
+export async function bulkDeleteInvoices(invoiceIds: string[], basePath: string) {
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Tenant tidak ditemukan", processed: 0 };
+  if (ctx.role !== "owner" && ctx.role !== "admin") {
+    return { error: "Tidak berwenang", processed: 0 };
+  }
+  let processed = 0;
+  for (const id of invoiceIds) {
+    try {
+      await deleteInvoice(id, basePath);
+      processed++;
+    } catch {
+      // skip individual failures
+    }
+  }
+  revalidatePath(`${basePath}/invoices`);
+  return { processed };
+}

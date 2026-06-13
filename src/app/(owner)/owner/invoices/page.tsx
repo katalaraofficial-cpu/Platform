@@ -3,6 +3,7 @@ import { getUserContext } from "@/lib/get-user-context";
 import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { InvoiceRowActions } from "@/components/invoices/invoice-row-actions";
+import { InvoiceBulkBar } from "@/components/invoices/invoice-bulk-bar";
 import type { InvoiceStatus } from "@/types/database";
 
 const BASE_PATH = "/owner";
@@ -429,16 +430,26 @@ export default async function OwnerInvoicesPage({
                 return (
                   <div key={inv.id} className="space-y-3 p-4">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <Link
-                          href={`${BASE_PATH}/invoices/${inv.id}`}
-                          className="font-mono text-sm font-semibold text-gray-900 hover:text-blue-600"
-                        >
-                          {inv.invoice_number}
-                        </Link>
-                        <p className="mt-1 text-xs text-gray-500">
-                          {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
-                        </p>
+                      <div className="flex items-start gap-3">
+                        <input
+                          type="checkbox"
+                          data-bulk-id={inv.id}
+                          data-bulk-status={inv.status}
+                          data-bulk-number={inv.invoice_number}
+                          className="mt-1 h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                          aria-label={`Pilih ${inv.invoice_number}`}
+                        />
+                        <div>
+                          <Link
+                            href={`${BASE_PATH}/invoices/${inv.id}`}
+                            className="font-mono text-sm font-semibold text-gray-900 hover:text-blue-600"
+                          >
+                            {inv.invoice_number}
+                          </Link>
+                          <p className="mt-1 text-xs text-gray-500">
+                            {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
+                          </p>
+                        </div>
                       </div>
                       <StatusBadge status={inv.status as InvoiceStatus} complaint={Boolean(complaintMap[inv.id])} />
                     </div>
@@ -498,6 +509,14 @@ export default async function OwnerInvoicesPage({
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th className="w-10 px-3 py-3">
+                      <input
+                        type="checkbox"
+                        data-bulk-master
+                        className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                        aria-label="Pilih semua"
+                      />
+                    </th>
                     <th className={TH}>No. Nota</th>
                     <th className={TH}>Tanggal</th>
                     <th className={`${TH} w-[240px]`}>Pelanggan</th>
@@ -520,6 +539,16 @@ export default async function OwnerInvoicesPage({
                     const isPaid = inv.status === "paid";
                     return (
                       <tr key={inv.id} className="transition-colors hover:bg-gray-50">
+                        <td className="px-3 py-3">
+                          <input
+                            type="checkbox"
+                            data-bulk-id={inv.id}
+                            data-bulk-status={inv.status}
+                            data-bulk-number={inv.invoice_number}
+                            className="h-4 w-4 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                            aria-label={`Pilih ${inv.invoice_number}`}
+                          />
+                        </td>
                         <td className={`${TD} whitespace-nowrap font-mono font-medium text-gray-900`}>
                           <Link
                             href={`${BASE_PATH}/invoices/${inv.id}`}
@@ -644,6 +673,7 @@ export default async function OwnerInvoicesPage({
           )}
         </div>
       </div>
+      <InvoiceBulkBar basePath={BASE_PATH} />
     </div>
   );
 }

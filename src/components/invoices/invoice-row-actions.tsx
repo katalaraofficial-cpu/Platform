@@ -3,9 +3,10 @@
 import { createPortal } from "react-dom";
 import { useRef, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw, BadgeCheck } from "lucide-react";
+import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw, BadgeCheck, FileSearch } from "lucide-react";
 import { deleteInvoice, processPayment, rollbackInvoiceStatus } from "@/lib/actions/invoice";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { InvoicePreviewModal } from "@/components/invoices/invoice-preview-modal";
 
 interface Props {
   invoiceId: string;
@@ -29,6 +30,7 @@ export function InvoiceRowActions({
   const [isPayPending, startPayTransition] = useTransition();
   const [pendingAction, setPendingAction] = useState<"delete" | "rollback" | null>(null);
   const [showMarkPaidModal, setShowMarkPaidModal] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [payMethod, setPayMethod] = useState<"cash" | "transfer">("cash");
   const [paymentDate, setPaymentDate] = useState(() => new Date().toISOString().slice(0, 10));
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -57,7 +59,7 @@ export function InvoiceRowActions({
     if (btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
       // Estimasi tinggi menu: ~40px per item + ~8px padding/separator
-      const itemCount = 2 + (canMarkPaid ? 1 : 0) + (canRollback ? 1 : 0) + (canDelete ? 1 : 0);
+      const itemCount = 3 + (canMarkPaid ? 1 : 0) + (canRollback ? 1 : 0) + (canDelete ? 1 : 0);
       const estimatedHeight = itemCount * 40 + 16;
       const spaceBelow = window.innerHeight - rect.bottom;
       const right = window.innerWidth - rect.right;
@@ -122,6 +124,13 @@ export function InvoiceRowActions({
 
   return (
     <>
+      {showPreview && (
+        <InvoicePreviewModal
+          invoiceId={invoiceId}
+          basePath={basePath}
+          onClose={() => setShowPreview(false)}
+        />
+      )}
       <ConfirmDialog
         open={pendingAction === "delete"}
         title="Hapus Invoice"
@@ -239,6 +248,14 @@ export function InvoiceRowActions({
             className="w-44 rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
             onMouseDown={(e) => e.stopPropagation()}
           >
+            <button
+              onClick={() => { setOpen(false); setShowPreview(true); }}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-sm text-gray-700
+                         hover:bg-gray-50"
+            >
+              <FileSearch className="h-3.5 w-3.5 text-gray-400" />
+              Preview Invoice
+            </button>
             <Link
               href={`${basePath}/invoices/${invoiceId}`}
               onClick={() => setOpen(false)}

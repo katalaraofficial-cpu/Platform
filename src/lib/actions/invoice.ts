@@ -1456,3 +1456,110 @@ export async function bulkDeleteInvoices(invoiceIds: string[], basePath: string)
   revalidatePath(`${basePath}/invoices`);
   return { processed };
 }
+export type InvoicePreviewData = {
+  id: string;
+  invoice_number: string;
+  status: string;
+  invoice_date: string | null;
+  completed_at: string | null;
+  paid_at: string | null;
+  notes: string | null;
+  subtotal: number;
+  discount_amount: number;
+  ppn_pct: number;
+  ppn_amount: number;
+  pph_pct: number;
+  pph_amount: number;
+  dp_amount: number;
+  shipping_cost: number;
+  grand_total: number;
+  payment_method: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  mechanics: string[];
+  items: Array<{
+    id: string;
+    item_type: string;
+    description: string;
+    quantity: number;
+    unit_label: string | null;
+    unit_price: number;
+    final_price: number;
+  }>;
+};
+
+export async function getInvoicePreview(invoiceId: string): Promise<InvoicePreviewData | null> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return null;
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select(
+      "id, invoice_number, status, invoice_date, completed_at, paid_at, notes, subtotal, discount_amount, ppn_pct, ppn_amount, pph_pct, pph_amount, dp_amount, shipping_cost, grand_total, payment_method, customer_id"
+    )
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return null;
+
+  const [{ data: items }, customerRes, mechRes] = await Promise.all([
+    supabase
+      .from("invoice_items")
+      .select("id, item_type, description, quantity, unit_label, unit_price, final_price")
+      .eq("invoice_id", invoiceId)
+      .order("created_at", { ascending: true }),
+    inv.customer_id
+      ? supabase
+          .from("customers")
+          .select("name, phone")
+          .eq("id", inv.customer_id)
+          .single()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("invoice_mechanics")
+      .select("mechanic_id")
+      .eq("invoice_id", invoiceId),
+  ]);
+
+  const mechIds = (mechRes.data ?? []).map((m) => m.mechanic_id);
+  const { data: mechProfiles } =
+    mechIds.length > 0
+      ? await supabase.from("profiles").select("id, full_name").in("id", mechIds)
+      : { data: [] as { id: string; full_name: string | null }[] };
+  const nameMap = Object.fromEntries(
+    (mechProfiles ?? []).map((p) => [p.id, p.full_name ?? "?"])
+  );
+
+  return {
+    id: inv.id,
+    invoice_number: inv.invoice_number,
+    status: inv.status,
+    invoice_date: inv.invoice_date,
+    completed_at: inv.completed_at,
+    paid_at: inv.paid_at,
+    notes: inv.notes,
+    subtotal: Number(inv.subtotal ?? 0),
+    discount_amount: Number(inv.discount_amount ?? 0),
+    ppn_pct: Number(inv.ppn_pct ?? 0),
+    ppn_amount: Number(inv.ppn_amount ?? 0),
+    pph_pct: Number(inv.pph_pct ?? 0),
+    pph_amount: Number(inv.pph_amount ?? 0),
+    dp_amount: Number(inv.dp_amount ?? 0),
+    shipping_cost: Number(inv.shipping_cost ?? 0),
+    grand_total: Number(inv.grand_total ?? 0),
+    payment_method: inv.payment_method,
+    customer_name: customerRes.data?.name ?? null,
+    customer_phone: customerRes.data?.phone ?? null,
+    mechanics: mechIds.map((id) => nameMap[id] ?? "?"),
+    items: (items ?? []).map((it) => ({
+      id: it.id,
+      item_type: String(it.item_type),
+      description: it.description,
+      quantity: Number(it.quantity),
+      unit_label: it.unit_label,
+      unit_price: Number(it.unit_price),
+      final_price: Number(it.final_price),
+    })),
+  };
+}

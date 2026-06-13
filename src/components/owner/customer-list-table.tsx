@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Eye, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Eye, Pencil, Trash2, X, Search, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
@@ -14,6 +15,8 @@ import {
   bulkDeleteOwnerCustomers,
   deleteOwnerCustomer,
   updateOwnerCustomer,
+  getCustomerInvoiceHistory,
+  type CustomerInvoiceHistoryRow,
 } from "@/lib/actions/customer";
 
 export type OwnerCustomerTableRow = {
@@ -55,6 +58,9 @@ export function OwnerCustomerListTable({ rows, regionCatalog }: Props) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   const [previewRow, setPreviewRow] = useState<OwnerCustomerTableRow | null>(null);
+  const [historyRows, setHistoryRows] = useState<CustomerInvoiceHistoryRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyQuery, setHistoryQuery] = useState("");
   const [editRow, setEditRow] = useState<OwnerCustomerTableRow | null>(null);
   const [editName, setEditName] = useState("");
   const [editStreet, setEditStreet] = useState("");
@@ -185,6 +191,32 @@ export function OwnerCustomerListTable({ rows, regionCatalog }: Props) {
       router.refresh();
     });
   }
+
+  useEffect(() => {
+    if (!previewRow) {
+      setHistoryRows([]);
+      setHistoryQuery("");
+      return;
+    }
+    let cancelled = false;
+    setHistoryLoading(true);
+    getCustomerInvoiceHistory(previewRow.id).then((rows) => {
+      if (cancelled) return;
+      setHistoryRows(rows);
+      setHistoryLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [previewRow]);
+
+  const filteredHistory = useMemo(() => {
+    const q = historyQuery.trim().toLowerCase();
+    if (!q) return historyRows;
+    return historyRows.filter((r) =>
+      r.items.some((d) => d.toLowerCase().includes(q))
+    );
+  }, [historyRows, historyQuery]);
 
   if (rows.length === 0) {
     return (
@@ -322,21 +354,162 @@ export function OwnerCustomerListTable({ rows, regionCatalog }: Props) {
       </div>
 
       {previewRow && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl">
-            <h3 className="text-base font-bold text-gray-900">Preview Pelanggan</h3>
-            <div className="mt-4 space-y-2 text-sm">
-              <p><span className="font-semibold text-gray-700">Nama:</span> {previewRow.name}</p>
-              <p><span className="font-semibold text-gray-700">Alamat:</span> {previewRow.address || "-"}</p>
-              <p><span className="font-semibold text-gray-700">Telepon:</span> {previewRow.phone || "-"}</p>
-              <p><span className="font-semibold text-gray-700">Omzet:</span> {fmtCurrency(previewRow.omzet)}</p>
-              <p><span className="font-semibold text-gray-700">Dibuat:</span> {fmtDate(previewRow.createdAt)}</p>
-            </div>
-            <div className="mt-5 flex justify-end">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onMouseDown={() => setPreviewRow(null)}
+        >
+          <div
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                  Preview Pelanggan
+                </p>
+                <h3 className="text-lg font-bold text-gray-900">{previewRow.name}</h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setPreviewRow(null)}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Tutup"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4">
+              <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+                <div>
+                  <p className="text-xs text-gray-400">Alamat</p>
+                  <p className="font-medium text-gray-800 break-words">
+                    {previewRow.address || "-"}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Telepon</p>
+                  <p className="font-medium text-gray-800">{previewRow.phone || "-"}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Total Omzet</p>
+                  <p className="font-semibold text-emerald-600">{fmtCurrency(previewRow.omzet)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Terdaftar</p>
+                  <p className="font-medium text-gray-800">{fmtDate(previewRow.createdAt)}</p>
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="text-sm font-semibold text-gray-800">
+                    Histori Service{" "}
+                    <span className="text-xs font-normal text-gray-400">
+                      ({filteredHistory.length}
+                      {historyQuery && historyRows.length !== filteredHistory.length
+                        ? ` / ${historyRows.length}`
+                        : ""}
+                      )
+                    </span>
+                  </h4>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      value={historyQuery}
+                      onChange={(e) => setHistoryQuery(e.target.value)}
+                      placeholder="Cari item service..."
+                      className="rounded-md border border-gray-300 pl-7 pr-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-2 overflow-hidden rounded-lg border border-gray-200">
+                  {historyLoading ? (
+                    <p className="py-10 text-center text-sm text-gray-400">Memuat histori...</p>
+                  ) : filteredHistory.length === 0 ? (
+                    <p className="py-10 text-center text-sm text-gray-400">
+                      {historyQuery
+                        ? "Tidak ada service yang cocok dengan pencarian."
+                        : "Pelanggan ini belum memiliki riwayat service."}
+                    </p>
+                  ) : (
+                    <div className="max-h-[40vh] overflow-y-auto">
+                      <table className="min-w-full divide-y divide-gray-100 text-sm">
+                        <thead className="sticky top-0 bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Tgl Service
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Tgl Selesai
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              No. Invoice
+                            </th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Rincian Service
+                            </th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                              Aksi
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 bg-white">
+                          {filteredHistory.map((h) => (
+                            <tr key={h.id} className="hover:bg-gray-50">
+                              <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                                {fmtDate(h.invoice_date ?? "")}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-gray-600">
+                                {h.completed_at ? fmtDate(h.completed_at) : "-"}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 font-mono text-xs font-semibold text-gray-900">
+                                {h.invoice_number}
+                              </td>
+                              <td className="px-3 py-2 text-gray-700">
+                                {h.items.length === 0 ? (
+                                  <span className="text-gray-300">-</span>
+                                ) : (
+                                  <span
+                                    className="line-clamp-2"
+                                    title={h.items.join(", ")}
+                                  >
+                                    {h.items.slice(0, 3).join(", ")}
+                                    {h.items.length > 3 && (
+                                      <span className="text-gray-400">
+                                        {" "}+{h.items.length - 3} lainnya
+                                      </span>
+                                    )}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-3 py-2 text-right">
+                                <Link
+                                  href={`/owner/invoices?no=${encodeURIComponent(h.invoice_number)}`}
+                                  onClick={() => setPreviewRow(null)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                                >
+                                  <ExternalLink className="h-3 w-3" />
+                                  Lihat Invoice
+                                </Link>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end border-t border-gray-100 bg-gray-50 px-5 py-3">
+              <button
+                type="button"
+                onClick={() => setPreviewRow(null)}
+                className="rounded-xl border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100"
               >
                 Tutup
               </button>

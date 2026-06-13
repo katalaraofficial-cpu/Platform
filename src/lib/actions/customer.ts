@@ -184,3 +184,63 @@ export async function bulkDeleteOwnerCustomers(customerIds: string[]): Promise<C
     return { error: (e as Error).message };
   }
 }
+
+export type CustomerInvoiceHistoryRow = {
+  id: string;
+  invoice_number: string;
+  status: string;
+  invoice_date: string | null;
+  completed_at: string | null;
+  grand_total: number;
+  items: string[];
+};
+
+export async function getCustomerInvoiceHistory(
+  customerId: string,
+  itemQuery?: string
+): Promise<CustomerInvoiceHistoryRow[]> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return [];
+
+  const { data: invoices } = await supabase
+    .from("invoices")
+    .select("id, invoice_number, status, invoice_date, completed_at, grand_total, created_at")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("customer_id", customerId)
+    .order("invoice_date", { ascending: false, nullsFirst: false })
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  const list = invoices ?? [];
+  if (list.length === 0) return [];
+
+  const ids = list.map((r) => r.id);
+  const { data: items } = await supabase
+    .from("invoice_items")
+    .select("invoice_id, description, created_at")
+    .in("invoice_id", ids)
+    .order("created_at", { ascending: true });
+
+  const itemMap: Record<string, string[]> = {};
+  for (const it of items ?? []) {
+    const arr = itemMap[it.invoice_id] ?? (itemMap[it.invoice_id] = []);
+    if (it.description) arr.push(it.description);
+  }
+
+  const q = (itemQuery ?? "").trim().toLowerCase();
+  return list
+    .map((inv) => ({
+      id: inv.id,
+      invoice_number: inv.invoice_number,
+      status: String(inv.status),
+      invoice_date: inv.invoice_date,
+      completed_at: inv.completed_at,
+      grand_total: Number(inv.grand_total ?? 0),
+      items: itemMap[inv.id] ?? [],
+    }))
+    .filter((row) => {
+      if (!q) return true;
+      return row.items.some((d) => d.toLowerCase().includes(q));
+    });
+}

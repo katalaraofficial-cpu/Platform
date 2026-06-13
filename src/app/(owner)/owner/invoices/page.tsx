@@ -59,7 +59,7 @@ function lamaKerja(start: string | null | undefined, end: string | null | undefi
 export default async function OwnerInvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; item?: string; size?: string; page?: string }>;
+  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; item?: string; no?: string; size?: string; page?: string }>;
 }) {
   const params = await searchParams;
   const status = params.status ?? "";
@@ -67,6 +67,7 @@ export default async function OwnerInvoicesPage({
   const dateTo = params.to ?? "";
   const customerQuery = (params.q ?? "").trim();
   const itemQuery = (params.item ?? "").trim();
+  const invoiceNoQuery = (params.no ?? "").trim();
   const requestedSize = parseInt(params.size ?? String(DEFAULT_PAGE_SIZE), 10);
   const pageSize = PAGE_SIZE_OPTIONS.includes(requestedSize as (typeof PAGE_SIZE_OPTIONS)[number])
     ? requestedSize
@@ -125,6 +126,9 @@ export default async function OwnerInvoicesPage({
       kpiQuery = kpiQuery.in("id", matchedItemInvoiceIds);
     }
   }
+  if (invoiceNoQuery) {
+    kpiQuery = kpiQuery.ilike("invoice_number", `%${invoiceNoQuery}%`);
+  }
 
   // Paginated table query (respects status + date + pagination)
   let tableQuery = supabase
@@ -156,6 +160,9 @@ export default async function OwnerInvoicesPage({
     } else {
       tableQuery = tableQuery.in("id", matchedItemInvoiceIds);
     }
+  }
+  if (invoiceNoQuery) {
+    tableQuery = tableQuery.ilike("invoice_number", `%${invoiceNoQuery}%`);
   }
 
   const { data: kpiData } = await kpiQuery;
@@ -255,7 +262,7 @@ export default async function OwnerInvoicesPage({
   const total = totalCount ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string; item?: string }) {
+  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string; item?: string; no?: string }) {
     const p = new URLSearchParams();
     const s = "status" in overrides ? (overrides.status ?? "") : status;
     if (s) p.set("status", s);
@@ -265,6 +272,8 @@ export default async function OwnerInvoicesPage({
     if (q) p.set("q", q);
     const it = "item" in overrides ? (overrides.item ?? "") : itemQuery;
     if (it) p.set("item", it);
+    const no = "no" in overrides ? (overrides.no ?? "") : invoiceNoQuery;
+    if (no) p.set("no", no);
     const sz = "size" in overrides ? (overrides.size ?? pageSize) : pageSize;
     if (sz !== DEFAULT_PAGE_SIZE) p.set("size", String(sz));
     const pg = "page" in overrides ? (overrides.page ?? 1) : page;
@@ -400,9 +409,9 @@ export default async function OwnerInvoicesPage({
             >
               Terapkan
             </button>
-            {(dateFrom || dateTo || customerQuery || itemQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
+            {(dateFrom || dateTo || customerQuery || itemQuery || invoiceNoQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
               <Link
-                href={buildUrl({ page: 1, q: "", item: "", size: DEFAULT_PAGE_SIZE })}
+                href={buildUrl({ page: 1, q: "", item: "", no: "", size: DEFAULT_PAGE_SIZE })}
                 className="text-sm text-gray-400 hover:text-gray-600 underline"
               >
                 Reset

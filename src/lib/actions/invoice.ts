@@ -745,6 +745,107 @@ export async function updateInvoiceNotes(
   revalidatePath(`${basePath}/invoices/${invoiceId}`);
 }
 
+// ── Tracking notes (per-invoice activity log) ─────────────────
+export type TrackingNote = {
+  id: string;
+  date: string;       // YYYY-MM-DD
+  text: string;
+  created_at: string; // ISO
+};
+
+export async function getInvoiceTrackingNotes(
+  invoiceId: string
+): Promise<TrackingNote[]> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return [];
+  const { data } = await supabase
+    .from("invoices")
+    .select("tracking_notes")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  const raw = (data as { tracking_notes?: unknown } | null)?.tracking_notes;
+  if (!Array.isArray(raw)) return [];
+  return raw as TrackingNote[];
+}
+
+export async function addInvoiceTrackingNote(
+  invoiceId: string,
+  date: string,
+  text: string,
+  basePath: string
+): Promise<ActionState> {
+  const trimmed = text.trim();
+  if (!trimmed) return { error: "Catatan tidak boleh kosong." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Tanggal tidak valid." };
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Sesi tidak valid." };
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("tracking_notes")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return { error: "Invoice tidak ditemukan." };
+
+  const existing = Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes)
+    ? ((inv as { tracking_notes: TrackingNote[] }).tracking_notes)
+    : [];
+  const entry: TrackingNote = {
+    id: crypto.randomUUID(),
+    date,
+    text: trimmed,
+    created_at: new Date().toISOString(),
+  };
+  const next = [entry, ...existing];
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({ tracking_notes: next } as never)
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`${basePath}/invoices`);
+  return {};
+}
+
+export async function deleteInvoiceTrackingNote(
+  invoiceId: string,
+  noteId: string,
+  basePath: string
+): Promise<ActionState> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Sesi tidak valid." };
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("tracking_notes")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return { error: "Invoice tidak ditemukan." };
+
+  const existing = Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes)
+    ? ((inv as { tracking_notes: TrackingNote[] }).tracking_notes)
+    : [];
+  const next = existing.filter((n) => n.id !== noteId);
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({ tracking_notes: next } as never)
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`${basePath}/invoices`);
+  return {};
+}
+
 // ── Update invoice global discount ───────────────────────────
 export async function updateInvoiceDiscount(
   invoiceId: string,

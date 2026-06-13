@@ -4,6 +4,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/invoices/status-badge";
 import { InvoiceRowActions } from "@/components/invoices/invoice-row-actions";
 import { InvoiceBulkBar } from "@/components/invoices/invoice-bulk-bar";
+import { InvoiceNotesCell } from "@/components/invoices/invoice-notes-cell";
 import type { InvoiceStatus } from "@/types/database";
 
 const BASE_PATH = "/owner";
@@ -134,7 +135,7 @@ export default async function OwnerInvoicesPage({
   let tableQuery = supabase
     .from("invoices")
     .select(
-      "id, invoice_number, status, grand_total, invoice_date, created_at, completed_at, notes, customer_id",
+      "id, invoice_number, status, grand_total, invoice_date, created_at, completed_at, notes, customer_id, tracking_notes",
       { count: "exact" }
     )
     .eq("tenant_id", tenantId)
@@ -499,8 +500,14 @@ export default async function OwnerInvoicesPage({
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <p className="max-w-[75%] truncate text-xs text-gray-500">{inv.notes || "-"}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex-1 truncate text-xs text-gray-500">{inv.notes || "-"}</p>
+                      <InvoiceNotesCell
+                        invoiceId={inv.id}
+                        invoiceNumber={inv.invoice_number}
+                        initialCount={Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes) ? ((inv as { tracking_notes: unknown[] }).tracking_notes).length : 0}
+                        basePath={BASE_PATH}
+                      />
                       <InvoiceRowActions
                         invoiceId={inv.id}
                         invoiceNumber={inv.invoice_number}
@@ -615,14 +622,22 @@ export default async function OwnerInvoicesPage({
                             inv.completed_at
                           )}
                         </td>
-                        <td className={`${TD} max-w-[120px] text-gray-500`}>
-                          {inv.notes ? (
-                            <span className="block truncate" title={inv.notes}>
-                              {inv.notes}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
+                        <td className={`${TD} max-w-[140px] text-gray-500`}>
+                          <div className="flex items-center gap-2">
+                            {inv.notes ? (
+                              <span className="block flex-1 truncate text-xs" title={inv.notes}>
+                                {inv.notes}
+                              </span>
+                            ) : (
+                              <span className="flex-1 text-gray-300">-</span>
+                            )}
+                            <InvoiceNotesCell
+                              invoiceId={inv.id}
+                              invoiceNumber={inv.invoice_number}
+                              initialCount={Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes) ? ((inv as { tracking_notes: unknown[] }).tracking_notes).length : 0}
+                              basePath={BASE_PATH}
+                            />
+                          </div>
                         </td>
                         <td className="px-3 py-3">
                           <InvoiceRowActions

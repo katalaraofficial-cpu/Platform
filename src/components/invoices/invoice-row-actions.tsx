@@ -23,7 +23,7 @@ export function InvoiceRowActions({
   isOwner = false,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ top: number; right: number } | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top?: number; bottom?: number; right: number } | null>(null);
   const [mounted, setMounted] = useState(false);
   const [isPending, startTransition] = useTransition();
   const [isPayPending, startPayTransition] = useTransition();
@@ -48,18 +48,27 @@ export function InvoiceRowActions({
     };
   }, [open]);
 
+  const canDelete = isOwner ? status !== "" : (status === "draft" || status === "cancelled");
+  const canRollback = isOwner && status !== "draft" && status !== "cancelled";
+  const canMarkPaid = status === "completed";
+
   function handleOpen(e: React.MouseEvent) {
     e.stopPropagation();
     if (btnRef.current) {
       const rect = btnRef.current.getBoundingClientRect();
-      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      // Estimasi tinggi menu: ~40px per item + ~8px padding/separator
+      const itemCount = 2 + (canMarkPaid ? 1 : 0) + (canRollback ? 1 : 0) + (canDelete ? 1 : 0);
+      const estimatedHeight = itemCount * 40 + 16;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const right = window.innerWidth - rect.right;
+      if (spaceBelow < estimatedHeight && rect.top > spaceBelow) {
+        setMenuPos({ bottom: window.innerHeight - rect.top + 4, right });
+      } else {
+        setMenuPos({ top: rect.bottom + 4, right });
+      }
     }
     setOpen((o) => !o);
   }
-
-  const canDelete = isOwner ? status !== "" : (status === "draft" || status === "cancelled");
-  const canRollback = isOwner && status !== "draft" && status !== "cancelled";
-  const canMarkPaid = status === "completed";
 
   const ROLLBACK_LABEL: Record<string, string> = {
     paid: "Kembalikan ke Selesai",
@@ -223,6 +232,7 @@ export function InvoiceRowActions({
             style={{
               position: "fixed",
               top: menuPos.top,
+              bottom: menuPos.bottom,
               right: menuPos.right,
               zIndex: 9999,
             }}

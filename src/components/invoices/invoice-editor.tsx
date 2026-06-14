@@ -19,6 +19,7 @@ import {
 import {
   createInvoiceWithItems,
   searchItemDescriptions,
+  searchJobTitles,
   addItemToInvoice,
   addMechanicToInvoice,
   removeMechanic,
@@ -656,6 +657,25 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   // ── Due date + shipping state ─────────────────────────────────────────
   const [dueDate, setDueDate] = useState(() => editInvoice?.dueDate ?? "");
   const [jobTitle, setJobTitle] = useState(() => editInvoice?.jobTitle ?? "");
+  const [jobTitleSuggestions, setJobTitleSuggestions] = useState<string[]>([]);
+  const [showJobTitleSuggestions, setShowJobTitleSuggestions] = useState(false);
+  const jobTitleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  function handleJobTitleInput(v: string) {
+    setJobTitle(v);
+    if (jobTitleTimer.current) clearTimeout(jobTitleTimer.current);
+    if (v.trim().length < 2) {
+      setJobTitleSuggestions([]);
+      setShowJobTitleSuggestions(false);
+      return;
+    }
+    jobTitleTimer.current = setTimeout(async () => {
+      const res = await searchJobTitles(v);
+      // sembunyikan jika hasil tunggal & sudah persis sama dengan input
+      const filtered = res.filter((t) => t.trim().toLowerCase() !== v.trim().toLowerCase());
+      setJobTitleSuggestions(filtered);
+      setShowJobTitleSuggestions(filtered.length > 0);
+    }, 250);
+  }
   const [shippingCost, setShippingCost] = useState(() => Number(editInvoice?.shippingCost ?? 0));
   const [shippingInput, setShippingInput] = useState(() => {
     const s = Number(editInvoice?.shippingCost ?? 0);
@@ -1469,16 +1489,39 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
 
           <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">Pekerjaan</p>
-            <input
-              type="text"
-              value={jobTitle}
-              onChange={(e) => setJobTitle(e.target.value)}
-              onBlur={(e) => {
-                if (isEdit) handleSaveJobTitle(e.target.value);
-              }}
-              placeholder="Nama Pekerjaan"
-              className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-            />
+            <div className="relative">
+              <input
+                type="text"
+                value={jobTitle}
+                onChange={(e) => handleJobTitleInput(e.target.value)}
+                onFocus={() => { if (jobTitleSuggestions.length > 0) setShowJobTitleSuggestions(true); }}
+                onBlur={(e) => {
+                  setTimeout(() => setShowJobTitleSuggestions(false), 150);
+                  if (isEdit) handleSaveJobTitle(e.target.value);
+                }}
+                placeholder="Nama Pekerjaan"
+                className="w-full rounded border border-gray-600 bg-gray-700 px-3 py-2 text-sm text-white placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+              />
+              {showJobTitleSuggestions && jobTitleSuggestions.length > 0 && (
+                <div className="absolute left-0 top-full z-30 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg">
+                  {jobTitleSuggestions.map((t, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      className="block w-full truncate px-3 py-1.5 text-left text-sm text-gray-900 hover:bg-blue-50"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => {
+                        setJobTitle(t);
+                        setShowJobTitleSuggestions(false);
+                        if (isEdit) handleSaveJobTitle(t);
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="space-y-1.5 rounded-md border border-gray-700 bg-gray-800/60 p-2.5 xl:col-span-3">

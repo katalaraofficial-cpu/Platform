@@ -1186,28 +1186,88 @@ export async function searchItemDescriptions(
   const ctx = await getUserContext();
   if (!ctx.tenantId) return [];
   const supabase = await createClient();
-  const { data } = await supabase
+  const q = query.trim();
+
+  // 1) Master catalog (preferred — sudah punya harga "default")
+  const { data: catalogRows } = await supabase
     .from("catalog_items")
     .select("description, item_type, default_buy_price, default_sell_price, unit_label")
     .eq("tenant_id", ctx.tenantId)
-    .ilike("description", `%${query}%`)
+    .ilike("description", `%${q}%`)
     .order("description", { ascending: true })
-    .limit(12);
+    .limit(20);
 
-  if (!data) return [];
-
-  // Map the data to the format expected by the frontend
-  return data.map(item => {
-    const buyPrice = Number(item.default_buy_price ?? 0);
-    const sellPrice = Number(item.default_sell_price ?? 0);
-    return {
+  type Row = { description: string; item_type: string; unit_price: number; sell_price: number; unit_label: string | null };
+  const map = new Map<string, Row>();
+  for (const item of catalogRows ?? []) {
+    const key = `${(item.item_type ?? "").toLowerCase()}::${item.description.trim().toLowerCase()}`;
+    map.set(key, {
       description: item.description,
       item_type: item.item_type,
-      unit_price: buyPrice, // 'unit_price' in suggestions refers to buy price
-      sell_price: sellPrice,
+      unit_price: Number(item.default_buy_price ?? 0),
+      sell_price: Number(item.default_sell_price ?? 0),
       unit_label: item.unit_label ?? null,
-    };
-  });
+    });
+  }
+
+  // 2) Fallback: invoice_items historis (untuk data lama yang belum sempat
+  //    masuk catalog_items karena upsert pernah gagal atau invoice diimport).
+  const { data: histRows } = await supabase
+    .from("invoice_items")
+    .select("description, item_type, unit_price, final_price, quantity, unit_label, created_at")
+    .eq("tenant_id", ctx.tenantId)
+    .ilike("description", `%${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(40);
+
+  for (const row of histRows ?? []) {
+    const key = `${(row.item_type ?? "").toLowerCase()}::${row.description.trim().toLowerCase()}`;
+    if (map.has(key)) continue; // catalog wins
+    const qty = Math.max(1, Number(row.quantity ?? 1));
+    const sellUnit = qty > 0 ? Number(row.final_price ?? 0) / qty : Number(row.final_price ?? 0);
+    map.set(key, {
+      description: row.description,
+      item_type: row.item_type,
+      unit_price: Number(row.unit_price ?? 0),
+      sell_price: Math.round(sellUnit),
+      unit_label: row.unit_label ?? null,
+    });
+  }
+
+  return Array.from(map.values())
+    .sort((a, b) => a.description.localeCompare(b.description))
+    .slice(0, 12);
+}
+
+// ── Pekerjaan: cari job_title historis (autocomplete invoice editor) ──
+export async function searchJobTitles(query: string): Promise<string[]> {
+  const q = query.trim();
+  if (!q) return [];
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("invoices")
+    .select("job_title")
+    .eq("tenant_id", ctx.tenantId)
+    .not("job_title", "is", null)
+    .ilike("job_title", `${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(80);
+
+  if (!data) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const row of data) {
+    const t = (row.job_title ?? "").trim();
+    if (!t) continue;
+    const key = t.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(t);
+    if (out.length >= 10) break;
+  }
+  return out;
 }
 
 // ── Mechanic: update work order status ───────────────────────

@@ -73,8 +73,8 @@ export default async function OwnerLayout({
   ];
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      {/* Sidebar – desktop only */}
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* Sidebar – desktop only (sticky, tidak ikut scroll dengan main) */}
       <Sidebar
         navItems={navItems}
         tenantName={ctx.tenantName}
@@ -84,8 +84,8 @@ export default async function OwnerLayout({
         className="hidden lg:flex"
       />
 
-      {/* Main content */}
-      <main className="flex min-w-0 flex-1 flex-col">
+      {/* Main content – hanya area ini yang scroll */}
+      <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {/* Mobile top bar */}
         <div className="border-b bg-white px-4 py-3 text-sm text-gray-500 lg:hidden">
           {ctx.tenantName} · {ctx.fullName}

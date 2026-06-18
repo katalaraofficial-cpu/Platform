@@ -61,10 +61,24 @@ function lamaKerja(start: string | null | undefined, end: string | null | undefi
 export default async function OwnerInvoicesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; from?: string; to?: string; q?: string; item?: string; no?: string; size?: string; page?: string }>;
+  searchParams: Promise<{
+    status?: string | string[];
+    from?: string;
+    to?: string;
+    q?: string;
+    item?: string;
+    no?: string;
+    size?: string;
+    page?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const status = params.status ?? "";
+  const rawStatus = params.status;
+  const statusList: string[] = Array.isArray(rawStatus)
+    ? rawStatus.filter(Boolean)
+    : rawStatus
+    ? rawStatus.split(",").map((s) => s.trim()).filter(Boolean)
+    : [];
   const dateFrom = params.from ?? "";
   const dateTo = params.to ?? "";
   const customerQuery = (params.q ?? "").trim();
@@ -144,8 +158,10 @@ export default async function OwnerInvoicesPage({
     .order("created_at", { ascending: false })
     .order("invoice_number", { ascending: false })
     .range(offset, offset + pageSize - 1);
-  if (status && status !== "complaint") {
-    tableQuery = tableQuery.eq("status", status as InvoiceStatus);
+  const nonComplaintStatuses = statusList.filter((s) => s !== "complaint");
+  const wantsComplaint = statusList.includes("complaint");
+  if (nonComplaintStatuses.length > 0 && !wantsComplaint) {
+    tableQuery = tableQuery.in("status", nonComplaintStatuses as InvoiceStatus[]);
   }
   if (dateFrom) tableQuery = tableQuery.gte("created_at", dateFrom);
   if (dateTo) tableQuery = tableQuery.lte("created_at", dateTo + "T23:59:59");
@@ -179,8 +195,18 @@ export default async function OwnerInvoicesPage({
     : { data: [] as { invoice_id: string }[] };
   const complaintInvoiceIds = [...new Set((complaintRows ?? []).map((row) => row.invoice_id))];
 
-  if (status === "complaint") {
-    if (complaintInvoiceIds.length === 0) {
+  if (wantsComplaint) {
+    // Gabungkan filter complaint dengan status lain (OR) — bila tidak ada
+    // invoice complaint, paksa hasil kosong saat hanya complaint dipilih.
+    if (nonComplaintStatuses.length > 0) {
+      const orParts: string[] = [
+        `status.in.(${nonComplaintStatuses.join(",")})`,
+      ];
+      if (complaintInvoiceIds.length > 0) {
+        orParts.push(`id.in.(${complaintInvoiceIds.join(",")})`);
+      }
+      tableQuery = tableQuery.or(orParts.join(","));
+    } else if (complaintInvoiceIds.length === 0) {
       tableQuery = tableQuery.eq("id", "00000000-0000-0000-0000-000000000000");
     } else {
       tableQuery = tableQuery.in("id", complaintInvoiceIds);
@@ -264,10 +290,11 @@ export default async function OwnerInvoicesPage({
   const total = totalCount ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
-  function buildUrl(overrides: { status?: string; page?: number; size?: number; q?: string; item?: string; no?: string }) {
+  function buildUrl(overrides: { status?: string | string[]; page?: number; size?: number; q?: string; item?: string; no?: string }) {
     const p = new URLSearchParams();
-    const s = "status" in overrides ? (overrides.status ?? "") : status;
-    if (s) p.set("status", s);
+    const sRaw = "status" in overrides ? overrides.status : statusList;
+    const sArr = Array.isArray(sRaw) ? sRaw : sRaw ? [sRaw] : [];
+    for (const s of sArr) if (s) p.append("status", s);
     if (dateFrom) p.set("from", dateFrom);
     if (dateTo) p.set("to", dateTo);
     const q = "q" in overrides ? (overrides.q ?? "") : customerQuery;
@@ -292,7 +319,7 @@ export default async function OwnerInvoicesPage({
   };
 
   const TH =
-    "px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 whitespace-nowrap";
+    "px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 leading-tight align-bottom break-words";
   const TD = "px-2 py-2 text-xs";
 
   return (
@@ -357,19 +384,44 @@ export default async function OwnerInvoicesPage({
                 className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
               />
             </div>
-            <div className="w-[180px]">
+            <div className="w-[220px]">
               <label className="mb-1 block text-xs text-gray-500">Status</label>
-              <select
-                name="status"
-                defaultValue={status}
-                className="w-full rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              >
-                {STATUS_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
+              <details className="group relative">
+                <summary className="flex w-full cursor-pointer list-none items-center justify-between rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900">
+                  <span className="truncate">
+                    {statusList.length === 0
+                      ? "Semua Status"
+                      : statusList.length === 1
+                      ? STATUS_FILTER_OPTIONS.find((o) => o.value === statusList[0])?.label ?? statusList[0]
+                      : `${statusList.length} status dipilih`}
+                  </span>
+                  <span className="ml-2 text-xs text-gray-400 transition-transform group-open:rotate-180">▾</span>
+                </summary>
+                <div className="absolute left-0 top-full z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-gray-200 bg-white p-2 shadow-lg">
+                  {STATUS_FILTER_OPTIONS.filter((o) => o.value).map((opt) => {
+                    const checked = statusList.includes(opt.value);
+                    return (
+                      <label
+                        key={opt.value}
+                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        <input
+                          type="checkbox"
+                          name="status"
+                          value={opt.value}
+                          defaultChecked={checked}
+                          className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
+                          data-no-uppercase
+                        />
+                        <span>{opt.label}</span>
+                      </label>
+                    );
+                  })}
+                  <p className="mt-1 border-t border-gray-100 px-2 py-1 text-[10px] text-gray-400">
+                    Tidak dicentang = semua status
+                  </p>
+                </div>
+              </details>
             </div>
             <div className="w-[180px]">
               <label className="mb-1 block text-xs text-gray-500">Cari Pelanggan</label>
@@ -411,9 +463,9 @@ export default async function OwnerInvoicesPage({
             >
               Terapkan
             </button>
-            {(dateFrom || dateTo || customerQuery || itemQuery || invoiceNoQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
+            {(statusList.length > 0 || dateFrom || dateTo || customerQuery || itemQuery || invoiceNoQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
               <Link
-                href={buildUrl({ page: 1, q: "", item: "", no: "", size: DEFAULT_PAGE_SIZE })}
+                href={`${BASE_PATH}/invoices`}
                 className="text-sm text-gray-400 hover:text-gray-600 underline"
               >
                 Reset
@@ -536,13 +588,13 @@ export default async function OwnerInvoicesPage({
                   <col className="w-[14%]" />
                   <col className="w-[8%]" />
                   <col className="w-[7%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[10%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[6%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[6%]" />
                   <col className="w-[5%]" />
                   <col className="w-[4%]" />
-                  <col className="w-[5%]" />
-                  <col className="w-[1%]" />
+                  <col className="w-[3%]" />
                 </colgroup>
                 <thead className="bg-gray-50">
                   <tr>
@@ -563,7 +615,7 @@ export default async function OwnerInvoicesPage({
                     <th className={`${TH} text-right`}>Bayar</th>
                     <th className={`${TH} text-right`}>Kurang</th>
                     <th className={TH}>Engineer</th>
-                    <th className={TH}>Tgl Selesai</th>
+                    <th className={TH}>Selesai</th>
                     <th className={TH}>Lama Kerja</th>
                     <th className={TH}>Catatan</th>
                     <th className="w-8 px-2 py-2" />
@@ -632,7 +684,7 @@ export default async function OwnerInvoicesPage({
                         >
                           {fmt(isPaid ? 0 : invTotal)}
                         </td>
-                        <td className={`${TD} max-w-[110px] text-gray-600`}>
+                        <td className={`${TD} min-w-0 text-gray-600`}>
                           {mechanics.length > 0 ? (
                             <span className="block truncate" title={mechanics.join(", ")}>
                               {mechanics.slice(0, 2).join(", ")}
@@ -644,16 +696,16 @@ export default async function OwnerInvoicesPage({
                             <span className="text-gray-300">-</span>
                           )}
                         </td>
-                        <td className={`${TD} whitespace-nowrap text-gray-500`}>
+                        <td className={`${TD} text-gray-500`}>
                           {fmtDate(inv.completed_at)}
                         </td>
-                        <td className={`${TD} whitespace-nowrap text-gray-500`}>
+                        <td className={`${TD} text-gray-500`}>
                           {lamaKerja(
                             (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
                             inv.completed_at
                           )}
                         </td>
-                        <td className={`${TD} max-w-[120px] text-gray-500`}>
+                        <td className={`${TD} min-w-0 text-gray-500`}>
                           <div className="flex items-center gap-1.5">
                             {inv.notes ? (
                               <span className="block flex-1 truncate text-[11px]" title={inv.notes}>

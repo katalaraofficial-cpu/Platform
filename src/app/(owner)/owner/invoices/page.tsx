@@ -365,7 +365,8 @@ export default async function OwnerInvoicesPage({
       {/* Table Card */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-100 px-4 py-3">
-          <form method="get" action={`${BASE_PATH}/invoices`} className="flex flex-wrap items-end gap-3">
+          <form method="get" action={`${BASE_PATH}/invoices`} className="space-y-3">
+            <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="mb-1 block text-xs text-gray-500">Dari</label>
               <input
@@ -457,9 +458,11 @@ export default async function OwnerInvoicesPage({
                 ))}
               </select>
             </div>
+            </div>
+            <div className="flex items-center justify-center gap-3">
             <button
               type="submit"
-              className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
+              className="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
             >
               Terapkan
             </button>
@@ -471,6 +474,7 @@ export default async function OwnerInvoicesPage({
                 Reset
               </Link>
             )}
+            </div>
           </form>
         </div>
 
@@ -547,7 +551,7 @@ export default async function OwnerInvoicesPage({
                         <p className="font-medium text-gray-700">{fmtDate(inv.completed_at)}</p>
                       </div>
                       <div>
-                        <p className="text-gray-400">Lama Kerja</p>
+                        <p className="text-gray-400">Waktu</p>
                         <p className="font-medium text-gray-700">
                           {lamaKerja(
                             (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
@@ -616,8 +620,8 @@ export default async function OwnerInvoicesPage({
                     <th className={`${TH} text-right`}>Kurang</th>
                     <th className={TH}>Engineer</th>
                     <th className={TH}>Selesai</th>
-                    <th className={TH}>Lama Kerja</th>
-                    <th className={TH}>Catatan</th>
+                    <th className={TH}>Waktu</th>
+                    <th className={TH}>Note</th>
                     <th className="w-8 px-2 py-2" />
                   </tr>
                 </thead>

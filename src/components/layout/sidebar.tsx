@@ -148,7 +148,7 @@ export function Sidebar({
       {/* ── User footer ── */}
       <div className="border-t p-2">
         {!collapsed && (
-          <div className="mb-1 flex items-center gap-3 rounded-lg px-2 py-2">
+          <div className="flex items-center gap-3 rounded-lg px-2 py-2">
             <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-200 text-xs font-semibold text-gray-600">
               {userFullName.charAt(0).toUpperCase()}
             </div>
@@ -160,6 +160,10 @@ export function Sidebar({
             </div>
           </div>
         )}
+      </div>
+
+      {/* ── Bottom action: always isolated from main menu list ── */}
+      <div className="mt-auto border-t bg-white p-2">
         <form action={signOut}>
           <button
             type="submit"

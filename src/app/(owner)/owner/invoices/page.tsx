@@ -526,8 +526,24 @@ export default async function OwnerInvoicesPage({
               })}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="hidden md:block">
+              <table className="w-full table-fixed divide-y divide-gray-200">
+                <colgroup>
+                  <col className="w-[3%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[4%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[1%]" />
+                </colgroup>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="w-8 px-2 py-2">
@@ -540,8 +556,8 @@ export default async function OwnerInvoicesPage({
                     </th>
                     <th className={TH}>No. Nota</th>
                     <th className={TH}>Tanggal</th>
-                    <th className={`${TH} min-w-[260px]`}>Pelanggan</th>
-                    <th className={`${TH} min-w-[260px]`}>Pekerjaan</th>
+                    <th className={TH}>Pelanggan</th>
+                    <th className={TH}>Pekerjaan</th>
                     <th className={TH}>Status</th>
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
@@ -582,12 +598,12 @@ export default async function OwnerInvoicesPage({
                         <td className={`${TD} whitespace-nowrap text-gray-500`}>
                           {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                         </td>
-                        <td className={`${TD} max-w-none whitespace-normal break-words text-gray-900`}>
+                        <td className={`${TD} min-w-0 text-gray-900`}>
                           <span className="line-clamp-2" title={customer?.name ?? "-"}>
                             {customer?.name ?? "-"}
                           </span>
                         </td>
-                        <td className={`${TD} max-w-none whitespace-normal break-words text-gray-700`}>
+                        <td className={`${TD} min-w-0 text-gray-700`}>
                           {(inv as { job_title?: string | null }).job_title ? (
                             <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
                               {(inv as { job_title?: string | null }).job_title}

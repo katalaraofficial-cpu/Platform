@@ -250,14 +250,24 @@ export default async function AdminInvoicesPage({
               ))}
             </div>
 
-            <div className="hidden overflow-x-auto md:block">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="hidden md:block">
+              <table className="w-full table-fixed divide-y divide-gray-200">
+                <colgroup>
+                  <col className="w-[12%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[23%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[4%]" />
+                </colgroup>
                 <thead className="bg-gray-50">
                   <tr>
                     <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">No. Invoice</th>
                     <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Tanggal</th>
-                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 min-w-[260px]">Pelanggan</th>
-                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500 min-w-[260px]">Pekerjaan</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Pelanggan</th>
+                    <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Pekerjaan</th>
                     <th className="px-2 py-2 text-left text-[11px] font-medium uppercase tracking-wider text-gray-500">Status</th>
                     <th className="px-2 py-2 text-right text-[11px] font-medium uppercase tracking-wider text-gray-500">Total</th>
                     <th className="px-2 py-2 text-center text-[11px] font-medium uppercase tracking-wider text-gray-500">Catatan</th>
@@ -273,10 +283,10 @@ export default async function AdminInvoicesPage({
                       <td className="whitespace-nowrap px-2 py-2 text-xs text-gray-500">
                         {fmtDate((inv as { invoice_date?: string }).invoice_date ?? inv.created_at)}
                       </td>
-                      <td className="px-2 py-2 text-xs text-gray-700 whitespace-normal break-words">
+                      <td className="min-w-0 px-2 py-2 text-xs text-gray-700">
                         {customerMap[inv.customer_id ?? ""] ?? "-"}
                       </td>
-                      <td className="px-2 py-2 text-xs text-gray-700 whitespace-normal break-words">
+                      <td className="min-w-0 px-2 py-2 text-xs text-gray-700">
                         {(inv as { job_title?: string | null }).job_title ? (
                           <span className="line-clamp-2" title={(inv as { job_title?: string | null }).job_title ?? ""}>
                             {(inv as { job_title?: string | null }).job_title}

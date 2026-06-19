@@ -325,14 +325,18 @@ export default async function OwnerInvoicesPage({
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Invoice</h1>
-          <p className="mt-1 text-sm text-gray-500">Kelola semua transaksi jasa &amp; barang</p>
+      <div className="flex flex-col items-stretch gap-3 rounded-2xl border border-blue-700/30 bg-gradient-to-r from-blue-700 to-blue-500 px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="text-center sm:text-left">
+          <h1 className="text-2xl font-extrabold uppercase tracking-wide text-white">
+            Progres Kerja &amp; Invoice
+          </h1>
+          <p className="mt-0.5 text-xs font-medium text-blue-100/90">
+            Kelola Semua status transaksi jasa dan barang secara real time
+          </p>
         </div>
         <Link
           href={`${BASE_PATH}/invoices/new`}
-          className="rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          className="inline-flex items-center justify-center self-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold uppercase tracking-wide text-white shadow-sm transition-colors hover:bg-gray-800 sm:self-auto"
         >
           + Buat Invoice
         </Link>
@@ -586,16 +590,16 @@ export default async function OwnerInvoicesPage({
               <table className="w-full table-fixed divide-y divide-gray-200">
                 <colgroup>
                   <col className="w-[3%]" />
-                  <col className="w-[10%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[20%]" />
-                  <col className="w-[10%]" />
                   <col className="w-[9%]" />
                   <col className="w-[7%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[3%]" />
-                  <col className="w-[3%]" />
+                  <col className="w-[17%]" />
+                  <col className="w-[19%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[5%]" />
+                  <col className="w-[4%]" />
                 </colgroup>
                 <thead className="bg-gray-50">
                   <tr>

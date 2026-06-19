@@ -299,7 +299,7 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
         )}
       </div>
 
-      {/* ── Create Modal ───────────────────────────────────────── */}
+      {/* ── Create / Edit Modal ────────────────────────────────── */}
       {showCreate && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -309,16 +309,41 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
             className="relative w-full max-w-md rounded-lg bg-white shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => setShowCreate(false)}
-              className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-              aria-label="Tutup"
-            >
-              <X className="h-4 w-4" />
-            </button>
-            <div className="border-b border-gray-100 px-5 py-4">
-              <h3 className="text-sm font-semibold text-gray-900">Buat Catatan Tracking</h3>
+            {/* Top-right actions: upload foto + close */}
+            <div className="absolute right-3 top-3 flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || images.length >= MAX_IMAGES}
+                className="flex h-7 items-center gap-1 rounded-md border border-gray-200 px-2 text-[11px] font-medium text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+                title="Tambah foto (maks 2)"
+              >
+                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                Foto
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="flex h-7 w-7 items-center justify-center rounded text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="Tutup"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              multiple
+              className="hidden"
+              onChange={handleFiles}
+            />
+
+            <div className="border-b border-gray-100 px-5 py-4 pr-32">
+              <h3 className="text-sm font-semibold text-gray-900">
+                {editingId ? "Edit Catatan Tracking" : "Buat Catatan Tracking"}
+              </h3>
               <p className="mt-0.5 text-xs text-gray-500">Invoice {invoiceNumber}</p>
             </div>
             <div className="space-y-3 px-5 py-4">
@@ -331,6 +356,26 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
                   className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Quick action presets */}
+              {presets.length > 0 && (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Aksi Cepat</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {presets.map((p) => (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => applyPreset(p)}
+                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100"
+                      >
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="mb-1 block text-xs font-medium text-gray-600">Catatan</label>
                 <textarea
@@ -341,6 +386,27 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
                   className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
               </div>
+
+              {/* Image thumbnails */}
+              {images.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {images.map((url) => (
+                    <div key={url} className="relative h-16 w-16 overflow-hidden rounded-md border border-gray-200">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={url} alt="Foto catatan" className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(url)}
+                        className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black"
+                        aria-label="Hapus foto"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {error && (
                 <p className="rounded border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">{error}</p>
               )}
@@ -356,7 +422,7 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={pending || !noteText.trim()}
+                disabled={pending || uploading || !noteText.trim()}
                 className="rounded-md bg-gray-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-gray-800 disabled:opacity-50"
               >
                 {pending ? "Menyimpan…" : "Simpan"}

@@ -6,7 +6,7 @@ Platform manajemen bengkel multi-tenant berbasis Next.js + Supabase.
 **GitHub:** https://github.com/katalaraofficial-cpu/Platform  
 **Supabase Project:** https://nmggvtewovganrwcbpzk.supabase.co  
 **Branch aktif:** `main`  
-**Last updated:** 13 Juni 2026 — commit `72ff6d4`
+**Last updated:** 19 Juni 2026 — commit `8c8da8d`
 
 Referensi utama untuk kelanjutan development:
 
@@ -22,6 +22,19 @@ Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 ### [SELESAI]
 
 - **Catatan tracking per invoice** (`64e1d77`, `72ff6d4`): kolom **Catatan** di list invoice owner & admin punya tombol bundar (badge jumlah) dengan dropdown Buat Catatan / Preview Catatan, modal create (tanggal + textarea, Simpan/Batal, X corner, klik backdrop & Esc untuk batal) dan modal preview (list catatan + tombol hapus). Backed by migrasi `046_invoice_tracking_notes.sql` (kolom `tracking_notes JSONB`).
+- **Field Pekerjaan invoice** (`047_invoice_job_title.sql` + rangkaian commit `789b0d4`→`41e91ed`): due date diganti field `job_title` (label **Pekerjaan**) di editor, tampil di list owner/admin, tersedia autocomplete historis prefix, dan sinkron create/edit action.
+- **Perbaikan uppercase global**: transform huruf kapital kini pakai native value setter + guard IME sehingga input tidak terpotong (kasus `BOR TANGAN` tidak lagi jadi `BOR T`).
+- **List running invoice UX refresh** (`9cb55b2`, `3658ba3`, `b11da2c`, `3a7da2f`, `e0567d8`, `4189c79`):
+  - tabel desktop lock proporsional (`table-fixed` + `colgroup`) untuk desktop/tablet landscape;
+  - filter status owner jadi multi-select checkbox (persist via query sampai Reset);
+  - sidebar owner sticky (hanya content panel yang scroll);
+  - kolom list dirampingkan, info `Engineer/Tgl Selesai/Waktu` dipindah ke modal Preview Invoice;
+  - ikon aksi ganti badge lingkaran + chevron bawah;
+  - hero header list invoice ditingkatkan sesuai arahan UI.
+- **Flow status draft dipersingkat**: tombol **Tandai Selesai** tersedia langsung dari status draft (owner/admin) untuk transaksi non-service.
+- **Autocomplete customer invoice stabil** (`8c8da8d`): dropdown tidak mudah hilang saat hover/klik, state kosong tetap menampilkan opsi `+ Tambah "..." sebagai baru`, dan klik mengarah konsisten ke modal tambah pelanggan.
+- **Print format default dari Settings** (`8c8da8d`): opsi format cetak di create invoice disembunyikan; print/WA mengikuti `settings.nota_active_format` sebagai default tunggal.
+- **WA share invoice detail** (`8c8da8d`): template WA kini mendukung blok rincian `{rincian}` (Subtotal, Diskon, PPN, PPh, Ongkir, DP) sehingga nilai diskon muncul saat dikirim.
 - **Reorder baris item invoice** (`5f46687`): aksi naik/turun (ChevronUp/Down) di tabel item invoice editor (desktop + mobile).
 - **Owner invoice list UX lanjutan**:
   - Filter **Cari Item** (ILIKE `invoice_items.description`) + persempit field Cari Pelanggan (`3bdd3a4`).
@@ -82,6 +95,14 @@ Format status mengikuti pola ringkas `AGEN_CONTEXT.MD`.
 
 | Commit | Jenis | Ringkasan |
 |---|---|---|
+| `8c8da8d` | feat | Invoice: customer dropdown sticky + WA rincian (diskon/ppn/dp/ongkir) + print format default dari Settings |
+| `4189c79` | ui | Invoice list owner: hero header card + rebalance lebar kolom tabel |
+| `e0567d8` | ui | Invoice: hapus kolom engineer/selesai/waktu di list, pindah ke preview, ikon aksi chevron, draft bisa langsung Tandai Selesai |
+| `3a7da2f` | ui | Invoice list: label kolom Waktu/Note + aksi filter ter-center di baris bawah |
+| `b11da2c` | ui | Invoice list: header kolom auto-wrap + sidebar owner sticky + filter status multi-select |
+| `3658ba3` | ui | Invoice list: lock layout desktop tanpa scroll horizontal + isolasi tombol Keluar di bottom sidebar |
+| `41e91ed` | feat | Invoice editor: autocomplete Pekerjaan + fallback autocomplete item dari histori `invoice_items` |
+| `9cb55b2` | ui | Invoice list owner/admin: tanggal `dd/mm/yyyy`, font lebih ringkas, kolom Pelanggan/Pekerjaan diperluas |
 | `7ba1837` | chore | Attendance: backfill `checked_out_at` untuk data historis checkout < 8 jam |
 | `e4b4cff` | feat | Attendance: checkout manual opsional, log harian engineer, menu navbar engineer, kolom rata-rata jam/hari, tab owner center |
 | `d29d689` | feat | Rekap kehadiran owner: filter periode tanggal/bulan/tahun + akumulasi jam lintas mode |
@@ -172,6 +193,8 @@ Pastikan environment target sudah menjalankan migrasi bisnis terbaru minimal sam
 - `041_settings_feature_catalog.sql` (kolom `settings.feature_catalog_enabled` default `false`)
 - `044_attendance_manual_checkout.sql` (kolom `attendance_records.checked_out_at` + policy update engineer checkout)
 - `045_backfill_checked_out_at.sql` (backfill histori checkout manual berdasarkan durasi < 8 jam)
+- `046_invoice_tracking_notes.sql` (kolom `invoices.tracking_notes JSONB` untuk catatan tracking invoice)
+- `047_invoice_job_title.sql` (kolom `invoices.job_title` untuk field Pekerjaan invoice)
 
 Catatan: migrasi awal `011`–`015` yang sempat bertanda pending di dokumen lama juga perlu dipastikan status eksekusinya di production.
 

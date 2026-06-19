@@ -5,7 +5,7 @@
 > mendalam tetap di `docs/PROJECT_CONTEXT.md`; histori commit lengkap di
 > `docs/DEVELOPMENT_PROGRESS.md`; pakem operasional di `docs/AI_AGENT_FRAMEWORK.md`.
 
-Terakhir Diperbarui: 2026-06-13 (commit acuan: `72ff6d4`)
+Terakhir Diperbarui: 2026-06-19 (commit acuan: `8c8da8d`)
 Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + Tailwind v3.4
 
 ---
@@ -57,6 +57,13 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [SELESAI] Owner invoice list UX lanjutan (`3bdd3a4` → `e77f393`): filter Cari Item (LIKE `invoice_items.description`) + persempit Cari Pelanggan, auto-flip dropdown row actions, bulk select + bulk Tandai Lunas / Hapus massal, Preview Invoice modal di row actions, preview pelanggan kini menampilkan histori service + filter no invoice.
 * [SELESAI] Invoice editor: aksi naik/turun urutan baris item (desktop + mobile) via `moveItem` lokal di state (`5f46687`).
 * [SELESAI] Catatan tracking per invoice (`64e1d77`, `72ff6d4`): kolom Catatan di list invoice owner & admin dapat tombol bundar (badge jumlah), dropdown Buat / Preview, modal create (tanggal + textarea, Simpan/Batal, X corner, klik backdrop & Esc) dan modal preview (list catatan + hapus). Backed by migrasi `046_invoice_tracking_notes.sql` (kolom `tracking_notes JSONB`).
+* [SELESAI] Invoice `job_title` (migrasi `047_invoice_job_title.sql`): field **Pekerjaan** menggantikan due-date di strip editor, tampil di list owner/admin, serta ikut sinkron create/edit action + typing uppercase global aman (tanpa truncation input React).
+* [SELESAI] Running invoice owner/admin: format tanggal list jadi `dd/mm/yyyy`, tabel desktop dikunci proporsional (`table-fixed` + `colgroup`) untuk resolusi desktop/tablet landscape, action bar filter dirapikan, serta sidebar owner dibuat sticky (main content-only scroll).
+* [SELESAI] Filter status owner: berubah menjadi multi-select checkbox (lebih dari satu status), state filter dipersist via query param sampai user klik reset.
+* [SELESAI] Row actions invoice: ikon aksi diganti jadi badge lingkaran + chevron bawah (lebih terbaca sebagai dropdown), dan data `Engineer/Tgl Selesai/Waktu` dipindah dari kolom list ke modal Preview Invoice.
+* [SELESAI] Status action draft: ditambah tombol **Tandai Selesai** (owner + admin) untuk flow invoice jual-beli tanpa langkah `Mulai Kerjakan`.
+* [SELESAI] Customer autocomplete di invoice editor diperbaiki: dropdown tetap tampil saat hasil kosong, opsi `+ Tambah "..." sebagai baru` selalu terlihat/stabil, dan klik mengarah konsisten ke modal tambah pelanggan baru.
+* [SELESAI] Print & WA share sinkron dengan Pengaturan Nota: format cetak default diambil dari `settings.nota_active_format` (opsi format tidak ditampilkan lagi di create invoice), dan pesan WA kini mendukung blok rincian `{rincian}` (Subtotal, Diskon, PPN/PPh, Ongkir, DP) saat nilai > 0.
 * [PROSES] Mobile polish: Dashboard owner & Kas aman di 360px; Admin bottom nav belum ada (masih sidebar).
 * [BELUM] Integrasi data riil tab `Payroll` mekanik masih scaffold.
 * [BELUM] Parity modul pelanggan untuk admin (`/admin/customers`).
@@ -66,6 +73,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * [PERLU CEK] Rollout migration `041_settings_feature_catalog.sql` di semua environment target sebelum uji toggle katalog.
 * [PERLU CEK] Pastikan rollout migration `044_attendance_manual_checkout.sql` dan `045_backfill_checked_out_at.sql` di semua environment target.
 * [PERLU CEK] Rollout migration `046_invoice_tracking_notes.sql` di semua environment target sebelum fitur Catatan Tracking dipakai produksi.
+* [PERLU CEK] Rollout migration `047_invoice_job_title.sql` di semua environment target sebelum field Pekerjaan dipakai penuh di create/edit/list.
 
 ## 3. STRUKTUR FILE KRITIS (Path Anchors)
 
@@ -77,7 +85,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * `@/src/lib/supabase/middleware.ts` -> client khusus `middleware.ts`.
 * `@/src/lib/actions/` -> Semua Server Actions (`auth.ts`, `invoice.ts`, `catalog.ts`, `settings.ts`, `tenant.ts`, `customer.ts`, `mechanics.ts`, `employee-points.ts`, `kas*.ts`, dst).
 * `@/src/types/database.ts` -> Tipe TypeScript semua tabel + `Database` interface.
-* `@/src/lib/wa-template.ts` -> `DEFAULT_WA_TEMPLATE` + `buildItemsBlock` (placeholder `{customer}`/`{invoice_no}`/`{total}`/`{status}`/`{items}`).
+* `@/src/lib/wa-template.ts` -> `DEFAULT_WA_TEMPLATE` + `buildItemsBlock` + `buildRincianBlock` (placeholder tambahan `{rincian}`/`{subtotal}` untuk WA share).
 * `@/src/components/invoices/invoice-editor.tsx` -> Editor invoice unified (autocomplete + warning mismatch + reorder naik/turun baris item).
 * `@/src/components/invoices/invoice-row-actions.tsx` -> Dropdown aksi per baris invoice (auto-flip, Preview Invoice, Detail/Edit, Cetak, Tandai Lunas, Rollback, Hapus).
 * `@/src/components/invoices/invoice-bulk-bar.tsx` -> Bulk action bar (Tandai Lunas massal + Hapus massal) untuk list invoice owner.
@@ -89,7 +97,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 * `@/src/app/(owner)/owner/katalog/page.tsx` (+ `katalog-client.tsx`) -> Katalog item implicit.
 * `@/src/app/(print)/print/invoices/[id]/page.tsx` -> Print publik + `generateMetadata` OG.
 * `@/src/app/_brand-logo.ts` · `@/src/app/icon.tsx` · `@/src/app/manifest.ts` · `@/src/app/layout.tsx` -> Brand icon PWA + cache busting.
-* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `046_invoice_tracking_notes.sql`).
+* `@/supabase/migrations/` -> Migrasi SQL berurutan (terbaru: `047_invoice_job_title.sql`).
 
 ## 4. TUGAS BERIKUTNYA UNTUK ANDA (Next Action Items)
 
@@ -98,7 +106,7 @@ Branch aktif: `main` · Stack: Next.js 15 (App Router, TypeScript) + Supabase + 
 3. Bangun approval flow klaim non-invoice (`mechanic_debt_ledger.claim_category`) di sisi owner sebelum reimburse.
 4. Tambahkan audit log untuk aksi sensitif (rollback invoice, sinkron point, delete user, klaim non-invoice, reklasifikasi katalog).
 5. Perbaiki akumulasi helper point untuk nominal kecil (hindari loss karena `floor`).
-6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum, dan pastikan migration `041`, `044`, `045`, `046` sudah terpasang lintas environment.
+6. Verifikasi & jalankan migrasi pending `011`–`015` di environment target bila belum, dan pastikan migration `041`, `044`, `045`, `046`, `047` sudah terpasang lintas environment.
 
 ## 5. STANDAR FORMAT & CARA UPDATE (Wajib Diikuti Agent Berikutnya)
 

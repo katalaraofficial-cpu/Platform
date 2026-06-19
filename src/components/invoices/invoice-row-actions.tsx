@@ -3,7 +3,7 @@
 import { createPortal } from "react-dom";
 import { useRef, useEffect, useState, useTransition } from "react";
 import Link from "next/link";
-import { MoreHorizontal, Eye, Trash2, Printer, RotateCcw, BadgeCheck, FileSearch } from "lucide-react";
+import { ChevronDown, Eye, Trash2, Printer, RotateCcw, BadgeCheck, FileSearch } from "lucide-react";
 import { deleteInvoice, processPayment, rollbackInvoiceStatus } from "@/lib/actions/invoice";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { InvoicePreviewModal } from "@/components/invoices/invoice-preview-modal";
@@ -228,11 +228,11 @@ export function InvoiceRowActions({
       <button
         ref={btnRef}
         onClick={handleOpen}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-gray-400
-                   hover:bg-gray-100 hover:text-gray-600 transition-colors"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-gray-300 bg-white text-gray-500 shadow-sm transition-colors hover:border-gray-400 hover:bg-gray-50 hover:text-gray-700"
         title="Aksi"
+        aria-label="Buka aksi invoice"
       >
-        <MoreHorizontal className="h-4 w-4" />
+        <ChevronDown className="h-3.5 w-3.5" />
       </button>
 
       {open && mounted && menuPos &&

@@ -586,18 +586,15 @@ export default async function OwnerInvoicesPage({
               <table className="w-full table-fixed divide-y divide-gray-200">
                 <colgroup>
                   <col className="w-[3%]" />
+                  <col className="w-[10%]" />
                   <col className="w-[8%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[14%]" />
-                  <col className="w-[8%]" />
-                  <col className="w-[7%]" />
-                  <col className="w-[6%]" />
-                  <col className="w-[6%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[20%]" />
+                  <col className="w-[10%]" />
                   <col className="w-[9%]" />
-                  <col className="w-[6%]" />
-                  <col className="w-[5%]" />
-                  <col className="w-[4%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[7%]" />
+                  <col className="w-[3%]" />
                   <col className="w-[3%]" />
                 </colgroup>
                 <thead className="bg-gray-50">
@@ -618,9 +615,6 @@ export default async function OwnerInvoicesPage({
                     <th className={`${TH} text-right`}>Total</th>
                     <th className={`${TH} text-right`}>Bayar</th>
                     <th className={`${TH} text-right`}>Kurang</th>
-                    <th className={TH}>Engineer</th>
-                    <th className={TH}>Selesai</th>
-                    <th className={TH}>Waktu</th>
                     <th className={TH}>Note</th>
                     <th className="w-8 px-2 py-2" />
                   </tr>
@@ -628,7 +622,6 @@ export default async function OwnerInvoicesPage({
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {invoices.map((inv) => {
                     const customer = inv.customer_id ? customerMap[inv.customer_id] : null;
-                    const mechanics = invMechanicsMap[inv.id] ?? [];
                     const invTotal = Number(inv.grand_total);
                     const isPaid = inv.status === "paid";
                     return (
@@ -687,27 +680,6 @@ export default async function OwnerInvoicesPage({
                           }`}
                         >
                           {fmt(isPaid ? 0 : invTotal)}
-                        </td>
-                        <td className={`${TD} min-w-0 text-gray-600`}>
-                          {mechanics.length > 0 ? (
-                            <span className="block truncate" title={mechanics.join(", ")}>
-                              {mechanics.slice(0, 2).join(", ")}
-                              {mechanics.length > 2 && (
-                                <span className="text-gray-400"> +{mechanics.length - 2}</span>
-                              )}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300">-</span>
-                          )}
-                        </td>
-                        <td className={`${TD} text-gray-500`}>
-                          {fmtDate(inv.completed_at)}
-                        </td>
-                        <td className={`${TD} text-gray-500`}>
-                          {lamaKerja(
-                            (inv as { invoice_date?: string }).invoice_date ?? inv.created_at,
-                            inv.completed_at
-                          )}
                         </td>
                         <td className={`${TD} min-w-0 text-gray-500`}>
                           <div className="flex items-center gap-1.5">

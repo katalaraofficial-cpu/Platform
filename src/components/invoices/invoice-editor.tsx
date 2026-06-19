@@ -192,6 +192,7 @@ const OWNER_NEXT_STATUS: Record<
 > = {
   draft: [
     { label: "Mulai Kerjakan", next: "in_progress", color: "bg-blue-600 hover:bg-blue-500 text-white" },
+    { label: "Tandai Selesai", next: "completed", color: "bg-amber-500 hover:bg-amber-400 text-white" },
     { label: "Batalkan", next: "cancelled", color: "border border-red-400 text-red-500 hover:bg-red-50" },
   ],
   in_progress: [
@@ -211,6 +212,7 @@ const ADMIN_NEXT_STATUS: Record<
 > = {
   draft: [
     { label: "Mulai Kerjakan", next: "in_progress", color: "bg-blue-600 hover:bg-blue-500 text-white" },
+    { label: "Tandai Selesai", next: "completed", color: "bg-amber-500 hover:bg-amber-400 text-white" },
     { label: "Batalkan", next: "cancelled", color: "border border-red-400 text-red-500 hover:bg-red-50" },
   ],
   in_progress: [

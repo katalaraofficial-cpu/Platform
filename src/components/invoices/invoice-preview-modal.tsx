@@ -23,6 +23,17 @@ function fmtDate(iso: string | null | undefined) {
   });
 }
 
+function lamaKerja(start: string | null | undefined, end: string | null | undefined) {
+  if (!start || !end) return "-";
+  const s = new Date(start);
+  const e = new Date(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return "-";
+  const startDay = Date.UTC(s.getUTCFullYear(), s.getUTCMonth(), s.getUTCDate());
+  const endDay = Date.UTC(e.getUTCFullYear(), e.getUTCMonth(), e.getUTCDate());
+  const days = Math.max(1, Math.round((endDay - startDay) / 86400000) + 1);
+  return `${days} hari`;
+}
+
 const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   in_progress: "Dikerjakan",
@@ -118,6 +129,12 @@ export function InvoicePreviewModal({ invoiceId, basePath, onClose }: Props) {
                 <div>
                   <p className="text-xs text-gray-400">Tgl Selesai</p>
                   <p className="font-medium text-gray-800">{fmtDate(data.completed_at)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Waktu Pengerjaan</p>
+                  <p className="font-medium text-gray-800">
+                    {lamaKerja(data.invoice_date, data.completed_at)}
+                  </p>
                 </div>
                 <div className="col-span-2 sm:col-span-1">
                   <p className="text-xs text-gray-400">Pelanggan</p>

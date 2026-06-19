@@ -39,7 +39,6 @@ const COA_MASUK: CoaEntry[] = [
   { code: "103", name: "Piutang Usaha" },          // penerimaan piutang
   { code: "108", name: "Angsuran Kasbon Karyawan" }, // cicilan kasbon dari karyawan
   { code: "301", name: "Modal Awal / Setoran" },
-  { code: "105", name: "Mutasi Kas dan Bank" },
 ];
 
 // ── KAS KELUAR (Kredit Kas) ───────────────────────────────────
@@ -64,7 +63,6 @@ const COA_KELUAR: CoaEntry[] = [
   { code: "302", name: "Prive (Pengambilan Pribadi)" },
   // Pembelian Aset / Stok
   { code: "104", name: "Pembelian Stok / Inventaris Barang" },
-  { code: "105", name: "Mutasi Kas dan Bank" },
   // Lainnya
   { code: "610", name: "Beban Lainnya" },
 ];

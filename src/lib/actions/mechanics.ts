@@ -5,6 +5,23 @@ import { createTenantAdminClient } from "@/lib/supabase/tenant-admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { revalidatePath } from "next/cache";
 
+// ── COA mapping for mechanic reimbursement ───────────────────
+// Maps a claim category to the proper Chart-of-Account category used in kas.
+//   bensin            → 605 Transportasi & Bensin Teknisi
+//   kesehatan/lainnya → 610 Beban Lainnya
+//   null (part terkait invoice) → 604 Bahan & Sparepart Bengkel (Habis Pakai)
+function claimCoaCategory(claimCategory: string | null): string {
+  switch (claimCategory) {
+    case "bensin":
+      return "605 - Transportasi & Bensin Teknisi";
+    case "kesehatan":
+    case "lainnya":
+      return "610 - Beban Lainnya";
+    default:
+      return "604 - Bahan & Sparepart Bengkel (Habis Pakai)";
+  }
+}
+
 // ============================================================
 // REIMBURSE  — owner or admin records a reimbursement payment
 //              to settle mechanic's advance purchases.
@@ -42,20 +59,76 @@ export async function reimburseDebt(data: {
 
   if (debtError) return { error: debtError.message };
 
-  // 2. Deduct from kas/bank ledger (admin — owner is blocked from ledger by RLS).
-  // Tenant-scoped wrapper auto-inject tenant_id.
-  const adminClient = createTenantAdminClient(ctx.tenantId);
-  const { error: ledgerError } = (await adminClient.from("ledger").insert({
+  // 2. Determine COA classification by allocating this reimbursement across the
+  //    mechanic's advance claims (FIFO). Each claim carries a category:
+  //      bensin            → 605 Transportasi & Bensin Teknisi
+  //      invoice/part      → 604 Bahan & Sparepart Bengkel (Habis Pakai)
+  //      kesehatan/lainnya → 610 Beban Lainnya
+  const { data: advances } = await supabase
+    .from("mechanic_debt_ledger")
+    .select("amount, claim_category, invoice_item_id")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("mechanic_id", data.mechanicId)
+    .eq("transaction_type", "advance")
+    .order("created_at", { ascending: true });
+
+  const { data: reimbursements } = await supabase
+    .from("mechanic_debt_ledger")
+    .select("id, amount")
+    .eq("tenant_id", ctx.tenantId)
+    .eq("mechanic_id", data.mechanicId)
+    .eq("transaction_type", "reimbursement");
+
+  // Amount already reimbursed before the row we just inserted.
+  const priorReimbursed = (reimbursements ?? [])
+    .filter((r) => r.id !== debtRow?.id)
+    .reduce((s, r) => s + Number(r.amount), 0);
+
+  const coaTotals = new Map<string, number>();
+  let toSkip = priorReimbursed;
+  let remaining = data.amount;
+  for (const adv of advances ?? []) {
+    let advAmt = Number(adv.amount);
+    if (toSkip > 0) {
+      const skipped = Math.min(toSkip, advAmt);
+      toSkip -= skipped;
+      advAmt -= skipped;
+    }
+    if (advAmt <= 0 || remaining <= 0) continue;
+    const alloc = Math.min(advAmt, remaining);
+    const coa = claimCoaCategory(adv.claim_category ?? null);
+    coaTotals.set(coa, (coaTotals.get(coa) ?? 0) + alloc);
+    remaining -= alloc;
+  }
+  // Any leftover (over-reimburse / no matching advance) falls back to generic.
+  if (remaining > 0) {
+    coaTotals.set(
+      "Reimburse Mekanik",
+      (coaTotals.get("Reimburse Mekanik") ?? 0) + remaining
+    );
+  }
+  if (coaTotals.size === 0) coaTotals.set("Reimburse Mekanik", data.amount);
+
+  const proofUrl =
+    data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null;
+  const ledgerRows = Array.from(coaTotals.entries()).map(([category, amount]) => ({
     transaction_type: "kas_keluar",
     account_type: data.paymentMethod,
-    category: "Reimburse Mekanik",
-    amount: data.amount,
-    notes: data.notes || null,
-    proof_url: data.paymentMethod === "bank" ? (data.transferProofUrl ?? null) : null,
+    category,
+    amount,
+    notes: data.notes || "Reimburse Mekanik",
+    proof_url: proofUrl,
     transfer_ref: null,
     reference_id: debtRow?.id ?? null,
     created_by: ctx.id,
-  })) as { error: { message: string } | null };
+  }));
+
+  // 3. Deduct from kas/bank ledger (admin — owner is blocked from ledger by RLS).
+  // Tenant-scoped wrapper auto-inject tenant_id.
+  const adminClient = createTenantAdminClient(ctx.tenantId);
+  const { error: ledgerError } = (await adminClient
+    .from("ledger")
+    .insert(ledgerRows)) as { error: { message: string } | null };
 
   if (ledgerError) return { error: ledgerError.message };
 

@@ -228,7 +228,26 @@ function TabPlatform({ s }: { s: Settings | null }) {
   );
   const defaultLabels = s?.price_tier_labels ?? { HET: "HET", HG1: "HG1", HG2: "HG2", HG3: "HG3" };
   const [tierLabels, setTierLabels] = useState(defaultLabels);
+  const [notePresets, setNotePresets] = useState<string[]>(
+    s?.tracking_note_presets ?? ["Diambil", "Diantar", "Dipasang"],
+  );
+  const [presetInput, setPresetInput] = useState("");
   const [pending, startTransition] = useTransition();
+
+  function addPreset() {
+    const v = presetInput.trim();
+    if (!v) return;
+    if (notePresets.some((p) => p.toLowerCase() === v.toLowerCase())) {
+      setPresetInput("");
+      return;
+    }
+    if (notePresets.length >= 8) {
+      toast.error("Maksimal 8 aksi cepat");
+      return;
+    }
+    setNotePresets([...notePresets, v]);
+    setPresetInput("");
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -239,6 +258,7 @@ function TabPlatform({ s }: { s: Settings | null }) {
         qtyDecimal,
         featureCatalogEnabled,
         priceTierLabels: tierLabels,
+        trackingNotePresets: notePresets,
       });
       if (res.error) toast.error(res.error);
       else {
@@ -293,6 +313,54 @@ function TabPlatform({ s }: { s: Settings | null }) {
               />
             </Field>
           ))}
+        </div>
+      </div>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Aksi Cepat Catatan Tracking</p>
+        <p className="text-xs text-gray-500 mb-2 leading-relaxed">
+          Label tombol aksi cepat yang muncul saat membuat catatan di Running Invoice
+          (mis. Diambil, Diantar, Dipasang). Memudahkan konsistensi alur kerja tanpa mengetik ulang.
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {notePresets.length === 0 && (
+            <span className="text-xs text-gray-400">Belum ada aksi cepat.</span>
+          )}
+          {notePresets.map((p) => (
+            <span
+              key={p}
+              className="inline-flex items-center gap-1 rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700"
+            >
+              {p}
+              <button
+                type="button"
+                onClick={() => setNotePresets(notePresets.filter((x) => x !== p))}
+                className="text-violet-400 hover:text-violet-700"
+                aria-label={`Hapus ${p}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Input
+            value={presetInput}
+            onChange={(e) => setPresetInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addPreset();
+              }
+            }}
+            placeholder="Tambah aksi, mis. Dipasang"
+          />
+          <button
+            type="button"
+            onClick={addPreset}
+            className="shrink-0 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+          >
+            Tambah
+          </button>
         </div>
       </div>
       <div className="flex justify-end">

@@ -84,6 +84,7 @@ export async function savePlatformSettings(data: {
   qtyDecimal: boolean;
   featureCatalogEnabled: boolean;
   priceTierLabels: { HET: string; HG1: string; HG2: string; HG3: string };
+  trackingNotePresets: string[];
 }): Promise<SettingsActionState> {
   try {
     const ctx = await ownerGuard();
@@ -99,6 +100,7 @@ export async function savePlatformSettings(data: {
         qty_decimal: data.qtyDecimal,
         feature_catalog_enabled: data.featureCatalogEnabled,
         price_tier_labels: data.priceTierLabels,
+        tracking_note_presets: data.trackingNotePresets,
       });
     if (error) return { error: error.message };
     revalidatePath("/owner/settings");

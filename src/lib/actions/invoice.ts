@@ -753,7 +753,23 @@ export type TrackingNote = {
   date: string;       // YYYY-MM-DD
   text: string;
   created_at: string; // ISO
+  images?: string[];  // optional foto pendukung (max 2)
 };
+
+// Daftar preset aksi cepat catatan tracking (mis. Diambil/Diantar/Dipasang).
+export async function getTrackingNotePresets(): Promise<string[]> {
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return [];
+  const { data } = await supabase
+    .from("settings")
+    .select("tracking_note_presets")
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  const raw = (data as { tracking_note_presets?: unknown } | null)?.tracking_note_presets;
+  if (!Array.isArray(raw)) return [];
+  return raw.filter((x): x is string => typeof x === "string" && x.trim().length > 0);
+}
 
 export async function getInvoiceTrackingNotes(
   invoiceId: string
@@ -776,7 +792,8 @@ export async function addInvoiceTrackingNote(
   invoiceId: string,
   date: string,
   text: string,
-  basePath: string
+  basePath: string,
+  images?: string[]
 ): Promise<ActionState> {
   const trimmed = text.trim();
   if (!trimmed) return { error: "Catatan tidak boleh kosong." };
@@ -796,13 +813,65 @@ export async function addInvoiceTrackingNote(
   const existing = Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes)
     ? ((inv as { tracking_notes: TrackingNote[] }).tracking_notes)
     : [];
+  const cleanImages = Array.isArray(images)
+    ? images.filter((u): u is string => typeof u === "string" && u.length > 0).slice(0, 2)
+    : [];
   const entry: TrackingNote = {
     id: crypto.randomUUID(),
     date,
     text: trimmed,
     created_at: new Date().toISOString(),
+    ...(cleanImages.length ? { images: cleanImages } : {}),
   };
   const next = [entry, ...existing];
+
+  const { error } = await supabase
+    .from("invoices")
+    .update({ tracking_notes: next } as never)
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId);
+  if (error) return { error: error.message };
+
+  revalidatePath(`${basePath}/invoices`);
+  return {};
+}
+
+export async function updateInvoiceTrackingNote(
+  invoiceId: string,
+  noteId: string,
+  date: string,
+  text: string,
+  basePath: string,
+  images?: string[]
+): Promise<ActionState> {
+  const trimmed = text.trim();
+  if (!trimmed) return { error: "Catatan tidak boleh kosong." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return { error: "Tanggal tidak valid." };
+  const supabase = await createClient();
+  const ctx = await getUserContext();
+  if (!ctx.tenantId) return { error: "Sesi tidak valid." };
+
+  const { data: inv } = await supabase
+    .from("invoices")
+    .select("tracking_notes")
+    .eq("id", invoiceId)
+    .eq("tenant_id", ctx.tenantId)
+    .single();
+  if (!inv) return { error: "Invoice tidak ditemukan." };
+
+  const existing = Array.isArray((inv as { tracking_notes?: unknown }).tracking_notes)
+    ? ((inv as { tracking_notes: TrackingNote[] }).tracking_notes)
+    : [];
+  const cleanImages = Array.isArray(images)
+    ? images.filter((u): u is string => typeof u === "string" && u.length > 0).slice(0, 2)
+    : [];
+  const next = existing.map((n) => {
+    if (n.id !== noteId) return n;
+    const updated: TrackingNote = { ...n, date, text: trimmed };
+    if (cleanImages.length) updated.images = cleanImages;
+    else delete updated.images;
+    return updated;
+  });
 
   const { error } = await supabase
     .from("invoices")

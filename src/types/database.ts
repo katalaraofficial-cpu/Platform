@@ -69,6 +69,7 @@ export interface Settings {
   qty_decimal: boolean;
   feature_catalog_enabled: boolean;
   price_tier_labels: { HET: string; HG1: string; HG2: string; HG3: string };
+  tracking_note_presets: string[];
   // Store info
   store_name: string | null;
   store_address: string | null;

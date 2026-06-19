@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
-import { StickyNote, X, Plus, Eye, Trash2 } from "lucide-react";
+import { useEffect, useState, useRef, useTransition } from "react";
+import { StickyNote, X, Plus, Eye, Trash2, Pencil, ImagePlus, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
 import {
   addInvoiceTrackingNote,
+  updateInvoiceTrackingNote,
   getInvoiceTrackingNotes,
   deleteInvoiceTrackingNote,
+  getTrackingNotePresets,
   type TrackingNote,
 } from "@/lib/actions/invoice";
 
@@ -33,6 +37,31 @@ function fmtDate(iso: string) {
   });
 }
 
+const MAX_IMAGES = 2;
+
+// Kompres gambar di sisi klien (maks lebar 1280px, JPEG q0.7) untuk hemat storage.
+async function compressImage(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxW = 1280;
+    const scale = Math.min(1, maxW / bitmap.width);
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    return await new Promise<Blob>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob ?? file), "image/jpeg", 0.7);
+    });
+  } catch {
+    return file;
+  }
+}
+
 export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, basePath }: Props) {
   const [count, setCount] = useState(initialCount);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -42,10 +71,16 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
   const [notes, setNotes] = useState<TrackingNote[]>([]);
   const [loading, setLoading] = useState(false);
 
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [noteDate, setNoteDate] = useState(todayIso());
   const [noteText, setNoteText] = useState("");
+  const [images, setImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const [presets, setPresets] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Close menu on outside click / Esc
   useEffect(() => {
@@ -88,11 +123,37 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
     }
   }
 
-  function openCreate() {
-    setMenuOpen(false);
+  async function loadPresets() {
+    try {
+      setPresets(await getTrackingNotePresets());
+    } catch {
+      setPresets([]);
+    }
+  }
+
+  function resetForm() {
+    setEditingId(null);
     setNoteDate(todayIso());
     setNoteText("");
+    setImages([]);
     setError(null);
+  }
+
+  function openCreate() {
+    setMenuOpen(false);
+    resetForm();
+    void loadPresets();
+    setShowCreate(true);
+  }
+
+  function openEdit(n: TrackingNote) {
+    setEditingId(n.id);
+    setNoteDate(n.date);
+    setNoteText(n.text);
+    setImages(Array.isArray(n.images) ? n.images : []);
+    setError(null);
+    void loadPresets();
+    setShowPreview(false);
     setShowCreate(true);
   }
 
@@ -102,17 +163,72 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
     void loadNotes();
   }
 
+  function applyPreset(label: string) {
+    setNoteText((prev) => {
+      const t = prev.trim();
+      if (!t) return label;
+      if (t.toLowerCase().startsWith(label.toLowerCase())) return prev;
+      return `${label} — ${t}`;
+    });
+  }
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    const slots = MAX_IMAGES - images.length;
+    if (slots <= 0) {
+      toast.error(`Maksimal ${MAX_IMAGES} gambar`);
+      return;
+    }
+    setError(null);
+    setUploading(true);
+    const supabase = createClient();
+    const added: string[] = [];
+    try {
+      for (const file of files.slice(0, slots)) {
+        if (!file.type.startsWith("image/")) continue;
+        const blob = await compressImage(file);
+        const path = `tracking-notes/${invoiceId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+        const { error: upErr } = await supabase.storage
+          .from("receipt")
+          .upload(path, blob, { contentType: "image/jpeg", upsert: false });
+        if (upErr) {
+          setError("Gagal upload gambar: " + upErr.message);
+          continue;
+        }
+        const { data: urlData } = supabase.storage.from("receipt").getPublicUrl(path);
+        added.push(urlData.publicUrl);
+      }
+      if (added.length) setImages((prev) => [...prev, ...added].slice(0, MAX_IMAGES));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function removeImage(url: string) {
+    setImages((prev) => prev.filter((u) => u !== url));
+  }
+
   function handleSave() {
     setError(null);
     startTransition(async () => {
-      const res = await addInvoiceTrackingNote(invoiceId, noteDate, noteText, basePath);
+      const res = editingId
+        ? await updateInvoiceTrackingNote(invoiceId, editingId, noteDate, noteText, basePath, images)
+        : await addInvoiceTrackingNote(invoiceId, noteDate, noteText, basePath, images);
       if (res.error) {
         setError(res.error);
         return;
       }
+      const wasEditing = !!editingId;
       setShowCreate(false);
-      setNoteText("");
-      setCount((c) => c + 1);
+      resetForm();
+      if (wasEditing) {
+        void loadNotes();
+        setShowPreview(true);
+      } else {
+        setCount((c) => c + 1);
+      }
     });
   }
 
@@ -304,20 +420,48 @@ export function InvoiceNotesCell({ invoiceId, invoiceNumber, initialCount, baseP
                             {fmtDate(n.date)}
                           </div>
                           <p className="mt-1 whitespace-pre-wrap text-xs text-gray-700">{n.text}</p>
+                          {Array.isArray(n.images) && n.images.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {n.images.map((url) => (
+                                <a
+                                  key={url}
+                                  href={url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block h-16 w-16 overflow-hidden rounded-md border border-gray-200"
+                                >
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={url} alt="Foto catatan" className="h-full w-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
+                          )}
                           <div className="mt-1 text-[10px] text-gray-400">
                             Dibuat {new Date(n.created_at).toLocaleString("id-ID")}
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(n.id)}
-                          disabled={pending}
-                          className="flex h-6 w-6 shrink-0 items-center justify-center rounded text-gray-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
-                          title="Hapus catatan"
-                          aria-label="Hapus catatan"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(n)}
+                            disabled={pending}
+                            className="flex h-6 w-6 items-center justify-center rounded text-gray-300 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-30"
+                            title="Edit catatan"
+                            aria-label="Edit catatan"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(n.id)}
+                            disabled={pending}
+                            className="flex h-6 w-6 items-center justify-center rounded text-gray-300 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+                            title="Hapus catatan"
+                            aria-label="Hapus catatan"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </li>
                   ))}

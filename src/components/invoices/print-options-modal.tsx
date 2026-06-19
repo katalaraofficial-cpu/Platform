@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { getInvoiceShareContext } from "@/lib/actions/settings";
 import {
   DEFAULT_WA_TEMPLATE,
   buildItemsBlock,
+  buildRincianBlock,
   formatDateID,
   formatInvoiceStatusID,
   formatRupiah,
@@ -59,6 +60,22 @@ export function PrintOptionsModal({
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState("invoice");
   const [sending, setSending] = useState(false);
+  const [defaultFormat, setDefaultFormat] = useState<"struk" | "nota" | "invoice" | null>(null);
+
+  // Ambil format default dari Pengaturan (Nota & Printer). Bila sudah
+  // ditetapkan owner, modal langsung pakai format itu tanpa minta pilih.
+  useEffect(() => {
+    let cancelled = false;
+    getInvoiceShareContext(invoiceId).then((res) => {
+      if (cancelled) return;
+      const fmt = res.data?.defaultPrintFormat ?? null;
+      if (fmt) {
+        setDefaultFormat(fmt);
+        setSelected(fmt);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [invoiceId]);
 
   function openPreview() {
     window.open(`/print/invoices/${invoiceId}?format=${selected}`, "_blank");
@@ -77,6 +94,19 @@ export function PrintOptionsModal({
       const businessName = ctxRes.data?.businessName ?? "Bengkel";
       const template = ctxRes.data?.template?.trim() ? ctxRes.data.template : DEFAULT_WA_TEMPLATE;
       const itemsBlock = buildItemsBlock(ctxRes.data?.items ?? []);
+      const totals = ctxRes.data?.totals;
+      const rincian = totals
+        ? buildRincianBlock({
+            subtotal: totals.subtotal,
+            discount: totals.discount,
+            ppnPct: totals.ppnPct,
+            ppnAmount: totals.ppnAmount,
+            pphPct: totals.pphPct,
+            pphAmount: totals.pphAmount,
+            shipping: totals.shipping,
+            dp: totals.dp,
+          })
+        : "";
 
       const body = renderWATemplate(template, {
         bisnis: businessName,
@@ -88,6 +118,8 @@ export function PrintOptionsModal({
         status: formatInvoiceStatusID(status ?? null, paidAt ?? null),
         link: previewUrl,
         items: itemsBlock,
+        rincian,
+        subtotal: totals ? formatRupiah(totals.subtotal) : "",
       });
 
       const message = encodeURIComponent(body);
@@ -124,6 +156,7 @@ export function PrintOptionsModal({
             </div>
 
             {/* Format selection */}
+            {!defaultFormat && (
             <div className="p-5 space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">
                 Pilih Format
@@ -158,6 +191,14 @@ export function PrintOptionsModal({
                 </button>
               ))}
             </div>
+            )}
+            {defaultFormat && (
+              <div className="px-5 pt-5">
+                <p className="rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                  Format default: <span className="font-semibold">{FORMATS.find((f) => f.id === defaultFormat)?.label ?? defaultFormat}</span>. Ubah di Pengaturan → Nota &amp; Printer.
+                </p>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex gap-2 border-t border-gray-100 px-5 py-4">

@@ -20,6 +20,7 @@ export const DEFAULT_WA_TEMPLATE = [
   "------------------------------",
   "{items}",
   "------------------------------",
+  "{rincian}",
   "Total : {total}",
   "Status: {status}",
   "",
@@ -97,6 +98,48 @@ export interface WATemplateVars {
   status: string;
   link: string;
   items: string;
+  /** Blok multi-baris berisi Subtotal/Diskon/PPN/PPh/Ongkir/DP. Boleh kosong. */
+  rincian?: string;
+  subtotal?: string;
+}
+
+/**
+ * Bangun blok rincian (Subtotal, Diskon, PPN, PPh, Ongkir, DP) untuk
+ * placeholder {rincian}. Hanya menampilkan baris dengan nilai > 0
+ * supaya pesan WA tetap ringkas saat invoice tidak ada potongan.
+ */
+export function buildRincianBlock(parts: {
+  subtotal?: number;
+  discount?: number;
+  ppnPct?: number;
+  ppnAmount?: number;
+  pphPct?: number;
+  pphAmount?: number;
+  shipping?: number;
+  dp?: number;
+}): string {
+  const lines: string[] = [];
+  if (parts.subtotal && parts.subtotal > 0) {
+    lines.push(`Subtotal: ${formatRupiah(parts.subtotal)}`);
+  }
+  if (parts.discount && parts.discount > 0) {
+    lines.push(`Diskon  : -${formatRupiah(parts.discount)}`);
+  }
+  if (parts.ppnAmount && parts.ppnAmount > 0) {
+    const pctLabel = parts.ppnPct && parts.ppnPct > 0 ? ` ${parts.ppnPct}%` : "";
+    lines.push(`PPN${pctLabel}: ${formatRupiah(parts.ppnAmount)}`);
+  }
+  if (parts.pphAmount && parts.pphAmount > 0) {
+    const pctLabel = parts.pphPct && parts.pphPct > 0 ? ` ${parts.pphPct}%` : "";
+    lines.push(`PPh${pctLabel}: -${formatRupiah(parts.pphAmount)}`);
+  }
+  if (parts.shipping && parts.shipping > 0) {
+    lines.push(`Ongkir  : ${formatRupiah(parts.shipping)}`);
+  }
+  if (parts.dp && parts.dp > 0) {
+    lines.push(`DP      : -${formatRupiah(parts.dp)}`);
+  }
+  return lines.join("\n");
 }
 
 /**
@@ -119,6 +162,8 @@ export function renderWATemplate(
     "{status}": vars.status,
     "{link}": vars.link,
     "{items}": vars.items,
+    "{rincian}": vars.rincian ?? "",
+    "{subtotal}": vars.subtotal ?? "",
   };
 
   // Replace placeholder pertama lalu pecah jadi baris (penting untuk

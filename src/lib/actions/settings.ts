@@ -535,6 +535,19 @@ export type InvoiceShareContext = {
   businessName: string;
   template: string;
   items: Array<{ description: string; quantity: number; final_price: number; unit_label: string | null }>;
+  /** Default format cetak yang dipilih owner di Pengaturan → Nota & Printer. */
+  defaultPrintFormat: "struk" | "nota" | "invoice" | null;
+  totals: {
+    subtotal: number;
+    discount: number;
+    ppnPct: number;
+    ppnAmount: number;
+    pphPct: number;
+    pphAmount: number;
+    shipping: number;
+    dp: number;
+    grandTotal: number;
+  };
 };
 
 export async function getInvoiceShareContext(
@@ -545,7 +558,7 @@ export async function getInvoiceShareContext(
     const admin = createAdminClient();
     const { data: inv, error: invErr } = await admin
       .from("invoices")
-      .select("tenant_id")
+      .select("tenant_id, subtotal, discount_amount, ppn_pct, ppn_amount, pph_pct, pph_amount, shipping_cost, dp_amount, grand_total")
       .eq("id", invoiceId)
       .single();
     if (invErr || !inv) return { error: invErr?.message ?? "Invoice tidak ditemukan" };
@@ -553,7 +566,7 @@ export async function getInvoiceShareContext(
     const [{ data: settings }, { data: tenant }, { data: itemsRaw }] = await Promise.all([
       admin
         .from("settings")
-        .select("store_name, wa_message_template")
+        .select("store_name, wa_message_template, nota_active_format")
         .eq("tenant_id", inv.tenant_id)
         .single(),
       admin.from("tenants").select("name").eq("id", inv.tenant_id).single(),
@@ -571,6 +584,23 @@ export async function getInvoiceShareContext(
     const template =
       (settings as { wa_message_template?: string | null } | null)?.wa_message_template?.trim() ||
       "";
+    const formatRaw = (settings as { nota_active_format?: string | null } | null)?.nota_active_format ?? null;
+    const defaultPrintFormat: "struk" | "nota" | "invoice" | null =
+      formatRaw === "thermal" ? "struk" :
+      formatRaw === "A5" ? "nota" :
+      formatRaw === "A4" ? "invoice" :
+      null;
+    const totals = {
+      subtotal: Number(inv.subtotal ?? 0),
+      discount: Number(inv.discount_amount ?? 0),
+      ppnPct: Number(inv.ppn_pct ?? 0),
+      ppnAmount: Number(inv.ppn_amount ?? 0),
+      pphPct: Number(inv.pph_pct ?? 0),
+      pphAmount: Number(inv.pph_amount ?? 0),
+      shipping: Number(inv.shipping_cost ?? 0),
+      dp: Number(inv.dp_amount ?? 0),
+      grandTotal: Number(inv.grand_total ?? 0),
+    };
     const items = ((itemsRaw ?? []) as Array<{ description: string; quantity: number | string; final_price: number | string | null; unit_label: string | null }>).map(
       (it) => ({
         description: it.description,
@@ -580,7 +610,7 @@ export async function getInvoiceShareContext(
       }),
     );
 
-    return { data: { businessName, template, items } };
+    return { data: { businessName, template, items, defaultPrintFormat, totals } };
   } catch (e) {
     return { error: (e as Error).message };
   }

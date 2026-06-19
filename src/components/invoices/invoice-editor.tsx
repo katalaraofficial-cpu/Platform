@@ -685,7 +685,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
   });
 
   // ── Print size (create mode) ──────────────────────────────────────────
-  const [printSize, setPrintSize] = useState<"thermal" | "a5" | "a4">("a4");
+  // ── Print size: dipindahkan sepenuhnya ke Pengaturan → Nota & Printer ─
   const [showCostDetailsMobile, setShowCostDetailsMobile] = useState(false);
   const [showGrandTotalDetailsMobile, setShowGrandTotalDetailsMobile] = useState(false);
 
@@ -1455,13 +1455,14 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                     <Plus size={14} />
                   </button>
                 )}
-                {customerResults.length > 0 && !customer && (
+                {customerSearch.trim().length > 0 && !customer && (
                   <div className="absolute left-0 top-full z-30 mt-1 w-full rounded-md border border-gray-200 bg-white shadow-lg sm:w-64">
                     {customerResults.map((c) => (
                       <button
                         key={c.id}
                         type="button"
                         className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
                           setCustomer({ id: c.id, name: c.name, phone: c.phone, address: c.address });
                           setCustomerSearch(c.name);
@@ -1473,9 +1474,15 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
                         {c.vehicle_plate && <span className="ml-2 text-xs text-gray-400">{c.vehicle_plate}</span>}
                       </button>
                     ))}
+                    {customerResults.length === 0 && (
+                      <p className="px-3 py-2 text-xs italic text-gray-400">
+                        Tidak ada pelanggan cocok dengan &ldquo;{customerSearch}&rdquo;.
+                      </p>
+                    )}
                     <button
                       type="button"
-                      className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm text-blue-600 hover:bg-blue-50"
+                      className="w-full border-t border-gray-100 px-3 py-2 text-left text-sm font-medium text-blue-600 hover:bg-blue-50"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
                         setCustomerResults([]);
                         setShowAddCustomer(true);
@@ -2602,32 +2609,7 @@ export function InvoiceEditor(props: InvoiceEditorProps) {
             )}
           </div>
 
-          {/* Print size (create mode only) */}
-          {!isEdit && (
-            <div className="border-b border-gray-100 p-4">
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-400">
-                Format Cetak
-              </p>
-              <div className="space-y-1.5">
-                {([
-                  ["thermal", "Struk Thermal (72mm)"],
-                  ["a5", "Nota Kontan (A5)"],
-                  ["a4", "Invoice Profesional (A4)"],
-                ] as const).map(([v, label]) => (
-                  <label key={v} className="flex cursor-pointer items-center gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="printSize"
-                      checked={printSize === v}
-                      onChange={() => setPrintSize(v)}
-                      className="text-blue-600"
-                    />
-                    <span className="text-gray-700">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Print size: dipindahkan ke Pengaturan → Nota & Printer (default tunggal). */}
 
           {/* Status actions (edit mode) */}
           {isEdit && displayStatus && (statusActions.length > 0 || canRollback) && (

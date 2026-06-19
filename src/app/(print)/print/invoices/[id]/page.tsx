@@ -7,6 +7,7 @@ import type { InvoiceItem, VehicleInfo } from "@/types/database";
 import {
   DEFAULT_WA_TEMPLATE,
   buildItemsBlock,
+  buildRincianBlock,
   formatDateID,
   formatInvoiceStatusID,
   formatRupiah,
@@ -841,6 +842,17 @@ export default async function PrintInvoicePage({
         unit_label: (it as { unit_label?: string | null }).unit_label ?? null,
       })),
     ),
+    subtotal: formatRupiah(Number((inv as { subtotal?: number }).subtotal ?? 0)),
+    rincian: buildRincianBlock({
+      subtotal: Number((inv as { subtotal?: number }).subtotal ?? 0),
+      discount: Number((inv as { discount_amount?: number }).discount_amount ?? 0),
+      ppnPct: Number((inv as { ppn_pct?: number }).ppn_pct ?? 0),
+      ppnAmount: Number((inv as { ppn_amount?: number }).ppn_amount ?? 0),
+      pphPct: Number((inv as { pph_pct?: number }).pph_pct ?? 0),
+      pphAmount: Number((inv as { pph_amount?: number }).pph_amount ?? 0),
+      shipping: Number((inv as { shipping_cost?: number }).shipping_cost ?? 0),
+      dp: Number((inv as { dp_amount?: number }).dp_amount ?? 0),
+    }),
   });
   const waMessage = encodeURIComponent(waBody);
   const waLink = customerPhone

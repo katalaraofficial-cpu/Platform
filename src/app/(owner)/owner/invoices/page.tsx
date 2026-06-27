@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/invoices/status-badge";
 import { InvoiceRowActions } from "@/components/invoices/invoice-row-actions";
 import { InvoiceBulkBar } from "@/components/invoices/invoice-bulk-bar";
 import { InvoiceNotesCell } from "@/components/invoices/invoice-notes-cell";
+import { InvoiceFilterBar } from "@/components/invoices/invoice-filter-bar";
 import type { InvoiceStatus } from "@/types/database";
 
 const BASE_PATH = "/owner";
@@ -369,117 +370,19 @@ export default async function OwnerInvoicesPage({
       {/* Table Card */}
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
         <div className="border-b border-gray-100 px-4 py-3">
-          <form method="get" action={`${BASE_PATH}/invoices`} className="space-y-3">
-            <div className="flex flex-wrap items-end gap-3">
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Dari</label>
-              <input
-                type="date"
-                name="from"
-                defaultValue={dateFrom}
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Sampai</label>
-              <input
-                type="date"
-                name="to"
-                defaultValue={dateTo}
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div className="w-[220px]">
-              <label className="mb-1 block text-xs text-gray-500">Status</label>
-              <details className="group relative">
-                <summary className="flex w-full cursor-pointer list-none items-center justify-between rounded-md border border-gray-300 px-2 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900">
-                  <span className="truncate">
-                    {statusList.length === 0
-                      ? "Semua Status"
-                      : statusList.length === 1
-                      ? STATUS_FILTER_OPTIONS.find((o) => o.value === statusList[0])?.label ?? statusList[0]
-                      : `${statusList.length} status dipilih`}
-                  </span>
-                  <span className="ml-2 text-xs text-gray-400 transition-transform group-open:rotate-180">▾</span>
-                </summary>
-                <div className="absolute left-0 top-full z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-md border border-gray-200 bg-white p-2 shadow-lg">
-                  {STATUS_FILTER_OPTIONS.filter((o) => o.value).map((opt) => {
-                    const checked = statusList.includes(opt.value);
-                    return (
-                      <label
-                        key={opt.value}
-                        className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
-                      >
-                        <input
-                          type="checkbox"
-                          name="status"
-                          value={opt.value}
-                          defaultChecked={checked}
-                          className="h-3.5 w-3.5 rounded border-gray-300 text-gray-900 focus:ring-gray-900"
-                          data-no-uppercase
-                        />
-                        <span>{opt.label}</span>
-                      </label>
-                    );
-                  })}
-                  <p className="mt-1 border-t border-gray-100 px-2 py-1 text-[10px] text-gray-400">
-                    Tidak dicentang = semua status
-                  </p>
-                </div>
-              </details>
-            </div>
-            <div className="w-[180px]">
-              <label className="mb-1 block text-xs text-gray-500">Cari Pelanggan</label>
-              <input
-                type="text"
-                name="q"
-                defaultValue={customerQuery}
-                placeholder="Nama pelanggan"
-                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div className="min-w-[220px] flex-1">
-              <label className="mb-1 block text-xs text-gray-500">Cari Item</label>
-              <input
-                type="text"
-                name="item"
-                defaultValue={itemQuery}
-                placeholder="Nama jasa / barang dalam invoice"
-                className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs text-gray-500">Baris</label>
-              <select
-                name="size"
-                defaultValue={String(pageSize)}
-                className="rounded-md border border-gray-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-            </div>
-            <div className="flex items-center justify-center gap-3">
-            <button
-              type="submit"
-              className="rounded-md bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700"
-            >
-              Terapkan
-            </button>
-            {(statusList.length > 0 || dateFrom || dateTo || customerQuery || itemQuery || invoiceNoQuery || pageSize !== DEFAULT_PAGE_SIZE) && (
-              <Link
-                href={`${BASE_PATH}/invoices`}
-                className="text-sm text-gray-400 hover:text-gray-600 underline"
-              >
-                Reset
-              </Link>
-            )}
-            </div>
-          </form>
+          <InvoiceFilterBar
+            basePath={BASE_PATH}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            statusList={statusList}
+            customerQuery={customerQuery}
+            itemQuery={itemQuery}
+            invoiceNoQuery={invoiceNoQuery}
+            pageSize={pageSize}
+            defaultPageSize={DEFAULT_PAGE_SIZE}
+            pageSizeOptions={PAGE_SIZE_OPTIONS}
+            statusOptions={STATUS_FILTER_OPTIONS}
+          />
         </div>
 
         {/* Table */}

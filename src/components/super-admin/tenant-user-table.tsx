@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { removeUsersFromTenant, updateUserProfile } from "@/lib/actions/tenant";
-import { Trash2, ChevronLeft, ChevronRight, AlertTriangle, Pencil, X, Phone, User } from "lucide-react";
+import { removeUsersFromTenant, updateUserProfile, resendOwnTenantInvite } from "@/lib/actions/tenant";
+import { Trash2, ChevronLeft, ChevronRight, AlertTriangle, Pencil, X, Phone, User, Send, Copy } from "lucide-react";
 
 interface UserRow {
   id: string;
@@ -10,6 +10,7 @@ interface UserRow {
   role: string;
   phone: string;
   is_active: boolean;
+  pending?: boolean;
   created_at: string;
 }
 
@@ -50,6 +51,9 @@ export function TenantUserTable({ users, tenantId }: Props) {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editPending, startEditTransition] = useTransition();
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendLink, setResendLink] = useState<string | null>(null);
+  const [resendTransition, startResendTransition] = useTransition();
 
   const totalPages = Math.ceil(users.length / PAGE_SIZE);
   const paginated = users.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
@@ -114,6 +118,21 @@ export function TenantUserTable({ users, tenantId }: Props) {
     });
   }
 
+  function handleResend(u: UserRow) {
+    setResendLink(null);
+    setResendingId(u.id);
+    startResendTransition(async () => {
+      const result = await resendOwnTenantInvite(u.id);
+      setResendingId(null);
+      if (result.error) {
+        setMessage({ type: "error", text: result.error });
+      } else {
+        setMessage({ type: "success", text: result.success ?? "Link aktivasi baru dibuat" });
+        if (result.invite_link) setResendLink(result.invite_link);
+      }
+    });
+  }
+
   if (users.length === 0) {
     return (
       <p className="py-8 text-center text-sm text-gray-400">
@@ -140,6 +159,27 @@ export function TenantUserTable({ users, tenantId }: Props) {
           >
             ×
           </button>
+        </div>
+      )}
+
+      {/* Resend invite link (untuk dikirim manual jika email gagal) */}
+      {resendLink && (
+        <div className="border-b border-amber-100 bg-amber-50 px-5 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-medium text-amber-700">Link aktivasi baru:</p>
+            <button
+              onClick={() => {
+                navigator.clipboard?.writeText(resendLink);
+                setMessage({ type: "success", text: "Link disalin ke clipboard" });
+              }}
+              className="inline-flex items-center gap-1 rounded-lg border border-amber-300 bg-white px-2.5 py-1
+                         text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              <Copy className="h-3.5 w-3.5" />
+              Salin
+            </button>
+          </div>
+          <p className="mt-1 break-all rounded bg-white px-2 py-1 text-[11px] text-gray-600">{resendLink}</p>
         </div>
       )}
 
@@ -227,7 +267,11 @@ export function TenantUserTable({ users, tenantId }: Props) {
                   </span>
                 </td>
                 <td className="px-5 py-3">
-                  {u.is_active ? (
+                  {u.pending ? (
+                    <span className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                      Menunggu Aktivasi
+                    </span>
+                  ) : u.is_active ? (
                     <span className="inline-flex rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
                       Aktif
                     </span>
@@ -241,14 +285,27 @@ export function TenantUserTable({ users, tenantId }: Props) {
                   {formatDate(u.created_at)}
                 </td>
                 <td className="px-5 py-3 text-right" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    onClick={() => openEdit(u)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5
-                               text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
-                  >
-                    <Pencil className="h-3.5 w-3.5" />
-                    Edit
-                  </button>
+                  <div className="inline-flex items-center gap-2">
+                    {u.pending && (
+                      <button
+                        onClick={() => handleResend(u)}
+                        disabled={resendTransition && resendingId === u.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5
+                                   text-xs font-medium text-amber-700 hover:bg-amber-100 transition-colors disabled:opacity-50"
+                      >
+                        <Send className="h-3.5 w-3.5" />
+                        {resendTransition && resendingId === u.id ? "Mengirim…" : "Kirim Ulang"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openEdit(u)}
+                      className="inline-flex items-center gap-1 rounded-lg border border-gray-200 px-2.5 py-1.5
+                                 text-xs font-medium text-gray-600 hover:bg-gray-100 transition-colors"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      Edit
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { getUserContext } from "@/lib/get-user-context";
 import { notFound } from "next/navigation";
 import { AddUserForm } from "@/components/super-admin/add-user-form";
@@ -23,12 +24,26 @@ export default async function OwnerUsersPage() {
     .neq("role", "super_admin")
     .order("created_at", { ascending: true });
 
+  // Cek status aktivasi (email_confirmed_at) via admin API agar tahu
+  // siapa yang masih "Menunggu Aktivasi" (diundang tapi belum verifikasi).
+  const pendingIds = new Set<string>();
+  try {
+    const admin = createAdminClient();
+    const { data: authList } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    for (const au of authList?.users ?? []) {
+      if (!au.email_confirmed_at) pendingIds.add(au.id);
+    }
+  } catch {
+    // Abaikan — jika gagal, semua dianggap aktif (fallback aman)
+  }
+
   const userRows = (users ?? []).map((u) => ({
     id: u.id,
     full_name: u.full_name ?? "(tanpa nama)",
     role: u.role,
     phone: (u.phone as string | null) ?? "",
     is_active: u.is_active ?? true,
+    pending: pendingIds.has(u.id),
     created_at: u.created_at,
   }));
 

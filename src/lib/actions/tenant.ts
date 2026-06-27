@@ -309,6 +309,61 @@ function ownerRoleAllowed(role: UserRole) {
   return ["admin", "mechanic"].includes(role);
 }
 
+// ── Kirim ulang undangan (untuk user yang belum aktivasi) ──────
+// Mengatasi link undangan yang sudah kedaluwarsa: menghasilkan link
+// baru (recovery) yang mengarah ke halaman set-password.
+export async function resendOwnTenantInvite(userId: string): Promise<ActionState> {
+  const { role, tenantId: currentTenantId } = await assertOwnerOrSuperAdmin();
+  const adminClient = createAdminClient();
+
+  if (!userId) return { error: "User tidak valid" };
+  if (!currentTenantId && role !== "super_admin") return { error: "Tenant tidak valid" };
+
+  // Pastikan user berada di tenant ini
+  const supabase = await createClient();
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name, role, tenant_id")
+    .eq("id", userId)
+    .single();
+  if (!profile) return { error: "Pengguna tidak ditemukan" };
+  if (role !== "super_admin" && profile.tenant_id !== currentTenantId) {
+    return { error: "Pengguna bukan bagian dari tenant ini" };
+  }
+
+  // Ambil email & status dari auth
+  const { data: authUser, error: authErr } = await adminClient.auth.admin.getUserById(userId);
+  if (authErr || !authUser?.user?.email) {
+    return { error: "Gagal membaca data akun: " + (authErr?.message ?? "unknown") };
+  }
+  if (authUser.user.email_confirmed_at) {
+    return { error: "Pengguna sudah aktivasi — tidak perlu kirim ulang." };
+  }
+  const email = authUser.user.email;
+  const fullName = profile.full_name ?? email.split("@")[0];
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://katalara-pos.vercel.app";
+  const { data: linkData, error: linkErr } = await adminClient.auth.admin.generateLink({
+    type: "recovery",
+    email,
+    options: { redirectTo: `${siteUrl}/auth/callback?next=/auth/set-password` },
+  });
+  if (linkErr || !linkData?.properties?.action_link) {
+    return { error: "Gagal membuat link baru: " + (linkErr?.message ?? "unknown") };
+  }
+
+  const inviteLink = linkData.properties.action_link;
+  const emailSent = await sendInviteEmail(email, fullName, profile.role, inviteLink);
+
+  revalidatePath(`/owner/users`);
+  return {
+    success: emailSent
+      ? `Link aktivasi baru terkirim ke ${email}`
+      : `Link aktivasi baru siap. Email gagal — salin link di bawah dan kirim manual.`,
+    invite_link: inviteLink,
+  };
+}
+
 // ── Setujui pendaftaran tenant ────────────────────────────────
 export async function approveRegistration(
   requestId: string

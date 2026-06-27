@@ -9,6 +9,9 @@ import type { ItemType, InvoiceStatus, Invoice, PaymentSource, MechanicRoleInInv
 
 export type ActionState = { error?: string };
 
+// markup_pct disimpan sebagai NUMERIC(10,2) — clamp agar tidak overflow
+const MAX_MARKUP_PCT = 99999999.99;
+
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 
 // ── Internal: recalculate invoice totals from items ──────────
@@ -275,7 +278,7 @@ export async function addInvoiceItem(
   const unitPrice = Math.max(0, Number(formData.get("unit_price")) || 0);
   const markupPct =
     (itemType === "part_external" || itemType === "part_internal")
-      ? Math.max(0, Number(formData.get("markup_pct")) || 0)
+      ? Math.min(MAX_MARKUP_PCT, Math.max(0, Number(formData.get("markup_pct")) || 0))
       : 0;
   const finalPrice = unitPrice * quantity * (1 + markupPct / 100);
   const paymentSource: PaymentSource | null =
@@ -681,7 +684,7 @@ export async function updateInvoiceItem(
     finalPrice = data.sellPrice * data.quantity;
     markupPct =
       !isService && resolvedUnitPrice > 0
-        ? Math.max(0, ((data.sellPrice - resolvedUnitPrice) / resolvedUnitPrice) * 100)
+        ? Math.min(MAX_MARKUP_PCT, Math.max(0, ((data.sellPrice - resolvedUnitPrice) / resolvedUnitPrice) * 100))
         : 0;
     await supabase
       .from("invoice_items")

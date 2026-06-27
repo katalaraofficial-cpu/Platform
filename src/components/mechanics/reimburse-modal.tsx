@@ -19,6 +19,31 @@ function parseAmount(display: string): number {
   return parseInt(display.replace(/\./g, ""), 10) || 0;
 }
 
+// Kompresi gambar di sisi klien: menerima foto besar lalu memperkecil
+// dimensi (maks 1600px) & kualitas JPEG agar hemat storage.
+async function compressImage(file: File): Promise<Blob> {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const maxW = 1600;
+    const scale = Math.min(1, maxW / bitmap.width);
+    const w = Math.round(bitmap.width * scale);
+    const h = Math.round(bitmap.height * scale);
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, w, h);
+    bitmap.close?.();
+    return await new Promise<Blob>((resolve) => {
+      canvas.toBlob((blob) => resolve(blob ?? file), "image/jpeg", 0.7);
+    });
+  } catch {
+    return file;
+  }
+}
+
+
 // ── Modal shell ───────────────────────────────────────────────
 function Modal({
   open,
@@ -89,22 +114,23 @@ export function ReimburseModal({
   async function handleProofUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 3 * 1024 * 1024) {
-      setErr("Ukuran file maksimal 3 MB");
+    if (!file.type.startsWith("image/")) {
+      setErr("File harus berupa gambar");
       return;
     }
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setErr("Hanya JPEG, PNG, atau WebP yang diizinkan");
+    // Batas wajar input (foto kamera bisa besar) sebelum dikompresi
+    if (file.size > 25 * 1024 * 1024) {
+      setErr("Ukuran file maksimal 25 MB");
       return;
     }
     setErr("");
     setIsUploading(true);
     const supabase = createClient();
-    const ext = file.name.split(".").pop() ?? "jpg";
-    const path = `payment-proofs/${tenantId}/${Date.now()}.${ext}`;
+    const blob = await compressImage(file);
+    const path = `payment-proofs/${tenantId}/${Date.now()}.jpg`;
     const { error: storageErr } = await supabase.storage
       .from("receipt")
-      .upload(path, file, { contentType: file.type, upsert: false });
+      .upload(path, blob, { contentType: "image/jpeg", upsert: false });
     if (storageErr) {
       setErr("Gagal upload bukti: " + storageErr.message);
       setIsUploading(false);
@@ -263,7 +289,7 @@ export function ReimburseModal({
               )}
               <input
                 type="file"
-                accept="image/jpeg,image/png,image/webp"
+                accept="image/*"
                 className="hidden"
                 onChange={handleProofUpload}
                 disabled={isUploading}
